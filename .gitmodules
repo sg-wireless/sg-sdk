@@ -1,0 +1,6 @@
+[submodule "ext/micropython"]
+	path = ext/micropython
+	url = https://github.com/micropython/micropython.git
+[submodule "ext/esp-idf"]
+	path = ext/esp-idf
+	url = https://github.com/espressif/esp-idf.git

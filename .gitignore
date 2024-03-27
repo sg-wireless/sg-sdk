@@ -1,0 +1,14 @@
+build/
+build-*/
+.vscode/
+output.txt
+*.code-workspace
+*.DS_Store
+*build-unittest*
+.cproject
+*.lock
+.project
+.settings
+__pycache__
+**/modified_sources
+test-results

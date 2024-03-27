@@ -1,0 +1,103 @@
+# ---------------------------------------------------------------------------- #
+# Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files(the “Software”), to deal
+# in the Software without restriction, including without limitation the rights
+# to use,  copy,  modify,  merge, publish, distribute, sublicense, and/or sell
+# copies  of  the  Software,  and  to  permit  persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED “AS IS”,  WITHOUT WARRANTY OF ANY KIND,  EXPRESS OR
+# IMPLIED,  INCLUDING BUT NOT LIMITED TO  THE  WARRANTIES  OF  MERCHANTABILITY
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+# AUTHORS  OR  COPYRIGHT  HOLDERS  BE  LIABLE FOR ANY CLAIM,  DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN  CONNECTION WITH  THE SOFTWARE OR  THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+#
+# Author    Ahmed Sabry (SG Wireless)
+#
+# Desc      platform configuration file
+# ---------------------------------------------------------------------------- #
+
+# ---------------------------------------------------------------------------- #
+# hardware features
+# ---------------------------------------------------------------------------- #
+[features]
+    lora = true
+    lte  = true
+    secure-element = true
+
+# ---------------------------------------------------------------------------- #
+# external submodules
+# ---------------------------------------------------------------------------- #
+[submodules]
+    # default submodules, will be included anyway
+    default = [ "esp-idf" ]
+
+    # submodules specific for software build variant type
+    [submodules.variant]
+        micropython = [ "micropython" ]
+
+    # submodules specific to the existence of specific feature
+    [submodules.features]
+
+        # lora = [ "LoRaMac-node" ]
+
+# ---------------------------------------------------------------------------- #
+# prerquisite tools to be installed
+# ---------------------------------------------------------------------------- #
+[tools]
+    default = [ 'esp-idf' ]
+
+# ---------------------------------------------------------------------------- #
+# configs
+# -------
+# § contains platform specific configurations
+# § each board config file can override one or more of these configurations
+# ---------------------------------------------------------------------------- #
+[configs]
+
+    # ESP-IDF target
+    idf-target = "esp32s3"
+
+    # flash partition table for esp-idf
+    # it can be a csv file or an toml array of arrays
+
+    # partition-table-file = "partition_table_16mb.csv"
+
+    partition-table = [
+        # Name,     Type,   SubType,    Offset,     Size
+        ["nvs"    , "data"  , "nvs",    "0x11000",    "0xB000", ""          ],
+        ["otadata", "data"  , "ota",    "0x1C000",    "0x2000", ""          ],
+        ["config" , "data"  , "6",      "0x1E000",    "0x1000", ""          ],
+        ["rfu1"   , "data"  , "6",      "0x1F000",    "0x1000", ""          ],
+        ["factory", "app"   , "factory","0x20000",    "2560k",  "encrypted" ],
+        ["ota_0"  , "app"   , "ota_0",  "0x2A0000",   "2560k",  "encrypted" ],
+        ["ota_1"  , "app"   , "ota_1",  "0x520000",   "2560k",  "encrypted" ],
+        ["rfu2"   , "data"  , "6",      "0x7A0000",   "384",    ""          ],
+        ["vfs"    , "data"  , "6",      "0x800000",   "8192k",  "encrypted" ]
+    ]
+
+    # sdkconfig for esp-idf
+    # it can be an array of sdkconfig files or toml table
+    # the repetition of a config will cause a build system error.
+    sdkconfig-files = [
+        "configs/sdkconfig.base",
+        "configs/sdkconfig.usb",
+        "configs/sdkconfig.ble",
+        "configs/sdkconfig.spiram_sx",
+        "configs/sdkconfig.board"
+    ]
+
+    [configs.sdkconfig]
+
+    # sdkconfig specific configs for micropython build variant
+    [configs.micropython.sdkconfig]
+        CONFIG_FREERTOS_ENABLE_STATIC_TASK_CLEAN_UP="y"
+
+# --- end of file ------------------------------------------------------------ #

@@ -1,0 +1,64 @@
+# ---------------------------------------------------------------------------- #
+# Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files(the “Software”), to deal
+# in the Software without restriction, including without limitation the rights
+# to use,  copy,  modify,  merge, publish, distribute, sublicense, and/or sell
+# copies  of  the  Software,  and  to  permit  persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED “AS IS”,  WITHOUT WARRANTY OF ANY KIND,  EXPRESS OR
+# IMPLIED,  INCLUDING BUT NOT LIMITED TO  THE  WARRANTIES  OF  MERCHANTABILITY
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+# AUTHORS  OR  COPYRIGHT  HOLDERS  BE  LIABLE FOR ANY CLAIM,  DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN  CONNECTION WITH  THE SOFTWARE OR  THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+#
+# Author    Ahmed Sabry (SGWireless)
+#
+# Desc      Including the build files of the SGW3501 board dir.
+# ---------------------------------------------------------------------------- #
+
+# environment
+cmake_minimum_required(VERSION 3.21)
+include($ENV{__tree_dir_builder}/cmake/env.cmake)
+
+# target
+set(IDF_TARGET esp32s3)
+
+log_var(APP_NAME)
+log_var(APP_DIR)
+log_var(SDK_PLATFORM)
+log_var(SDK_BOARD_OEM_NAME)
+log_var(SDK_BOARD_OEM_NUMBER)
+log_var(SDK_BOARD_SHIELD)
+log_var(VARIANT)
+log_var(__partition_table)
+log_list(__sdkconfigs_files)
+
+# sdk components cmake lists
+__sdk_add_comp_dirs(
+)
+
+if(DEFINED __sdkconfigs_files)
+    __sdk_add_kconfig_default(${__sdkconfigs_files})
+endif()
+
+if(DEFINED __partition_table)
+    __set_global_attribute(PARTITION_TABLE ${__partition_table})
+endif()
+
+# bind to the esp-idf build system
+include (${__dir_cmake}/esp-idf.cmake)
+if(OFF)
+    # the actual call to the project() will be occur inside esp-idf.cmake
+    # this fake call here to get ride of a certain cmake warning
+    project(${__prj_name})
+endif()
+
+# --- end of file ------------------------------------------------------------ #
