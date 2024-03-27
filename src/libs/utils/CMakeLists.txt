@@ -19,47 +19,18 @@
 # OUT OF OR IN  CONNECTION WITH  THE SOFTWARE OR  THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 #
-# Author    Ahmed Sabry (SGWireless)
+# Author    Ahmed Sabry (SG Wireless)
 #
-# Desc      Including the build files of the SGW3501 board dir.
+# Desc      It supports the build of the lib_utils
 # ---------------------------------------------------------------------------- #
 
-# environment
-cmake_minimum_required(VERSION 3.21)
-include($ENV{__tree_dir_builder}/cmake/env.cmake)
+__sdk_add_component( utils_lib
 
-# target
-set(IDF_TARGET esp32s3)
+    SRCS
+        "${CMAKE_CURRENT_LIST_DIR}/*.c"
 
-log_var(APP_NAME)
-log_var(APP_DIR)
-log_var(SDK_PLATFORM)
-log_var(SDK_BOARD_OEM_NAME)
-log_var(SDK_BOARD_OEM_NUMBER)
-log_var(SDK_BOARD_SHIELD)
-log_var(VARIANT)
-log_var(__partition_table)
-log_list(__sdkconfigs_files)
-
-# sdk components cmake lists
-__sdk_add_comp_dirs(
-    ${__dir_src}/libs/utils
+    INCS_IF
+        ${CMAKE_CURRENT_LIST_DIR}
 )
-
-if(DEFINED __sdkconfigs_files)
-    __sdk_add_kconfig_default(${__sdkconfigs_files})
-endif()
-
-if(DEFINED __partition_table)
-    __set_global_attribute(PARTITION_TABLE ${__partition_table})
-endif()
-
-# bind to the esp-idf build system
-include (${__dir_cmake}/esp-idf.cmake)
-if(OFF)
-    # the actual call to the project() will be occur inside esp-idf.cmake
-    # this fake call here to get ride of a certain cmake warning
-    project(${__prj_name})
-endif()
 
 # --- end of file ------------------------------------------------------------ #
