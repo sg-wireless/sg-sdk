@@ -1,0 +1,30 @@
+--- ../../../../ext/micropython/ports/esp32/uart.c	2023-11-14 10:45:09
++++ ./modified_sources/uart.c	2023-12-06 16:39:38
+@@ -34,6 +34,7 @@
+ #include "py/runtime.h"
+ #include "py/mphal.h"
+ #include "uart.h"
++#include "board_hooks.h"
+ 
+ STATIC void uart_irq_handler(void *arg);
+ 
+@@ -62,9 +63,11 @@
+ int uart_stdout_tx_strn(const char *str, size_t len) {
+     size_t remaining = len;
+     // TODO add a timeout
++    __hook_mpy_uart_stdout_access_lock();
+     for (;;) {
+         int ret = uart_tx_chars(MICROPY_HW_UART_REPL, str, remaining);
+         if (ret == -1) {
++            __hook_mpy_uart_stdout_access_unlock();
+             return -1;
+         }
+         remaining -= ret;
+@@ -74,6 +77,7 @@
+         str += ret;
+         ulTaskNotifyTake(pdFALSE, 1);
+     }
++    __hook_mpy_uart_stdout_access_unlock();
+     return len - remaining;
+ }
+ 

@@ -1,0 +1,162 @@
+# ---------------------------------------------------------------------------- #
+# Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files(the “Software”), to deal
+# in the Software without restriction, including without limitation the rights
+# to use,  copy,  modify,  merge, publish, distribute, sublicense, and/or sell
+# copies  of  the  Software,  and  to  permit  persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED “AS IS”,  WITHOUT WARRANTY OF ANY KIND,  EXPRESS OR
+# IMPLIED,  INCLUDING BUT NOT LIMITED TO  THE  WARRANTIES  OF  MERCHANTABILITY
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+# AUTHORS  OR  COPYRIGHT  HOLDERS  BE  LIABLE FOR ANY CLAIM,  DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN  CONNECTION WITH  THE SOFTWARE OR  THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+#
+# Author    Ahmed Sabry (SG Wireless)
+#
+# Desc      A configuration file for the logs library
+# ---------------------------------------------------------------------------- #
+
+config SDK_LOG_LIB_ENABLE
+    bool "enable SDK logs library"
+    default y
+    help
+        To enable the log lib logging. of disabled the __log_output is still
+        working regardless of this option.
+
+    config SDK_LOG_LIB_MEMORY_BUFFER_SIZE_KB
+        int "logging buffers memory space in KB"
+        default 4
+        depends on SDK_LOG_LIB_ENABLE
+
+
+    config SDK_LOG_LIB_TERMINAL_COLORING_ENABLE
+        bool "enable logs coloring"
+        default y
+        depends on SDK_LOG_LIB_ENABLE
+
+    menu "logging types"
+        config SDK_LOG_LIB_TYPE_PRINTF
+            bool "enable __log_printf()"
+            default y
+            depends on SDK_LOG_LIB_ENABLE
+        config SDK_LOG_LIB_TYPE_INFO
+            bool "enable __log_info()"
+            default y
+            depends on SDK_LOG_LIB_ENABLE
+        config SDK_LOG_LIB_TYPE_DEBUG
+            bool "enable __log_debug()"
+            default y
+            depends on SDK_LOG_LIB_ENABLE
+        config SDK_LOG_LIB_TYPE_WARN
+            bool "enable __log_warn()"
+            default y
+            depends on SDK_LOG_LIB_ENABLE
+        config SDK_LOG_LIB_TYPE_ERROR
+            bool "enable __log_error()"
+            default y
+            depends on SDK_LOG_LIB_ENABLE
+        config SDK_LOG_LIB_TYPE_ASSERT
+            bool "enable __log_assert()"
+            default y
+            depends on SDK_LOG_LIB_ENABLE
+        config SDK_LOG_LIB_TYPE_MEM_DUMP
+            bool "enable __log_mem_dump()"
+            default y
+            depends on SDK_LOG_LIB_ENABLE
+        config SDK_LOG_LIB_TYPE_TEST
+            bool "enable __log_test()"
+            default y
+            depends on SDK_LOG_LIB_ENABLE
+        config SDK_LOG_LIB_TYPE_ENFORCE
+            bool "enable __log_enforce()"
+            default y
+            depends on SDK_LOG_LIB_ENABLE
+    endmenu
+
+    menu "log line header configs"
+        depends on SDK_LOG_LIB_ENABLE
+
+        config SDK_LOG_LIB_HEADER_TIMESTAMP
+            bool "enable header field 'timestamp'"
+            default y
+        config SDK_LOG_LIB_HEADER_LOG_TYPE
+            bool "enable header field 'log_type'"
+            default y
+        config SDK_LOG_LIB_HEADER_OS_CONTEXT_INFO
+            bool "enable header field 'os_context_info'"
+            default y
+        config SDK_LOG_LIB_HEADER_FILENAME
+            bool "enable header field 'filename'"
+            default n
+        config SDK_LOG_LIB_HEADER_LINE_NUM
+            bool "enable header field 'line_num'"
+            default n
+        config SDK_LOG_LIB_HEADER_FUNC_NAME
+            bool "enable header field 'func_name'"
+            default y
+        config SDK_LOG_LIB_HEADER_SUBSYSTEM
+            bool "enable header field 'subsystem'"
+            default y
+        config SDK_LOG_LIB_HEADER_COMPONENT
+            bool "enable header field 'component'"
+            default y
+
+        
+
+        config SDK_LOG_LIB_TOTAL_LINE_WRAPPING_ENABLE
+            bool "Enable log line wrapping"
+            default n
+        config SDK_LOG_LIB_TOTAL_LINE_WIDTH
+            int "Total width of log line"
+            default 86
+            depends on SDK_LOG_LIB_TOTAL_LINE_WRAPPING_ENABLE
+
+        config SDK_LOG_LIB_HEADER_TIMESTAMP_WIDTH
+            int "width of log header field 'timestamp'"
+            default 13
+            depends on SDK_LOG_LIB_HEADER_TIMESTAMP
+        config SDK_LOG_LIB_HEADER_LOG_TYPE_WIDTH
+            int "width of log header field 'log_type'"
+            default 8
+            depends on SDK_LOG_LIB_HEADER_LOG_TYPE
+        config SDK_LOG_LIB_HEADER_OS_CONTEXT_INFO_WIDTH
+            int "width of log header field 'os_context_info'"
+            default 10
+            depends on SDK_LOG_LIB_HEADER_OS_CONTEXT_INFO
+        config SDK_LOG_LIB_HEADER_FILENAME_WIDTH
+            int "width of log header field 'filename'"
+            default 12
+            depends on SDK_LOG_LIB_HEADER_FILENAME
+        config SDK_LOG_LIB_HEADER_LINE_NUM_WIDTH
+            int "width of log header field 'line_num'"
+            default 6
+            depends on SDK_LOG_LIB_HEADER_LINE_NUM
+        config SDK_LOG_LIB_HEADER_FUNC_NAME_WIDTH
+            int "width of log header field 'func_name'"
+            default 15
+            depends on SDK_LOG_LIB_HEADER_FUNC_NAME
+        config SDK_LOG_LIB_HEADER_SUBSYSTEM_WIDTH
+            int "width of log header field 'subsystem'"
+            default 9
+            depends on SDK_LOG_LIB_HEADER_SUBSYSTEM
+        config SDK_LOG_LIB_HEADER_COMPONENT_WIDTH
+            int "width of log header field 'component'"
+            default 13
+            depends on SDK_LOG_LIB_HEADER_COMPONENT
+    endmenu
+
+    config SDK_LOG_LIB_MPY_CMOD_ENABLE
+        bool "enable micropython 'logs' module"
+        default y
+        depends on SDK_LOG_LIB_ENABLE
+
+
+# --- end of file ------------------------------------------------------------ #

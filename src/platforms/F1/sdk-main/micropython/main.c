@@ -233,6 +233,9 @@ void boardctrl_startup(void) {
         nvs_flash_erase();
         nvs_flash_init();
     }
+
+    void init_log_system(void);
+    init_log_system();
 }
 
 void app_main(void) {

@@ -1,0 +1,1 @@
+This folder shall contain all component which are platform dependent

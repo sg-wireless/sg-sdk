@@ -26,6 +26,7 @@
 # ---------------------------------------------------------------------------- #
 
 include(${__dir_cmake}/micropython.cmake)
+include(${__dir_src}/libs/logs/gen/logs_gen.cmake)
 
 # ---------------------------------------------------------------------------- #
 # synopsis:
@@ -258,6 +259,15 @@ function(__esp_idf_process_preparation)
         __sdk_enable_user_comps()
         include(${__user_prj_dir}/CMakeLists.txt)
         __sdk_disable_user_comps()
+    endif()
+
+    # -- generate the logs definitions
+    log_dbg("STEP >> generate the log lib headers" cyan)
+    set(__gen_dir ${CMAKE_BINARY_DIR}/sdk_log_gen_dir)
+    __sdk_get_logs_defs_files(__files_list)
+    if(__files_list)
+        __run_logs_defs_generator(GEN_DIR ${__gen_dir} SOURCES ${__files_list})
+        __set_global_attribute(SDK_INCS ${__gen_dir} APPEND)
     endif()
 
     # -- obtain all contributing SDK libraries

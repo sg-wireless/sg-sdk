@@ -26,6 +26,9 @@
 
 __sdk_add_component( utils_lib
 
+    LOGS_DEFS
+        ${CMAKE_CURRENT_LIST_DIR}/logs_defs.h
+
     SRCS
         "${CMAKE_CURRENT_LIST_DIR}/*.c"
 
