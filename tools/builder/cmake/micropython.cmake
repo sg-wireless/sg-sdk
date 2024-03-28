@@ -27,6 +27,42 @@
 
 # ---------------------------------------------------------------------------- #
 # synopsis:
+#       __micropython_update_generated_modules()
+#
+# description:
+#       this function is responsible for managing the micropython c-modules
+#       file generation.
+# ---------------------------------------------------------------------------- #
+function(__micropython_update_generated_modules)
+
+    include(${__dir_src}/libs/mpy-al/gen/cmod_binding_gen.cmake)
+    __entity_find(__libs_with_cmods MPY_CMODS "")
+
+    set(__gen_dir ${CMAKE_BINARY_DIR}/mpy_cmod_gen_dir)
+    if(NOT EXISTS ${__gen_dir})
+        file( MAKE_DIRECTORY ${__gen_dir} )
+    endif()
+
+    foreach(__sdk_lib ${__libs_with_cmods})
+        __entity_get_attribute(${__sdk_lib} MPY_CMODS __cmods LOG_OFF)
+        set(__gen_files_var ${__sdk_lib}__cmod_generated_files)
+        generate_mpy_cmod_binding_files(
+            SRCS    ${__cmods}
+            OUT_VAR ${__gen_files_var}
+            GEN_DIR ${__gen_dir}
+            GEN_LOGS_FILE ${__gen_dir}/__sdk_lib_${__sdk_lib}.log
+        )
+        log_list(${__sdk_lib}__cmod_generated_files)
+        __entity_set_attribute(${__sdk_lib}
+            SOURCES ${${__gen_files_var}} APPEND)
+
+        __entity_set_attribute(${__sdk_lib}
+            MPY_GEN_FILES ${${__gen_files_var}} APPEND)
+    endforeach()
+endfunction()
+
+# ---------------------------------------------------------------------------- #
+# synopsis:
 #       __micropython_update_usermod_list_files()
 #
 # description:
@@ -147,17 +183,26 @@ function(__micropython_update_esp_idf_list_file __list_file)
 
     # MICROPY_FROZEN_CONTENT dependencies
     __micropython_get_manifest_python_files(__manifest_python_files)
-    if(__manifest_python_files)
     string(APPEND __contents "if(NOT CMAKE_SCRIPT_MODE_FILE)\n")
-    string(APPEND __contents "add_custom_command(\n")
-    string(APPEND __contents "${__ts}OUTPUT \${MICROPY_FROZEN_CONTENT}\n")
-    string(APPEND __contents "${__ts}DEPENDS\n")
-    foreach(__py_file ${__manifest_python_files})
-        string(APPEND __contents "${__ts}${__ts}${__py_file}\n")
-    endforeach()
-    string(APPEND __contents "${__ts}APPEND\n${__ts})\n")
-    string(APPEND __contents "endif()\n\n")
+    if(__manifest_python_files)
+
+        string(APPEND __contents "add_custom_command(\n")
+        string(APPEND __contents "${__ts}OUTPUT \${MICROPY_FROZEN_CONTENT}\n")
+        string(APPEND __contents "${__ts}DEPENDS\n")
+        foreach(__py_file ${__manifest_python_files})
+            string(APPEND __contents "${__ts}${__ts}${__py_file}\n")
+        endforeach()
+        string(APPEND __contents "${__ts}APPEND\n${__ts})\n")
+
+        
     endif()
+
+    file(GLOB __files_to_delete "${CMAKE_BINARY_DIR}/genhdr/module/*")
+    if(__files_to_delete)
+        file(REMOVE ${__files_to_delete})
+    endif()
+
+    string(APPEND __contents "endif()\n\n")
 
     string(APPEND __contents "log_var(MICROPY_TARGET)\n")
     string(APPEND __contents "log_var(MICROPY_MPVERSION)\n")

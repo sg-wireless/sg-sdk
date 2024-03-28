@@ -272,6 +272,7 @@ function(__esp_idf_process_preparation)
     # --- process micropython project binding
     if("${__build_variant}" STREQUAL "micropython")
         log_dbg("STEP >> start micropython preparation" cyan)
+        __micropython_update_generated_modules()
         __micropython_update_usermod_list_files()
 
         if(NOT EXISTS ${__sdk_cmake_lists_dir}/micropython)
