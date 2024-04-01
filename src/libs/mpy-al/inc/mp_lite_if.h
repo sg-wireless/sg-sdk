@@ -44,10 +44,6 @@ extern "C" {
 #include "utils_misc.h"
 #include "py/runtime.h"
 
-#ifdef MAIN_SDK_CONFIG_FILE
-#include MAIN_SDK_CONFIG_FILE
-#endif
-
 /* --- mp lite interface introduction --------------------------------------- */
 
 /***************************************************************************//**

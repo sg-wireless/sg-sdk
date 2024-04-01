@@ -69,10 +69,13 @@ endfunction()
 # description:
 #       § It deduces the final output image application name and write it to the
 #         caller given variable attached with the keyword APP_NAME_VAR.
-#       § It identifies which directory is holding the main application code
-#         and writes it to the caller given variable attached with keyword
-#         APP_DIR_VAR. The identification process depends on the user provided
-#         variables on the command line. Those variables are:
+#       § It returns the SDK built-in main application component. If the user
+#         provided a user project directory and the build variant is native, the
+#         returned variable 'APP_DIR_VAR' will be empty.
+#       § The caller can request either or both of the app name and app dir
+#         but not neither of them.
+#       § The identification process depends on the user provided variables on
+#         the command line. Those variables are:
 #           * VARIANT   the build variant is either "micropython" or "native"
 #           * APP_NAME  the desired user application name
 #           * APP_DIR   the dedicated user application main directory path
@@ -96,8 +99,6 @@ function(__esp_idf_get_main_component)
     elseif("${__build_variant}" STREQUAL "native")
         if(NOT DEFINED APP_DIR)
             set(__app_dir ${__prj_dir}/sdk-main/native-default)
-        else()
-            set(__app_dir ${APP_DIR})
         endif()
     elseif("${__build_variant}" STREQUAL "")
         log_msg("missing build VARIANT type" fatal_error)
@@ -243,7 +244,9 @@ function(__esp_idf_process_preparation)
     # -- add the main application component to the components lists dirs
     log_dbg("STEP >> obtain the application main component dir" cyan)
     __esp_idf_get_main_component(APP_DIR_VAR __sdk_main_dir)
-    list(APPEND __comp_cmake_list_files ${__sdk_main_dir}/CMakeLists.txt)
+    if(__sdk_main_dir)
+        list(APPEND __comp_cmake_list_files ${__sdk_main_dir}/CMakeLists.txt)
+    endif()
     
     # -- include all project cmake lists
     log_dbg("STEP >> include all SDK components cmake list files" cyan)
@@ -340,29 +343,8 @@ function(__esp_idf_process_preparation)
     set(__lib_comp_dir ${__sdk_cmake_lists_dir}/sdk_main_menu_config)
     make_directory(${__lib_comp_dir})
 
-    log_dbg("combining all sdk libs kconfig files")
-    set(__contents "menu \"SDK Components\"\n")
-    set(__ts "    ")
-    foreach(__sdk_lib ${__sdk_libraries})
-        __entity_get_attribute(${__sdk_lib} MENU_CONFIG __menu_file)
-        if(DEFINED __menu_file)
-            log_dbg("lib ${__sdk_lib} has menu config file ${__menu_file}")
-            string(APPEND __contents "${__ts}menu \"${__sdk_lib}\"\n")
-            string(APPEND __contents
-                "${__ts}${__ts}source \"${__menu_file}\"\n")
-            string(APPEND __contents "${__ts}endmenu\n")
-        else()
-            log_dbg("lib ${__sdk_lib} does not have menu file")
-        endif()
-    endforeach()
-    string(APPEND __contents "endmenu\n")
+    __sdk_menu_config_generate(${__lib_comp_dir}/Kconfig.projbuild)
 
-    set(__sdk_components_menuconfig ${__lib_comp_dir}/sdk_components_kconfigs)
-    __sdk_update_file_contents(${__sdk_components_menuconfig} ${__contents})
-
-    __get_global_attribute(MENU_CONFIG __kconfig_projbuild_files)
-    __sdk_concatenate_files(${__lib_comp_dir}/Kconfig.projbuild
-        ${__kconfig_projbuild_files} ${__sdk_components_menuconfig})
     set(__contents "idf_component_register()\n")
     __sdk_update_file_contents(${__lib_comp_dir}/CMakeLists.txt ${__contents})
     list(APPEND __esp_idf_comps ${__lib_comp_dir})
@@ -398,10 +380,31 @@ function(__esp_idf_process_finalization)
     # -- add private compile flags and definitions to every library
     log_dbg("STEP >> apply private flags to each library" cyan)
     __entity_find(__libs ENTITY_TYPE library)
+    __entity_find(__sdk_libs ENTITY_TYPE sdklib)
+    __entity_find(__usr_libs ENTITY_TYPE userlib)
+    log_list(__sdk_libs)
+    log_list(__usr_libs)
+    __sdk_get_compile_options(__sdk_libs_cc_flags SDK_LIBS)
+    __sdk_get_compile_options(__usr_libs_cc_flags USR_LIBS)
+    log_list(__sdk_libs_cc_flags)
+    log_list(__usr_libs_cc_flags)
     foreach(__lib ${__libs})
         __entity_get_attribute(${__lib} DEFINITIONS __defs)
         target_compile_definitions(__idf_${__lib} PRIVATE ${__defs})
+        set(__flags)
         __entity_get_attribute(${__lib} CFLAGS __flags)
+        if(${__lib} IN_LIST __sdk_libs)
+            list(APPEND __flags ${__sdk_libs_cc_flags})
+        endif()
+        if(${__lib} IN_LIST __usr_libs)
+            list(APPEND __flags ${__usr_libs_cc_flags})
+        endif()
+
+        log_var(__lib)
+        get_target_property(__lib_type __idf_${__lib} TYPE)
+        log_var(__lib_type)
+        log_list(__flags)
+
         target_compile_options(__idf_${__lib} PRIVATE ${__flags})
     endforeach()
 

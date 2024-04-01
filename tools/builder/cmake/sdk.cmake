@@ -28,27 +28,91 @@
 # ---------------------------------------------------------------------------- #
 # synopsis:
 #       __sdk_add_component( <comp-name>
-#                   [ SRCS          <file> ... ]
-#                   [ COMP_NAME     <component-name> ]
+#                   -------------- generic --------------
 #                   [ COMP_TYPE     <component-type> ]
+#                   [ SRCS          <file> ... ]
 #                   [ INCS          <include-dir> ... ]
 #                   [ INCS_IF       <include-dir> ... ]
 #                   [ INCS_PRIV     <include-dir> ... ]
 #                   [ DEFS          <compile-definition> ... ]
 #                   [ FLAGS         <compiler-flag> ... ]
-#                   [ MPY_MODS      <mpy-mod-file> ... ]
 #                   [ LOGS_DEFS     <logs-definition-file> ... ]
-#                   [ MPY_EXCLUDE_FILES <mpy-orig-file> ... ]
+#                   [ MENU_CONFIG <menu-config-file> ]
+#                   [ MENU_PROMPT <menu-prompt> ]
+#                   [ MENU_GROUP  <menu-group> ]
 #                   [ REQUIRED_SDK_LIBS  <lib> ... ]
+#                   ------- micropython specific --------
+#                   [ MPY_MODS      <mpy-mod-file> ... ]
+#                   [ MPY_EXCLUDE_FILES <mpy-orig-file> ... ]
+#                   --------- esp-idf specific ----------
 #                   [ REQUIRED_ESP_LIBS  <lib> ... ]
 #       )
+# 
+# description
+# -----------
+#   § It is used to add a software component library. It offers many attributes
+#     associated to the required component.
+# 
+# generic arguments
+# -----------------
+#   <comp-name>     an identifier name for the component
+#   
+#   COMP_TYPE       a user specified type for this component to be easily
+#                   retrieved and filtered based on this type.
+#                   example the patching system is marking all patched
+#                   components with a type 'patched' to be collected afterwards
+#                   processed.
+#
+#   SRCS            all C source files. it can be referenced by wildcard
+#                   character '*'. ex: "${CMAKE_CURRENT_LIST_DIR}/*.c"
+#
+#   INCS or INCS_IF both are used to provide a list of interface include
+#                   directories. So that the user component of this component
+#                   can directly include any file within those directories
+#                   without the need to specify its include directory
+#
+#   INCS_PRIV       a list of include directory to be used only for the source
+#                   files of this component.
+#
+#   DEFS            a list of private compilation definitions
+#
+#   FLAGS           a list of private compilation flags
+#
+#   LOGS_DEFS       a list of files that have a log_lib subsystem/component
+#                   definitions to be used by the log_lib generator
+#
+#   REQUIRED_SDK_LIBS a list of other dependent SDK components
+#
+#   MENU_CONFIG     a kconfig file to specify the component menu config
+#
+#   MENU_PROMPT     a prompt name for this component in the menu display
+#
+#   MENU_GROUP      a group chain hierarchy to locate this component configs
+# 
+# micropython specific arguments
+# ------------------------------
+#   MPY_MODS        a subset of the SRC files above that contains a micropython
+#                   c modules to be used by the micropython binder generator.
+#                   These files will be exmpted from the compilation in case of
+#                   native C build variant.
+#
+#   MPY_EXCLUDE_FILES   a list of files of the original micropython sources.
+#                   these files will be excluded from the compilation within
+#                   micropython compilation. This cases is needed if the user
+#                   wants to overwrites completely an existing micropython file.
+#
+# ESP-IDF specific arguments
+# --------------------------
+#   REQUIRED_ESP_LIBS   a list of dependent components from the esp-idf platform
+#
 # ---------------------------------------------------------------------------- #
 function( __sdk_add_component  __comp_name )
     set( options)
     set( oneValueArgs
-        COMP_NAME
         COMP_TYPE
         MENU_CONFIG
+        MENU_PROMPT
+        MENU_GROUP
         )
     set( multiValueArgs
         SRCS        # source files list
@@ -76,9 +140,16 @@ function( __sdk_add_component  __comp_name )
         __entity_set_attribute(${__comp_name} ENTITY_TYPE library APPEND)
     endif()
 
+    if(DEFINED __arg_MENU_PROMPT)
+        __entity_set_attribute(${__comp_name} MENU_PROMPT
+            "${__arg_MENU_PROMPT}")
+    endif()
+
     __get_global_attribute( USER_COMPONENT_SWITCH __is_user_comp)
-    if("${__is_user_comp}" STREQUAL "on")
+    if(__is_user_comp)
         __entity_set_attribute(${__comp_name} ENTITY_TYPE userlib APPEND)
+    else()
+        __entity_set_attribute(${__comp_name} ENTITY_TYPE sdklib APPEND)
     endif()
  
     if(DEFINED __arg_INCS)
@@ -138,17 +209,25 @@ function( __sdk_add_component  __comp_name )
     endif()
 
     if(DEFINED __arg_MENU_CONFIG)
-        __entity_set_attribute(${__comp_name} MENU_CONFIG ${__arg_MENU_CONFIG})
+        if(__arg_MENU_PROMPT)
+            set(__menu_prompt MENU_PROMPT ${__arg_MENU_PROMPT})
+        endif()
+        if(__arg_MENU_GROUP)
+            set(__menu_group MENU_GROUP ${__arg_MENU_GROUP})
+        endif()
+        __sdk_menu_config_add_component_menu(${__comp_name}
+            ${__arg_MENU_CONFIG} ${__menu_group} ${__menu_prompt}
+            )
     endif()
 
 endfunction()
 
 function(__sdk_enable_user_comps)
-    __set_global_attribute( USER_COMPONENT_SWITCH "on")
+    __set_global_attribute( USER_COMPONENT_SWITCH ON)
 endfunction()
 
 function(__sdk_disable_user_comps)
-    __set_global_attribute( USER_COMPONENT_SWITCH "off")
+    __set_global_attribute( USER_COMPONENT_SWITCH OFF)
 endfunction()
 
 
@@ -248,14 +327,61 @@ function( __sdk_get_micropython_frozen_manifest __out_var)
 endfunction()
 
 # ---------------------------------------------------------------------------- #
-# synopsis:     __sdk_add_compile_options( <option-string> )
+# synopsis:     __sdk_add_compile_options(
+#                       [SDK_LIBS]
+#                       [USR_LIBS]
+#                       <option-string> )
+# description:
+#       adds a compilation options to all contributing libraries in the project
+#       only for SDK libraries if optional 'SDK_LIBS' is specified and only for
+#       only user libraries if 'USR_LIBS' is specified. If both 'SDK_LIBS' and
+#       'USR_LIBS' are specified it will be added to SDK and USER libraries.
 # ---------------------------------------------------------------------------- #
 function( __sdk_add_compile_options )
-    __entity_set_attribute(main_entity COMPILE_FLAGS ${ARGN} APPEND)
+
+    set(arg_opts SDK_LIBS USR_LIBS)
+    cmake_parse_arguments( _ "${arg_opts}" "" "" ${ARGN})
+
+    set(__cc)
+    foreach(__arg ${ARGN})
+        if(NOT ${__arg} IN_LIST arg_opts)
+            list(APPEND __cc ${__arg})
+        endif()
+    endforeach()
+    
+
+    if(__SDK_LIBS)
+        __entity_set_attribute(main_entity COMPILE_FLAGS_SDK ${__cc} APPEND)
+    endif()
+    if(__USR_LIBS)
+        __entity_set_attribute(main_entity COMPILE_FLAGS_USR ${__cc} APPEND)
+    endif()
+    if(NOT (__SDK_LIBS OR __USR_LIBS))
+        __entity_set_attribute(main_entity COMPILE_FLAGS ${ARGN} APPEND)
+    endif()
 endfunction()
 
+# ---------------------------------------------------------------------------- #
+# synopsis:     __sdk_get_compile_options(
+#                       <out-var>
+#                       [SDK_LIBS]
+#                       [USR_LIBS] )
+# description:
+#       gets a currently set compilation options for any library of only for
+#       SDK libraries if 'SDK_LIBS' is set or only for user libraries if
+#       'USR_LIBS' is set.
+# ---------------------------------------------------------------------------- #
 function( __sdk_get_compile_options __out_var)
-    __entity_get_attribute(main_entity COMPILE_FLAGS __output)
+
+    cmake_parse_arguments( _ "SDK_LIBS;USR_LIBS" "" "" ${ARGN})
+
+    if(__SDK_LIBS)
+        __entity_get_attribute(main_entity COMPILE_FLAGS_SDK __output)
+    elseif(__USR_LIBS)
+        __entity_get_attribute(main_entity COMPILE_FLAGS_USR __output)
+    else()
+        __entity_get_attribute(main_entity COMPILE_FLAGS __output)
+    endif()
     set(${__out_var} ${__output} PARENT_SCOPE)
 endfunction()
 

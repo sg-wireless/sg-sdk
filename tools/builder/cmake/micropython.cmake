@@ -53,11 +53,13 @@ function(__micropython_update_generated_modules)
             GEN_LOGS_FILE ${__gen_dir}/__sdk_lib_${__sdk_lib}.log
         )
         log_list(${__sdk_lib}__cmod_generated_files)
-        __entity_set_attribute(${__sdk_lib}
-            SOURCES ${${__gen_files_var}} APPEND)
+        if(${__sdk_lib}__cmod_generated_files)
+            __entity_set_attribute(${__sdk_lib}
+                SOURCES ${${__gen_files_var}} APPEND)
 
-        __entity_set_attribute(${__sdk_lib}
-            MPY_GEN_FILES ${${__gen_files_var}} APPEND)
+            __entity_set_attribute(${__sdk_lib}
+                MPY_GEN_FILES ${${__gen_files_var}} APPEND)
+        endif()
     endforeach()
 endfunction()
 
@@ -172,8 +174,9 @@ function(__micropython_update_esp_idf_list_file __list_file)
 
     # MICROPY_CPP_FLAGS_EXTRA
     __get_global_attribute(COMPILE_FLAGS __cflags)
+    __get_global_attribute(COMPILE_FLAGS_SDK __sdk_cc)
     string(APPEND __contents "set(MICROPY_CPP_FLAGS_EXTRA\n")
-    foreach(__flag ${__cflags})
+    foreach(__flag ${__cflags} ${__sdk_cc})
         string(APPEND __contents "${__ts}${__flag}\n")
     endforeach()
     string(APPEND __contents "${__ts})\n\n")
@@ -193,14 +196,23 @@ function(__micropython_update_esp_idf_list_file __list_file)
             string(APPEND __contents "${__ts}${__ts}${__py_file}\n")
         endforeach()
         string(APPEND __contents "${__ts}APPEND\n${__ts})\n")
-
-        
     endif()
 
-    file(GLOB __files_to_delete "${CMAKE_BINARY_DIR}/genhdr/module/*")
-    if(__files_to_delete)
-        file(REMOVE ${__files_to_delete})
-    endif()
+    string(APPEND __contents
+        "    set(__sdkconfig_file \${CMAKE_BINARY_DIR}/config/sdkconfig.h)\n"
+        "    file(GLOB __module_files \n"
+        "        \"\${CMAKE_BINARY_DIR}/genhdr/module/*\"\)\n"
+        "    foreach(__file\n"
+        "        \${MICROPY_QSTRDEFS_LAST}\n"
+        "        \${CMAKE_BINARY_DIR}/frozen_content.c\n"
+        "        \${__module_files}\n"
+        "        )\n"
+        "        if(EXISTS \${__file} AND\n"
+        "               \${__sdkconfig_file} IS_NEWER_THAN \${__file})\n"
+        "            file(REMOVE \${__file})\n"
+        "        endif()\n"
+        "    endforeach()\n"
+    )
 
     string(APPEND __contents "endif()\n\n")
 

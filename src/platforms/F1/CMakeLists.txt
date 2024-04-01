@@ -54,7 +54,10 @@ __sdk_add_comp_dirs(
 __sdk_add_logs_defs_files(${CMAKE_CURRENT_LIST_DIR}/logs_defs.h)
 
 # define the main SDK config file to be the sdkconfigs.h
-__sdk_add_compile_options("-DMAIN_SDK_CONFIG_FILE=\"sdkconfig.h\"")
+__sdk_add_compile_options("-DMAIN_SDK_CONFIG_FILE=\"sdkconfig.h\""
+    SDK_LIBS USR_LIBS)
+
+__sdk_add_compile_options(-include sdkconfig.h SDK_LIBS USR_LIBS)
 
 if(DEFINED __sdkconfigs_files)
     __sdk_add_kconfig_default(${__sdkconfigs_files})

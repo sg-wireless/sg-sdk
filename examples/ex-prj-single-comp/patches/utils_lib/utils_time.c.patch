@@ -1,0 +1,32 @@
+--- ../../../src/libs/utils/utils_time.c	2023-10-27 18:37:06
++++ ./modified_sources/utils_time.c	2024-01-22 11:42:48
+@@ -21,6 +21,8 @@
+ #include <stdbool.h>
+ #include "utils_time.h"
+ 
++#include "log_lib.h"
++
+ static uint32_t leaps_arr[] = {
+ 	 46828800,   78364801,  109900802,  173059203,  252028804,  315187205,
+     346723206,  393984007,  425520008,  457056009,  504489610,  551750411,
+@@ -81,6 +83,9 @@
+ 	uint32_t n_leaps = count_leaps(gps_time, __CONV_GPS_2_UNIX);
+ 	unix_time -= n_leaps;
+ 
++    __log_output(__cyan__"[ PATCHED LOG ]"__default__
++		" GPS to UNIX times converter GPS[ %d ] = UNIX[ %d ]\n",
++        gps_time, unix_time);
+ 	return unix_time;
+ }
+ 
+@@ -97,6 +102,10 @@
+ 	uint32_t gps_time = unix_time - 315964800;
+ 	uint32_t n_leaps = count_leaps(gps_time, __CONV_UNIX_2_GPS);
+ 	gps_time += n_leaps + is_leap;
++
++    __log_output(__cyan__"[ PATCHED LOG ]"__default__
++		" UNIX to GPS times converter UNIX[ %d ] = GPS[ %d ]\n",
++        unix_time, gps_time);
+ 
+ 	return gps_time;
+ }

@@ -38,8 +38,9 @@ __sdk_add_component( mpy_al_lib
     INCS_IF
         ${CMAKE_CURRENT_LIST_DIR}/inc
     
-    MENU_CONFIG
-        ${CMAKE_CURRENT_LIST_DIR}/cfg/kconfig
+    MENU_CONFIG ${CMAKE_CURRENT_LIST_DIR}/cfg/demo.kconfig
+    MENU_GROUP  MAIN.DEMO
+    MENU_PROMPT "micropython lite interface usage example demo"
 )
 
 endif()

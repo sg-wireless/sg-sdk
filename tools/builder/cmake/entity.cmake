@@ -67,6 +67,49 @@ endfunction()
 
 # ---------------------------------------------------------------------------- #
 # synopsis:
+#       __entity_exists( <entity-name> <output-var> )
+#
+# description:
+#       checks an existence of an entity.
+# ---------------------------------------------------------------------------- #
+function( __entity_exists entity_name output_variable)
+
+    cmake_parse_arguments( _ "LOG_OFF" "" "" ${ARGN})
+
+    if( NOT TARGET __reg_tgt_main_entity )
+        log_dbg("-- create the SDK main CMake entity target" yellow)
+        add_library( __reg_tgt_main_entity STATIC IMPORTED GLOBAL )
+    endif()
+
+    set( target_name __reg_tgt_${entity_name} )
+
+    if("${entity_name}" STREQUAL "main_entity")
+        set(${output_variable} ON PARENT_SCOPE)
+        return()
+    endif()
+
+    if(__LOG_OFF)
+        set(__disable_logs LOG_OFF)
+    endif()
+    __entity_get_attribute(main_entity REGISTERED_ENTITIES __entities
+        ${__disable_logs})
+
+    if( ${entity_name} IN_LIST __entities )
+        set(text "entity ${__green__}${entity_name}${__default__} exists")
+        set(${output_variable} ON PARENT_SCOPE)
+    else()
+        set(text "entity ${__red__}${entity_name}${__default__} doesn't exists")
+        set(${output_variable} OFF PARENT_SCOPE)
+    endif()
+
+    if(NOT __LOG_OFF)
+        log_dbg(${text})
+    endif()
+
+endfunction()
+
+# ---------------------------------------------------------------------------- #
+# synopsis:
 #       __entity_set_attribute( <entity>
 #                               <attribute>
 #                               <value> [ <value> ...]

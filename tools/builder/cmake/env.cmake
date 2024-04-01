@@ -33,7 +33,6 @@ get_filename_component( __dir_root  "${CMAKE_CURRENT_LIST_DIR}/../../.."
     ABSOLUTE)
 
 set( __dir_src          ${__dir_root}/src )
-set( __dir_port         ${__dir_root}/ports/esp32 )
 
 set( __dir_platform     ${__dir_src}/platforms/${SDK_PLATFORM} )
 set( __dir_ext          ${__dir_root}/ext )
@@ -60,6 +59,10 @@ if (NOT CMAKE_SCRIPT_MODE_FILE )
     __entity_init(main_entity GLOBAL)
 endif()
 include( ${__dir_cmake}/sdk.cmake )    # to add a firmware component
+include( ${__dir_cmake}/menu_config.cmake )
+if (NOT CMAKE_SCRIPT_MODE_FILE )
+    __sdk_menu_config_init()
+endif()
 
 __sdk_process_cli_variables()
 

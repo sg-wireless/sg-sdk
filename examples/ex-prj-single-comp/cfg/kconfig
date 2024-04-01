@@ -1,0 +1,18 @@
+
+config EXAMPLE_PROJECT_DEF_X
+    bool "example project definition x"
+    default n
+    help
+        example project definition x.
+
+config EXAMPLE_PROJECT_DEF_Y
+    bool "example project definition y"
+    default n
+    help
+        example project definition y.
+
+config EXAMPLE_PROJECT_DEF_Z
+    bool "example project definition z"
+    default n
+    help
+        example project definition z.

@@ -50,9 +50,10 @@ __sdk_add_component( log_lib
         ${CMAKE_CURRENT_LIST_DIR}/inc
         ${CMAKE_CURRENT_LIST_DIR}/src
 
-    MENU_CONFIG
-        ${CMAKE_CURRENT_LIST_DIR}/cfg/kconfig
-    
+    MENU_CONFIG ${CMAKE_CURRENT_LIST_DIR}/cfg/kconfig
+    MENU_PROMPT "logging library"
+    MENU_GROUP  MAIN.SDK.CLIBS
+
     REQUIRED_SDK_LIBS
         utils_lib
 )

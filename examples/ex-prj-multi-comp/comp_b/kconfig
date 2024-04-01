@@ -1,0 +1,12 @@
+
+config EXAMPLE_PROJECT_COMP_B_ENABLE
+    bool "Enable Component B"
+    default y
+    help
+        enable component B feature.
+
+config EXAMPLE_PROJECT_COMP_B_INTEGER
+    int "Component B Integer"
+    default 100
+    help
+        component B Integer.
