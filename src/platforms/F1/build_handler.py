@@ -25,9 +25,13 @@
 #           of its derivations
 # ---------------------------------------------------------------------------- #
 
+import sys
 import subprocess
 from pylog import *
 from builder import BuilderContext
+
+sys.path.append(f'{os.environ["__tree_dir_src"]}/comps/fw-version')
+import fw_version
 
 # ---------------------------------------------------------------------------- #
 # local vars
@@ -169,8 +173,16 @@ def process_command(ctx: BuilderContext):
 
     cmd_seq = []
     mpy_path = ctx.tree.get_submodule_path('micropython')
+    try:
+        ver_str = fw_version.get_fw_build_version(custom_version_str)
+        if not ver_str:
+            ver_str = fw_version.get_fw_release_version()
+        pass
+    except Exception as ex:
+        log('error: getting version string')
+        pass
 
-    pkg = f'{build_dir}/{sdk_board}-{custom_version_str}.tar'
+    pkg = f'{build_dir}/{sdk_board}-{ver_str["ver-str"]}.tar'
 
     if command == 'build' or command == 'flash':
         if variant == 'micropython':

@@ -1,0 +1,1 @@
+This folder contains all SDK components which are platform independent

@@ -47,6 +47,7 @@ These are a quick references to contents of the SDK.
 
 * [Getting Started](#get-started)
 * [Build System](tools/builder/docs/builder.md)
+* [FW Versioning Structure](src/comps/fw-version/README.md)
 
 <!------------------------------------------------------------------------------
  ! Features

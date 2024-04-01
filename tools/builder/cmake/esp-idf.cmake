@@ -27,6 +27,7 @@
 
 include(${__dir_cmake}/micropython.cmake)
 include(${__dir_src}/libs/logs/gen/logs_gen.cmake)
+include(${__dir_sdk_comps}/fw-version/build_version_gen.cmake)
 
 # ---------------------------------------------------------------------------- #
 # synopsis:
@@ -272,6 +273,19 @@ function(__esp_idf_process_preparation)
         __run_logs_defs_generator(GEN_DIR ${__gen_dir} SOURCES ${__files_list})
         __set_global_attribute(SDK_INCS ${__gen_dir} APPEND)
     endif()
+
+    # -- generate the build version header
+    log_dbg("STEP >> generate the build version header" cyan)
+    set(__gen_dir ${CMAKE_BINARY_DIR}/sdk_version_gen_dir)
+    set(__gen_file generated_fw_build_version.h)
+    if(DEFINED SDK_FW_CUSTOM_VERSION_STRING)
+        set(__custom_str_opts CUSTOM_STRING "${SDK_FW_CUSTOM_VERSION_STRING}")
+    endif()
+    __run_build_version_generator(GEN_DIR ${__gen_dir}
+        GEN_FILE ${__gen_file} ${__custom_str_opts})
+    __set_global_attribute(SDK_INCS ${__gen_dir} APPEND)
+    __sdk_add_compile_options(
+        "-DFW_GENERATED_BUILD_VERSION_HEADER=\"${__gen_file}\"")
 
     # -- obtain all contributing SDK libraries
     log_dbg("STEP >> obtain all SDK components" cyan)
