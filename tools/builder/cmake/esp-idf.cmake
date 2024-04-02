@@ -251,11 +251,22 @@ function(__esp_idf_process_preparation)
     
     # -- include all project cmake lists
     log_dbg("STEP >> include all SDK components cmake list files" cyan)
-    list(REMOVE_DUPLICATES __comp_cmake_list_files)
-    foreach(__list_file ${__comp_cmake_list_files})
-        log_dbg("include ${__cyan__}${__list_file}${__default__}")
-        include(${__list_file})
-    endforeach()
+    set(__included_so_far)
+    while(__comp_cmake_list_files)
+        list(REMOVE_DUPLICATES __comp_cmake_list_files)
+        set(__loop_list ${__comp_cmake_list_files})
+        foreach(__list_file ${__loop_list})
+            log_dbg("include ${__purple__}${__list_file}${__default__}")
+            include(${__list_file})
+        endforeach()
+        list(APPEND __included_so_far ${__loop_list})
+
+        # fetch added components by the components list files itselves
+        # and keep looping until no extra component is added.
+        __sdk_get_comp_list_files(__comp_cmake_list_files)
+        list(REMOVE_ITEM __comp_cmake_list_files ${__included_so_far})
+        log_list(__comp_cmake_list_files)
+    endwhile()
 
     # -- add the user project main cmake list file
     __sdk_get_user_project_dir(__user_prj_dir)

@@ -39,6 +39,7 @@ set( __dir_ext          ${__dir_root}/ext )
 set( __dir_esp_idf      ${__dir_ext}/esp-idf )
 
 set( __dir_sdk_comps        ${__dir_src}/comps )
+set( __dir_sdk_drivers      ${__dir_src}/drivers )
 set( __dir_platform_comps   ${__dir_platform}/comps )
 
 set( __dir_micropython  ${__dir_ext}/micropython )

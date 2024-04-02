@@ -47,6 +47,11 @@ __sdk_add_component( adt_lib
 
 __sdk_menu_config_group_add(MAIN.DEMO.CLIBS "Common C-Libraries Demos")
 
+# demos are currently available for micropython only as they are a micropython
+# test modules
+
+if("${__build_variant}" STREQUAL "micropython")
+
 __sdk_menu_config_add_component_menu(adt_buffers_chain
     ${CMAKE_CURRENT_LIST_DIR}/cfg/buffers_chain_demo.config
     MENU_PROMPT "buffers chains example demo"
@@ -70,5 +75,7 @@ __sdk_menu_config_add_component_menu(adt_idll
     MENU_PROMPT "indexed double linked list (IDLL)"
     MENU_GROUP  MAIN.SDK.CLIBS
     )
+
+endif() # __build_variant == micropython
 
 # --- end of file ------------------------------------------------------------ #

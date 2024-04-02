@@ -41,10 +41,16 @@ __sdk_add_component( state_machine_lib
 
     INCS_PRIV
         ${CMAKE_CURRENT_LIST_DIR}/src
-
-    MENU_CONFIG     ${CMAKE_CURRENT_LIST_DIR}/cfg/demo.config
-    MENU_PROMPT     "state-machine demo"
-    MENU_GROUP      MAIN.DEMO.CLIBS
 )
+
+if("${__build_variant}" STREQUAL "micropython")
+
+    __sdk_menu_config_add_component_menu(state_machine_lib
+        ${CMAKE_CURRENT_LIST_DIR}/cfg/demo.config
+        MENU_PROMPT "state-machine demo"
+        MENU_GROUP  MAIN.DEMO.CLIBS
+        )
+
+endif() # __build_variant == micropython
 
 # --- end of file ------------------------------------------------------------ #

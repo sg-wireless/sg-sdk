@@ -198,6 +198,21 @@ function(__micropython_update_esp_idf_list_file __list_file)
         string(APPEND __contents "${__ts}APPEND\n${__ts})\n")
     endif()
 
+    __entity_find(__libs_with_cmods MPY_CMODS "")
+    set(__mpy_gen_files)
+    string(APPEND __contents "    set(__cmod_gen_files\n")
+    foreach(__lib ${__libs_with_cmods})
+        __entity_get_attribute(${__lib} MPY_GEN_FILES __gen_files LOG_OFF)
+        if(__gen_files)
+            list(APPEND __mpy_gen_files ${__gen_files})
+            foreach(__file ${__gen_files})
+                string(APPEND __contents "        ${__file}\n")
+            endforeach()
+        endif()
+    endforeach()
+    string(APPEND __contents "    )\n")
+    log_list(__mpy_gen_files)
+
     string(APPEND __contents
         "    set(__sdkconfig_file \${CMAKE_BINARY_DIR}/config/sdkconfig.h)\n"
         "    file(GLOB __module_files \n"
@@ -207,9 +222,14 @@ function(__micropython_update_esp_idf_list_file __list_file)
         "        \${CMAKE_BINARY_DIR}/frozen_content.c\n"
         "        \${__module_files}\n"
         "        )\n"
-        "        if(EXISTS \${__file} AND\n"
-        "               \${__sdkconfig_file} IS_NEWER_THAN \${__file})\n"
-        "            file(REMOVE \${__file})\n"
+        "        if(EXISTS \${__file})\n"
+        "            foreach(__updated_file\n"
+        "                \${__sdkconfig_file} \${__cmod_gen_files})\n"
+        "                if(\${__updated_file} IS_NEWER_THAN \${__file})\n"
+        "                    file(REMOVE \${__file})\n"
+        "                    break()\n"
+        "                endif()\n"
+        "            endforeach()\n"
         "        endif()\n"
         "    endforeach()\n"
     )
