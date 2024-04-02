@@ -49,6 +49,8 @@ __sdk_add_comp_dirs(
     ${__dir_src}/libs/mpy-al
     ${__dir_src}/libs/logs
     ${__dir_src}/libs/adt
+    ${__dir_src}/libs/state-machine
+
     ${__dir_sdk_comps}/fw-version
 )
 
