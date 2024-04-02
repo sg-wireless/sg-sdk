@@ -694,7 +694,8 @@ bool log_filter_component_get_state(const char* subsystem_name,
     return state;
 }
 
-void log_filter_save_states_and_enable(log_filter_save_state_t* p_filter_state)
+void log_filter_save_state(log_filter_save_state_t* p_filter_state
+    , bool new_state)
 {
     p_filter_state->subsystem_save_state =
         log_filter_subsystem_get_state(p_filter_state->subsystem_name);
@@ -702,9 +703,9 @@ void log_filter_save_states_and_enable(log_filter_save_state_t* p_filter_state)
         log_filter_component_get_state(
             p_filter_state->subsystem_name,
             p_filter_state->component_name);
-    log_filter_subsystem(p_filter_state->subsystem_name, true);
+    log_filter_subsystem(p_filter_state->subsystem_name, new_state);
     log_filter_component(p_filter_state->subsystem_name,
-        p_filter_state->component_name, true);
+        p_filter_state->component_name, new_state);
 }
 
 void log_filter_restore_state(log_filter_save_state_t* p_filter_state)

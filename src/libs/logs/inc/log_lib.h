@@ -383,7 +383,8 @@ typedef struct {
     bool        component_save_state;
 } log_filter_save_state_t;
 
-void log_filter_save_states_and_enable(log_filter_save_state_t* p_filter_state);
+void log_filter_save_state(log_filter_save_state_t* p_filter_state
+    , bool new_state);
 
 void log_filter_restore_state(log_filter_save_state_t* p_filter_state);
 
