@@ -1,0 +1,117 @@
+@startuml firmware_bootloader_safeboot_seq_diag
+/' --------------------------------------------------------------------------- '
+ ' Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+ '
+ ' Permission is hereby granted, free of charge, to any person obtaining a copy
+ ' of this software and associated documentation files(the “Software”), to deal
+ ' in the Software without restriction, including without limitation the rights
+ ' to use,  copy,  modify,  merge, publish, distribute, sublicense, and/or sell
+ ' copies  of  the  Software,  and  to  permit  persons to whom the Software is
+ ' furnished to do so, subject to the following conditions:
+ '
+ ' The above copyright notice and this permission notice shall be included in
+ ' all copies or substantial portions of the Software.
+ '
+ ' THE SOFTWARE IS PROVIDED “AS IS”,  WITHOUT WARRANTY OF ANY KIND,  EXPRESS OR
+ ' IMPLIED,  INCLUDING BUT NOT LIMITED TO  THE  WARRANTIES  OF  MERCHANTABILITY
+ ' FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+ ' AUTHORS  OR  COPYRIGHT  HOLDERS  BE  LIABLE FOR ANY CLAIM,  DAMAGES OR OTHER
+ ' LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ ' OUT OF OR IN  CONNECTION WITH  THE SOFTWARE OR  THE USE OR OTHER DEALINGS IN
+ ' THE SOFTWARE.
+ '
+ ' Author   Ahmed Sabry (SG Wireless)
+ '
+ ' brief    This file describe the interaction between the firmware and the
+ '          bootloader while the safeboot feature is enabled
+ ' --------------------------------------------------------------------------- '
+ '/
+header Copyright (c) SGWireless B.V. 2023
+footer Copyright (c) SGWireless B.V. 2023
+title Firmware/Bootloader Safeboot Interaction
+' -- actors/ participants ---------------------------------------------------- '
+actor User as usr
+box "EVB System" #LightBlue
+    participant Bootloader  as bl
+    participant Firmware    as fw
+end box
+' -- interaction description ------------------------------------------------- '
+== [UseCase] Normal Powerup or DeepSleep wakeup ==
+note over usr
+    - used pressed reset burron
+    - or EVB powered up
+    - or wakeup from deepsleep
+end note
+usr -> bl ++: power-up\nor reset\nor deepsleep-wakeup
+bl  -> fw --++: load latest firmware in Normal mode
+ref over fw
+    Firmware boots and runs boot.py, main.py,
+    and any other micropython code
+end ref
+fw --> fw --: firmware runs\nin <font color=green><b>Normal</font> Mode
+...
+== [UseCase] Safeboot in latest firmware ==
+note over usr
+    - used shall hold safeboot button
+      pressed while pressing reset button
+    - Hold-Time < 3sec
+end note
+
+usr -> bl ++: safeboot latest firmware
+bl -> fw --++: load latest firmware in safeboot mode
+
+ref over fw
+    Firmware boots and excludes boot.py, main.py,
+    and any other micropython code from running
+end ref
+fw --> fw -- : firmware runs\nin <font color=red><b>Safeboot</font> Mode
+...
+
+== [UseCase] Safeboot in previous OTA update ==
+note over usr
+    - used shall hold safeboot button
+      pressed while pressing reset button
+    - 3sec <= Hold-Time < 7sec 
+end note
+usr -> bl ++ : safeboot prev OTA
+
+alt prev OTA image exist
+    bl -> fw ++ : load prev OTA firmware in safeboot mode
+else no previous OTA image exist
+    bl -> fw -- : load latest firmware in safeboot mode
+end
+fw --> fw -- : firmware runs\nin <font color=red><b>Safeboot</font> Mode
+...
+
+== [UseCase] Safeboot in Factory Firmware ==
+note over usr
+    - used shall hold safeboot button
+      pressed while pressing reset button
+    - Hold-Time >= 7sec 
+end note
+usr -> bl ++ : safeboot in Factory firmware
+
+bl -> fw --++ : load factory firmware in safeboot mode
+
+fw --> fw -- : firmware runs\nin <font color=red><b>Safeboot</font> Mode
+...
+
+== [UseCase] Software Reset in Safeboot ==
+note over usr
+    - user request software reset in
+      safeboot using bootif_safeboot_soft_reset()
+    - used shall press CTRL+F in micropython
+      builds
+end note
+
+fw -> fw ++ : firmware is running
+usr -> fw : bootif_safeboot_soft_reset()
+
+bl <- fw --++ : request safeboot and reset
+bl -> fw --++ : load latest firmware in safeboot mode
+
+fw --> fw -- : firmware runs\nin <font color=red><b>Safeboot</font> Mode
+...
+
+/' --- end of file ---------------------------------------------------------- '/
+@enduml

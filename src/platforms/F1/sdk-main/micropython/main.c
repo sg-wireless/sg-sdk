@@ -67,6 +67,11 @@
 #include "extmod/modbluetooth.h"
 #endif
 
+#ifdef CONFIG_SAFEBOOT_FEATURE_ENABLE
+#include "boot_if.h"
+#endif
+#include "log_lib.h"
+
 // MicroPython runs as a task under FreeRTOS
 #define MP_TASK_PRIORITY        (ESP_TASK_PRIO_MIN + 1)
 #define MP_TASK_STACK_SIZE      (16 * 1024)
@@ -164,12 +169,24 @@ soft_reset:
 
     // run boot-up scripts
     pyexec_frozen_module("_boot.py");
-    pyexec_file_if_exists("boot.py");
-    if (pyexec_mode_kind == PYEXEC_MODE_FRIENDLY_REPL)
+    #if CONFIG_SAFEBOOT_FEATURE_ENABLE
+    bootif_safeboot_soft_reset_init();
+    if( bootif_state_get() == __BOOTIF_STATE_SAFEBOOT_MODE )
     {
-        int ret = pyexec_file_if_exists("main.py");
-        if (ret & PYEXEC_FORCED_EXIT) {
-            goto soft_reset_exit;
+        __log_output("== micropython "__green__"safeboot"__default__" mode\n"
+            __red__"-- skip 'boot.py', 'main.py'"__default__"\n");
+        bootif_state_set(__BOOTIF_STATE_NORMAL_MODE);
+    }
+    else
+    #endif
+    {
+        __log_output("== micropython "__yellow__"normal"__default__" mode\n");
+        pyexec_file_if_exists("boot.py");
+        if (pyexec_mode_kind == PYEXEC_MODE_FRIENDLY_REPL) {
+            int ret = pyexec_file_if_exists("main.py");
+            if (ret & PYEXEC_FORCED_EXIT) {
+                goto soft_reset_exit;
+            }
         }
     }
 

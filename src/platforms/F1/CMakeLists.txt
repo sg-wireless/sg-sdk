@@ -50,6 +50,8 @@ __sdk_add_comp_dirs(
 
     ${__dir_platform}/mpy-hooks
     ${__dir_sdk_drivers}/common
+    ${__dir_platform}/bootloader_components/boot-if
+    ${__dir_platform}/esp-idf-patches
 
     ${__dir_src}/libs/*
 

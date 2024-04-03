@@ -31,6 +31,7 @@
     lora = true
     lte  = true
     secure-element = true
+    safeboot-switch = false
 
 # ---------------------------------------------------------------------------- #
 # external submodules

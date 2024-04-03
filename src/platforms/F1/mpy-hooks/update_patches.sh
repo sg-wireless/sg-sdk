@@ -36,6 +36,11 @@ ${__main_update_script} ${__original_dir} ${__modified_dir} ${__patch_dir} \
     ${__search_path}
 
 __original_dir=${__root_dir}/ext/micropython/ports/esp32
+__search_path="help.c"
+${__main_update_script} ${__original_dir} ${__modified_dir} ${__patch_dir} \
+    ${__search_path}
+
+__original_dir=${__root_dir}/ext/micropython/ports/esp32
 __search_path="machine_i2c.c"
 ${__main_update_script} ${__original_dir} ${__modified_dir} ${__patch_dir} \
     ${__search_path}

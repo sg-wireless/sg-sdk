@@ -1,0 +1,20 @@
+--- ../../../../ext/micropython/ports/esp32/help.c	2023-11-14 10:45:09
++++ ./modified_sources/help.c	2023-12-06 16:39:38
+@@ -27,6 +27,7 @@
+  */
+ 
+ #include "py/builtin.h"
++#include "sdkconfig.h"
+ 
+ const char esp32_help_text[] =
+     "Welcome to MicroPython on the ESP32!\n"
+@@ -59,6 +60,9 @@
+     "  CTRL-C        -- interrupt a running program\n"
+     "  CTRL-D        -- on a blank line, do a soft reset of the board\n"
+     "  CTRL-E        -- on a blank line, enter paste mode\n"
++    #ifdef CONFIG_SAFEBOOT_FEATURE_ENABLE
++    "  CTRL-F        -- do hard reset in safeboot mode\n"
++    #endif
+     "\n"
+     "For further help on a specific object, type help(obj)\n"
+     "For a list of available modules, type help('modules')\n"

@@ -46,8 +46,12 @@ from here.
 These are a quick references to contents of the SDK.
 
 * [Getting Started](#get-started)
-* [Build System](tools/builder/docs/builder.md)
-* [FW Versioning Structure](src/comps/fw-version/README.md)
+* SDK Framework
+    * [Build System](tools/builder/docs/builder.md)
+    * [FW Versioning Structure](src/comps/fw-version/README.md)
+* F1 Platform Specific Features.
+    * [Safeboot](
+        src/platforms/F1/bootloader_components/boot-if/docs/safeboot.md)
 
 <!------------------------------------------------------------------------------
  ! Features

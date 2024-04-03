@@ -1,0 +1,63 @@
+--- ../../../../ext/esp-idf/components/bootloader_support/src/bootloader_common.c	2024-03-27 17:48:30
++++ ./bootloader_support/modified_sources/bootloader_common.c	2024-04-03 06:36:35
+@@ -44,6 +44,60 @@
+ {
+     return bootloader_common_check_long_hold_gpio_level(num_pin, delay_sec, false);
+ }
++#if CONFIG_SAFEBOOT_FEATURE_ENABLE && CONFIG_SAFEBOOT_SWITCH_BUTTON_ENABLE
++bool bootloader_common_get_gpio_hold_time(
++    uint32_t    num_pin,
++    uint32_t    max_time_sec,
++    bool        level,
++    int         *p_hold_time
++    )
++{
++    extern const char* g_safeboot_tag;
++    ESP_LOGI(g_safeboot_tag, "get hold time"
++            " gpio( %d ),"
++            " max_time( %d sec ),"
++            " gpio-level( %d )",
++            num_pin, max_time_sec, level);
++
++    int hold_time = 0;
++    bool detected = false;
++
++    esp_rom_gpio_pad_select_gpio(num_pin);
++    if (GPIO_PIN_MUX_REG[num_pin]) {
++        PIN_INPUT_ENABLE(GPIO_PIN_MUX_REG[num_pin]);
++    }
++    gpio_ll_pulldown_en(&GPIO, num_pin);
++    gpio_ll_pullup_dis(&GPIO, num_pin);
++    gpio_ll_output_disable(&GPIO, num_pin);
++    gpio_ll_input_enable(&GPIO, num_pin);
++
++    uint32_t tm_start = esp_log_early_timestamp();
++
++    do {
++        if (gpio_ll_get_level(&GPIO, num_pin) != level) {
++            goto calc_elapsed_and_return;
++        }
++        detected = true;
++    } while(max_time_sec > ((esp_log_early_timestamp() - tm_start) / 1000L));
++
++    calc_elapsed_and_return:
++    hold_time = (esp_log_early_timestamp() - tm_start) / 1000L;
++
++    if(detected)
++    {
++        ESP_LOGI(g_safeboot_tag, "safeboot is detected with hold time: %d sec",
++            hold_time);
++    }
++    else
++    {
++        ESP_LOGI(g_safeboot_tag, "safeboot is not detected");
++    }
++
++    *p_hold_time = hold_time;
++    return detected;
++}
++#endif /* CONFIG_SAFEBOOT_FEATURE_ENABLE &&
++        * CONFIG_SAFEBOOT_SWITCH_BUTTON_ENABLE */
+ 
+ esp_comm_gpio_hold_t bootloader_common_check_long_hold_gpio_level(uint32_t num_pin, uint32_t delay_sec, bool level)
+ {

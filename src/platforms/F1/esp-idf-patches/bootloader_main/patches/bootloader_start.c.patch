@@ -1,0 +1,320 @@
+--- ../../../../ext/esp-idf/components/bootloader/subproject/main/bootloader_start.c	2024-03-27 17:48:30
++++ ./bootloader_main/modified_sources/bootloader_start.c	2024-04-03 06:43:48
+@@ -77,6 +77,309 @@
+     return selected_boot_partition(bs);
+ }
+ 
++#ifdef CONFIG_SAFEBOOT_FEATURE_ENABLE
++
++#include "boot_if.h"
++
++const char* g_safeboot_tag = "safeboot";
++
++enum {
++    __safeboot_cond_none,
++    __safeboot_cond_software_request,
++    __safeboot_cond_latest_firmware,
++    __safeboot_cond_prev_user_update,
++    __safeboot_cond_factory_firmware,
++    __safeboot_cond_max,
++};
++
++static const char* get_safeboot_cond_str(int cond)
++{
++    switch(cond)
++    {
++        case __safeboot_cond_none:
++            return "none";
++        case __safeboot_cond_software_request:
++            return "software_request";
++        case __safeboot_cond_latest_firmware:
++            return "latest_firmware";
++        case __safeboot_cond_prev_user_update:
++            return "prev_user_update";
++        case __safeboot_cond_factory_firmware:
++            return "factory_firmware";
++    }
++    return "unknown safeboot cond";
++}
++
++#ifdef CONFIG_SAFEBOOT_SWITCH_BUTTON_ENABLE
++
++static struct safeboot_ordered_node_t {
++    int cond;
++    int hold_time;
++} s_safeboot_ordered_hold_cond[__safeboot_cond_max];
++static int s_safeboot_conds_count = 0;
++
++static void insert_safeboot_cond(int cond, int hold_time)
++{
++    if(s_safeboot_conds_count >= __safeboot_cond_max) 
++    {
++        ESP_LOGE(g_safeboot_tag, "overflow of needed hold time conditions");
++        return;
++    }
++
++    int idx = s_safeboot_conds_count;
++    struct safeboot_ordered_node_t* p_node = s_safeboot_ordered_hold_cond;
++
++    while (idx > 0)
++    {
++        if( hold_time <= p_node[idx - 1].hold_time )
++        {
++            break;
++        }
++
++        p_node[idx] = p_node[idx - 1];
++        --idx;
++    }
++
++    p_node[idx].hold_time = hold_time;
++    p_node[idx].cond = cond;
++
++    ++ s_safeboot_conds_count;
++}
++
++static int get_safeboot_matched_cond(int hold_time)
++{
++    int idx = 0;
++    struct safeboot_ordered_node_t* p_node = s_safeboot_ordered_hold_cond;
++
++    while(idx < s_safeboot_conds_count)
++    {
++        if( hold_time >=  p_node[idx].hold_time)
++        {
++            return p_node[idx].cond;
++        }
++        ++idx;
++    }
++
++    return __safeboot_cond_none;
++}
++#endif /* CONFIG_SAFEBOOT_SWITCH_BUTTON_ENABLE */
++
++static int get_safeboot_condition(void)
++{
++    #ifndef CONFIG_SAFEBOOT_SWITCH_BUTTON_ENABLE
++
++    return __safeboot_cond_none;
++
++    #else /* CONFIG_SAFEBOOT_SWITCH_BUTTON_ENABLE */
++
++    int max_hold_time = 0;
++
++    #ifndef __max
++    #define __max_defined
++    #define __max(x,y)  ((x) >= (y) ? (x) : (y))
++    #endif
++
++    #ifdef CONFIG_SAFEBOOT_HOLD_TIME_FOR_LATEST_FW
++        max_hold_time =
++            __max(CONFIG_SAFEBOOT_HOLD_TIME_FOR_LATEST_FW, max_hold_time);
++        insert_safeboot_cond(__safeboot_cond_latest_firmware,
++            CONFIG_SAFEBOOT_HOLD_TIME_FOR_LATEST_FW);
++    #endif
++
++    #if defined(CONFIG_SAFEBOOT_ENABLE_PREV_OTA) && \
++        defined(CONFIG_SAFEBOOT_HOLD_TIME_FOR_PREV_OTA)
++        max_hold_time =
++            __max(CONFIG_SAFEBOOT_HOLD_TIME_FOR_PREV_OTA, max_hold_time);
++        insert_safeboot_cond(__safeboot_cond_prev_user_update,
++            CONFIG_SAFEBOOT_HOLD_TIME_FOR_PREV_OTA);
++    #endif
++
++    #if defined(CONFIG_SAFEBOOT_ENABLE_FACTORY_FIRMWARE) && \
++        defined(CONFIG_SAFEBOOT_HOLD_TIME_FOR_FACTORY_FIRMWARE)
++        max_hold_time = __max(CONFIG_SAFEBOOT_HOLD_TIME_FOR_FACTORY_FIRMWARE,
++                max_hold_time);
++        insert_safeboot_cond(__safeboot_cond_factory_firmware,
++            CONFIG_SAFEBOOT_HOLD_TIME_FOR_FACTORY_FIRMWARE);
++    #endif
++
++    #ifdef __max_defined
++    #undef __max_defined
++    #undef __max
++    #endif
++
++    bool checked_level = 
++        #if CONFIG_SAFEBOOT_PIN_LEVEL_HIGH
++        true;
++        #else
++        false;
++        #endif
++
++    int detected_hold_time = 0;
++    extern bool bootloader_common_get_gpio_hold_time(
++        uint32_t    num_pin,
++        uint32_t    max_time_sec,
++        bool        level,
++        int         *p_hold_time);
++    bool detected_safeboot_press = bootloader_common_get_gpio_hold_time(
++        CONFIG_SAFEBOOT_PIN_NUM,
++        max_hold_time, 
++        checked_level,
++        &detected_hold_time);
++
++    int safeboot_cond = __safeboot_cond_none;
++    if(detected_safeboot_press)
++    {
++        safeboot_cond = get_safeboot_matched_cond(detected_hold_time);
++    }
++
++    bootif_state_set( safeboot_cond == __safeboot_cond_none ?
++        __BOOTIF_STATE_NORMAL_MODE : __BOOTIF_STATE_SAFEBOOT_MODE );
++
++    return safeboot_cond;
++
++    #endif /* CONFIG_SAFEBOOT_SWITCH_BUTTON_ENABLE */
++}
++
++#include <string.h>
++static esp_err_t read_otadata(const esp_partition_pos_t *ota_info, esp_ota_select_entry_t *two_otadata)
++{
++    extern const void *bootloader_mmap(uint32_t src_addr, uint32_t size);
++    extern void bootloader_munmap(const void *mapping);
++    const esp_ota_select_entry_t *ota_select_map;
++    if (ota_info->offset == 0) {
++        return ESP_ERR_NOT_FOUND;
++    }
++
++    // partition table has OTA data partition
++    if (ota_info->size < 2 * SPI_SEC_SIZE) {
++        ESP_LOGE(TAG, "ota_info partition size %d is too small (minimum %d bytes)", ota_info->size, (2 * SPI_SEC_SIZE));
++        return ESP_FAIL; // can't proceed
++    }
++
++    ESP_LOGD(TAG, "OTA data offset 0x%x", ota_info->offset);
++    ota_select_map = bootloader_mmap(ota_info->offset, ota_info->size);
++    if (!ota_select_map) {
++        ESP_LOGE(TAG, "bootloader_mmap(0x%x, 0x%x) failed", ota_info->offset, ota_info->size);
++        return ESP_FAIL; // can't proceed
++    }
++
++    memcpy(&two_otadata[0], ota_select_map, sizeof(esp_ota_select_entry_t));
++    memcpy(&two_otadata[1], (uint8_t *)ota_select_map + SPI_SEC_SIZE, sizeof(esp_ota_select_entry_t));
++    bootloader_munmap(ota_select_map);
++
++    return ESP_OK;
++}
++
++static int selected_boot_partition(const bootloader_state_t *bs)
++{
++    int boot_index = bootloader_utility_get_selected_boot_partition(bs);
++
++    ESP_LOGI(g_safeboot_tag, "Normal Selected boot index: %d", boot_index);
++
++    if (boot_index == INVALID_INDEX)
++    {
++        return boot_index;
++    }
++
++    if (bootloader_common_get_reset_reason(0) == DEEPSLEEP_RESET)
++    {
++        return boot_index;
++    }
++
++    int safeboot_cond;
++
++    if( bootif_state_get() == __BOOTIF_STATE_SAFEBOOT_MODE )
++    {
++        safeboot_cond = __safeboot_cond_software_request;
++    }
++    else
++    {
++        safeboot_cond = get_safeboot_condition();
++    }
++
++    ESP_LOGI(g_safeboot_tag, "detected condition: %s",
++        get_safeboot_cond_str(safeboot_cond));
++
++    if( safeboot_cond == __safeboot_cond_none )
++    {
++        // -- leave selected
++    }
++    else if( safeboot_cond == __safeboot_cond_latest_firmware )
++    {
++        // -- leave selected
++    }
++    else if( safeboot_cond == __safeboot_cond_prev_user_update )
++    {
++        esp_ota_select_entry_t otadata[2];
++
++        if (read_otadata(&bs->ota_info, otadata) == ESP_OK)
++        {
++            bool ota0_valid = bootloader_common_ota_select_valid(&otadata[0]);
++            bool ota1_valid = bootloader_common_ota_select_valid(&otadata[1]);
++
++            if( (ota0_valid || ota1_valid) && bs->app_count > 0)
++            {
++                int active = bootloader_common_get_active_otadata(otadata);
++
++                if( active != -1 )
++                {
++                    // -- this means there is at least an active ota,
++                    //      --> select the other one if exist
++                    if(active == 0 && ota1_valid)
++                    {
++                        ESP_LOGI(g_safeboot_tag, "Current Active OTA: 0"
++                            " previous active OTA: 1");
++                        active = 1;
++                    }
++                    else if(active == 1 && ota0_valid)
++                    {
++                        ESP_LOGI(g_safeboot_tag, "Current Active OTA: 1"
++                            " previous active OTA: 0");
++                        active = 0;
++                    }
++                    else
++                    {
++                        ESP_LOGI(g_safeboot_tag, "Current Active OTA: %d"
++                            " previous active OTA: none", active);
++                        // no valid prev user updated ota
++                        active = -1;
++                    }
++                }
++
++                if(active != -1)
++                {
++                    uint32_t ota_seq = otadata[active].ota_seq - 1;
++                    boot_index = ota_seq % bs->app_count;
++                    ESP_LOGI(g_safeboot_tag, "Active OTA %d seq-num: %d"
++                            " boot-index: %d", active, ota_seq, boot_index);
++                }
++                else
++                {
++                    // -- leave selected
++                }
++            }
++            else
++            {
++                // -- leave selected
++            }
++        }
++        else
++        {
++            // -- leave selected
++        }
++    }
++    else if( safeboot_cond == __safeboot_cond_factory_firmware )
++    {
++        boot_index = FACTORY_INDEX;
++    }
++
++    ESP_LOGI(g_safeboot_tag, "Finaly Selected boot index: %d", boot_index);
++
++    return boot_index;
++}
++
++#else /* #ifdef CONFIG_SAFEBOOT_FEATURE_ENABLE */
++
+ /*
+  * Selects a boot partition.
+  * The conditions for switching to another firmware are checked.
+@@ -128,6 +431,7 @@
+     }
+     return boot_index;
+ }
++#endif /* #ifdef CONFIG_SAFEBOOT_FEATURE_ENABLE */
+ 
+ // Return global reent struct if any newlib functions are linked to bootloader
+ struct _reent *__getreent(void)

@@ -50,6 +50,19 @@ extern void hook_mpy_uart_stdout_access_unlock(void);
 #endif /* CONFIG_SDK_MPY_HOOK_UART_STDOUT_MUTUAL_ACCESS_ENABLE */
 
 /** -------------------------------------------------------------------------- *
+ * @def __hook_mpy_uart_irq_custom_char_handler
+ * 
+ * @details This is a macro though which, the received stream on the uart can
+ *          be scanned and dedicated actions can be taken.
+ * --------------------------------------------------------------------------- *
+ */
+#ifdef CONFIG_SDK_MPY_HOOK_UART_IRQ_CUSTOM_CHAR_HANDLE_ENABLE
+extern void hook_mpy_uart_irq_custom_char_handler(char c);
+#define __hook_mpy_uart_irq_custom_char_handler(_ch)    \
+    hook_mpy_uart_irq_custom_char_handler(_ch)
+#endif /* CONFIG_SDK_MPY_HOOK_UART_IRQ_CUSTOM_CHAR_HANDLE_ENABLE */
+
+/** -------------------------------------------------------------------------- *
  * @def __hook_mpy_machine_hw_i2c_init
  * 
  * @details A hook over machine_hw_i2c_init() function.

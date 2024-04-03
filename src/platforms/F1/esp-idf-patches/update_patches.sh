@@ -1,3 +1,4 @@
+#!/bin/bash
 # ---------------------------------------------------------------------------- #
 # Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
 #
@@ -21,50 +22,26 @@
 #
 # Author    Ahmed Sabry (SG Wireless)
 #
-# Desc      This plugs the mpy-hook component into the build system
+# Desc      This file is responsible for updating the patches for the esp-idf
 # ---------------------------------------------------------------------------- #
 
-if("${__build_variant}" STREQUAL "micropython")
+__root_dir=../../../..
+__main_update_script=${__root_dir}/tools/builder/cmake/update_patches.sh
 
-__sdk_add_patch(
-    ENTITY_NAME     micropython
-    ORIGINAL_FILE   ${__dir_micropython}/ports/esp32/uart.c
-    PATCH_FILE      ${CMAKE_CURRENT_LIST_DIR}/patches/uart.c.patch
-    FINAL_DIR       ${CMAKE_CURRENT_LIST_DIR}/modified_sources
-    EXTRA_INCLUDES  ${CMAKE_CURRENT_LIST_DIR}
-)
-
-__sdk_add_patch(
-    ENTITY_NAME     micropython
-    ORIGINAL_FILE   ${__dir_micropython}/ports/esp32/help.c
-    PATCH_FILE      ${CMAKE_CURRENT_LIST_DIR}/patches/help.c.patch
-    FINAL_DIR       ${CMAKE_CURRENT_LIST_DIR}/modified_sources
-)
-
-__sdk_add_patch(
-    ENTITY_NAME     micropython
-    ORIGINAL_FILE   ${__dir_micropython}/ports/esp32/machine_i2c.c
-    PATCH_FILE      ${CMAKE_CURRENT_LIST_DIR}/patches/machine_i2c.c.patch
-    FINAL_DIR       ${CMAKE_CURRENT_LIST_DIR}/modified_sources
-)
-
-
-__sdk_add_component( f1_mpy_hooks
-
-    MPY_MODS
-        "${CMAKE_CURRENT_LIST_DIR}/*.c"
-
-    SRCS
-        "${CMAKE_CURRENT_LIST_DIR}/*.c"
-
-    INCS
-        ${CMAKE_CURRENT_LIST_DIR}
-
-    MENU_CONFIG     ${CMAKE_CURRENT_LIST_DIR}/mpy_hooks.config
-    MENU_PROMPT     "micropython hooks"
-    MENU_GROUP      MAIN.PLATFORM.F1
-)
-
-endif() # __build_variant == micropython
+for d in *; do
+    if [ -d "$d" ]; then
+        __modified_dir=./$d/modified_sources
+        if [ "$d" = "bootloader_main" ]; then
+            __original_dir=${__root_dir}/ext/esp-idf/components/bootloader
+        else
+            __original_dir=${__root_dir}/ext/esp-idf/components/$d
+        fi
+        __patch_dir=./$d/patches
+        ${__main_update_script} \
+            ${__original_dir}   \
+            ${__modified_dir} \
+            ${__patch_dir}
+    fi
+done
 
 # --- end of file ------------------------------------------------------------ #

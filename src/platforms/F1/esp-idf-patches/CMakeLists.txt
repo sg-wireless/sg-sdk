@@ -21,50 +21,31 @@
 #
 # Author    Ahmed Sabry (SG Wireless)
 #
-# Desc      This plugs the mpy-hook component into the build system
+# Desc      applies the required esp-idf components patches
 # ---------------------------------------------------------------------------- #
 
-if("${__build_variant}" STREQUAL "micropython")
+file(GLOB __sub_dirs "${CMAKE_CURRENT_LIST_DIR}/*")
 
-__sdk_add_patch(
-    ENTITY_NAME     micropython
-    ORIGINAL_FILE   ${__dir_micropython}/ports/esp32/uart.c
-    PATCH_FILE      ${CMAKE_CURRENT_LIST_DIR}/patches/uart.c.patch
-    FINAL_DIR       ${CMAKE_CURRENT_LIST_DIR}/modified_sources
-    EXTRA_INCLUDES  ${CMAKE_CURRENT_LIST_DIR}
-)
+foreach(__dir ${__sub_dirs})
 
-__sdk_add_patch(
-    ENTITY_NAME     micropython
-    ORIGINAL_FILE   ${__dir_micropython}/ports/esp32/help.c
-    PATCH_FILE      ${CMAKE_CURRENT_LIST_DIR}/patches/help.c.patch
-    FINAL_DIR       ${CMAKE_CURRENT_LIST_DIR}/modified_sources
-)
+    if(IS_DIRECTORY ${__dir})
+        get_filename_component(__comp ${__dir} NAME)
+        if("${__dir}" STREQUAL "${CMAKE_CURRENT_LIST_DIR}/bootloader_main")
+            if(NOT BOOTLOADER_BUILD)
+                continue()
+            endif()
+            set(__comp main)
+        endif()
 
-__sdk_add_patch(
-    ENTITY_NAME     micropython
-    ORIGINAL_FILE   ${__dir_micropython}/ports/esp32/machine_i2c.c
-    PATCH_FILE      ${CMAKE_CURRENT_LIST_DIR}/patches/machine_i2c.c.patch
-    FINAL_DIR       ${CMAKE_CURRENT_LIST_DIR}/modified_sources
-)
+        __sdk_add_patch( ESP_IDF
+            ENTITY_NAME     ${__comp}
+            PATCHES_DIRS    ${__dir}/patches
+            FINAL_DIR       ${__dir}/modified_sources
+        )
+    endif()
 
+endforeach()
 
-__sdk_add_component( f1_mpy_hooks
-
-    MPY_MODS
-        "${CMAKE_CURRENT_LIST_DIR}/*.c"
-
-    SRCS
-        "${CMAKE_CURRENT_LIST_DIR}/*.c"
-
-    INCS
-        ${CMAKE_CURRENT_LIST_DIR}
-
-    MENU_CONFIG     ${CMAKE_CURRENT_LIST_DIR}/mpy_hooks.config
-    MENU_PROMPT     "micropython hooks"
-    MENU_GROUP      MAIN.PLATFORM.F1
-)
-
-endif() # __build_variant == micropython
+unset(__sub_dirs)
 
 # --- end of file ------------------------------------------------------------ #
