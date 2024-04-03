@@ -1,0 +1,102 @@
+--- ../../../../ext/esp-idf/components/driver/periph_ctrl.c	2024-03-27 17:48:30
++++ ./driver/modified_sources/periph_ctrl.c	2024-03-19 17:03:36
+@@ -8,6 +8,8 @@
+ #include "esp_attr.h"
+ #include "driver/periph_ctrl.h"
+ 
++#include <string.h>
++
+ static portMUX_TYPE periph_spinlock = portMUX_INITIALIZER_UNLOCKED;
+ 
+ static uint8_t ref_counts[PERIPH_MODULE_MAX] = {0};
+@@ -27,7 +29,10 @@
+ {
+     assert(periph < PERIPH_MODULE_MAX);
+     portENTER_CRITICAL_SAFE(&periph_spinlock);
++    if(ref_counts[periph] > 0)
++    {
+     ref_counts[periph]--;
++    }
+     if (ref_counts[periph] == 0) {
+         periph_ll_disable_clk_set_rst(periph);
+     }
+@@ -40,6 +45,79 @@
+     portENTER_CRITICAL_SAFE(&periph_spinlock);
+     periph_ll_reset(periph);
+     portEXIT_CRITICAL_SAFE(&periph_spinlock);
++}
++
++static const char* s_periph_modules_str[] = {
++    [PERIPH_LEDC_MODULE]            = "LEDC",
++    [PERIPH_UART0_MODULE]           = "UART0",
++    [PERIPH_UART1_MODULE]           = "UART1",
++    [PERIPH_UART2_MODULE]           = "UART2",
++    [PERIPH_USB_MODULE]             = "USB",
++    [PERIPH_I2C0_MODULE]            = "I2C0",
++    [PERIPH_I2C1_MODULE]            = "I2C1",
++    [PERIPH_I2S0_MODULE]            = "I2S0",
++    [PERIPH_I2S1_MODULE]            = "I2S1",
++    [PERIPH_LCD_CAM_MODULE]         = "LCD_CAM",
++    [PERIPH_TIMG0_MODULE]           = "TIMG0",
++    [PERIPH_TIMG1_MODULE]           = "TIMG1",
++    [PERIPH_PWM0_MODULE]            = "PWM0",
++    [PERIPH_PWM1_MODULE]            = "PWM1",
++    [PERIPH_PWM2_MODULE]            = "PWM2",
++    [PERIPH_PWM3_MODULE]            = "PWM3",
++    [PERIPH_UHCI0_MODULE]           = "UHCI0",
++    [PERIPH_UHCI1_MODULE]           = "UHCI1",
++    [PERIPH_RMT_MODULE]             = "RMT",
++    [PERIPH_PCNT_MODULE]            = "PCNT",
++    [PERIPH_SPI_MODULE]             = "SPI",
++    [PERIPH_SPI2_MODULE]            = "SPI2",
++    [PERIPH_SPI3_MODULE]            = "SPI3",
++    [PERIPH_SDMMC_MODULE]           = "SDMMC",
++    [PERIPH_TWAI_MODULE]            = "TWAI",
++    [PERIPH_RNG_MODULE]             = "RNG",
++    [PERIPH_WIFI_MODULE]            = "WIFI",
++    [PERIPH_BT_MODULE]              = "BT",
++    [PERIPH_WIFI_BT_COMMON_MODULE]  = "WIFI_BT_COMMON",
++    [PERIPH_BT_BASEBAND_MODULE]     = "BT_BASEBAND",
++    [PERIPH_BT_LC_MODULE]           = "BT_LC",
++    [PERIPH_AES_MODULE]             = "AES",
++    [PERIPH_SHA_MODULE]             = "SHA",
++    [PERIPH_HMAC_MODULE]            = "HMAC",
++    [PERIPH_DS_MODULE]              = "DS",
++    [PERIPH_RSA_MODULE]             = "RSA",
++    [PERIPH_SYSTIMER_MODULE]        = "SYSTIMER",
++    [PERIPH_GDMA_MODULE]            = "GDMA",
++    [PERIPH_DEDIC_GPIO_MODULE]      = "DEDIC_GPIO",
++    [PERIPH_SARADC_MODULE]          = "SARADC",
++};
++
++periph_module_t periph_module_get_id(const char* name)
++{
++    int i;
++    for(i=0; i < PERIPH_MODULE_MAX; ++i)
++    {
++        if(strcmp(name, s_periph_modules_str[i]) == 0)
++        {
++            return i;
++        }
++    }
++    return PERIPH_MODULE_MAX;
++}
++
++void periph_module_list(void)
++{
++    int i;
++    for(i=0; i < PERIPH_MODULE_MAX; ++i)
++    {
++        if(ref_counts[i])
++        {
++            __log_enforce("%Cy%2d %s : %d", i, s_periph_modules_str[i],
++                ref_counts[i]);
++        }
++        else
++        {
++            __log_enforce("%2d %s : 0", i, s_periph_modules_str[i]);
++        }
++    }
+ }
+ 
+ #if CONFIG_ESP32_WIFI_ENABLED

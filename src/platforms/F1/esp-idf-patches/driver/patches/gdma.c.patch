@@ -1,0 +1,12 @@
+--- ../../../../ext/esp-idf/components/driver/gdma.c	2024-03-27 17:48:30
++++ ./driver/modified_sources/gdma.c	2024-03-19 17:03:36
+@@ -682,9 +682,6 @@
+     portEXIT_CRITICAL(&group->spinlock);
+ 
+     if (new_pair) {
+-        portENTER_CRITICAL(&s_platform.spinlock);
+-        s_platform.group_ref_counts[group->group_id]++; // pair obtains a reference to group
+-        portEXIT_CRITICAL(&s_platform.spinlock);
+         ESP_LOGD(TAG, "new pair (%d,%d) at %p", group->group_id, pair->pair_id, pair);
+     } else {
+         free(pre_alloc_pair);

@@ -50,8 +50,11 @@ These are a quick references to contents of the SDK.
     * [Build System](tools/builder/docs/builder.md)
     * [FW Versioning Structure](src/comps/fw-version/README.md)
 * F1 Platform Specific Features.
+* F1 Platform Specific Services.
     * [Safeboot](
         src/platforms/F1/bootloader_components/boot-if/docs/safeboot.md)
+    * [System Inspection](
+        src/platforms/F1/comps/sys-inspect-if/docs/sys_inspect.md)
 
 <!------------------------------------------------------------------------------
  ! Features

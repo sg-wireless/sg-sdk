@@ -47,6 +47,7 @@ __sdk_menu_config_group_add(MAIN.PLATFORM.F1 "F1 Platform")
 __sdk_add_comp_dirs(
     ${__dir_platform_comps}/logs-if
     ${__dir_platform_comps}/ioexp-if
+    ${__dir_platform_comps}/sys-inspect-if
 
     ${__dir_platform}/mpy-hooks
     ${__dir_sdk_drivers}/common
