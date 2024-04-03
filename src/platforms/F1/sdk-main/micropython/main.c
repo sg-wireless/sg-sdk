@@ -236,6 +236,19 @@ void boardctrl_startup(void) {
 
     void init_log_system(void);
     init_log_system();
+
+    #ifdef CONFIG_IOEXP_ENABLED
+    /**
+     * GPIO ISR service installation was originally done in machine_pin.c
+     * but because it is needed by other interrupt intialisation such as
+     * the IO-Expander interrupt pin, it will be done here earlier before all
+     * system modules.
+     */
+    gpio_install_isr_service(0);
+
+    void ioexp_init(void);
+    ioexp_init();
+    #endif /* CONFIG_IOEXP_ENABLED */
 }
 
 void app_main(void) {

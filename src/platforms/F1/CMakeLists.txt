@@ -41,9 +41,14 @@ log_var(VARIANT)
 log_var(__partition_table)
 log_list(__sdkconfigs_files)
 
+__sdk_menu_config_group_add(MAIN.PLATFORM.F1 "F1 Platform")
+
 # sdk components cmake lists
 __sdk_add_comp_dirs(
     ${__dir_platform_comps}/logs-if
+    ${__dir_platform_comps}/ioexp-if
+
+    ${__dir_platform}/mpy-hooks
     ${__dir_sdk_drivers}/common
 
     ${__dir_src}/libs/*

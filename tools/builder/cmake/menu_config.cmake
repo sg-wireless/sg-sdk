@@ -219,11 +219,12 @@ endfunction()
 # ---------------------------------------------------------------------------- #
 function(__sdk_menu_config_init)
     __sdk_menu_config_group_add(MAIN                "Main Menu")
-    __sdk_menu_config_group_add(MAIN.SDK            "SDK Components")
+    __sdk_menu_config_group_add(MAIN.SDK            "*** SDK Components")
     __sdk_menu_config_group_add(MAIN.SDK.CLIBS      "Common C Libraries")
     __sdk_menu_config_group_add(MAIN.SDK.NETWORK    "Network Components")
-    __sdk_menu_config_group_add(MAIN.DEMO           "SDK Demo Examples")
-    __sdk_menu_config_group_add(MAIN.USR            "User Project Components")
+    __sdk_menu_config_group_add(MAIN.PLATFORM       "*** SDK Platforms")
+    __sdk_menu_config_group_add(MAIN.DEMO           "*** SDK Demo Examples")
+    __sdk_menu_config_group_add(MAIN.USR        "*** User Project Components")
 endfunction()
 
 # ---------------------------------------------------------------------------- #

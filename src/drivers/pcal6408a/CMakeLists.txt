@@ -1,4 +1,3 @@
-#!/bin/bash
 # ---------------------------------------------------------------------------- #
 # Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
 #
@@ -22,22 +21,23 @@
 #
 # Author    Ahmed Sabry (SG Wireless)
 #
-# Desc      This file is responsible for updating the patches for the uPython
+# Desc      This file is responsible for building the pcal6408a driver component
 # ---------------------------------------------------------------------------- #
 
-__root_dir=../../../..
-__modified_dir=./modified_sources
-__patch_dir=./patches
-__main_update_script=${__root_dir}/tools/builder/cmake/update_patches.sh
+__sdk_add_component( driver_pcal6408a
 
-__original_dir=${__root_dir}/ext/micropython/ports/esp32
-__search_path="uart.c"
-${__main_update_script} ${__original_dir} ${__modified_dir} ${__patch_dir} \
-    ${__search_path}
+    LOGS_DEFS
+        ${CMAKE_CURRENT_LIST_DIR}/pcal6408a.c
 
-__original_dir=${__root_dir}/ext/micropython/ports/esp32
-__search_path="machine_i2c.c"
-${__main_update_script} ${__original_dir} ${__modified_dir} ${__patch_dir} \
-    ${__search_path}
+    SRCS
+        ${CMAKE_CURRENT_LIST_DIR}/pcal6408a.c
+
+    INCS_IF
+        ${CMAKE_CURRENT_LIST_DIR}
+    
+    MENU_CONFIG     ${CMAKE_CURRENT_LIST_DIR}/pcal6408a.config
+    MENU_PROMPT     "IO Expander NXP PCAL6408A Chip Driver"
+    MENU_GROUP      MAIN.SDK.DRIVERS
+)
 
 # --- end of file ------------------------------------------------------------ #

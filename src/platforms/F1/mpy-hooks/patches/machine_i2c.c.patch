@@ -1,0 +1,32 @@
+--- ../../../../ext/micropython/ports/esp32/machine_i2c.c	2023-11-14 10:45:09
++++ ./modified_sources/machine_i2c.c	2023-12-20 14:45:47
+@@ -31,6 +31,7 @@
+ #include "modmachine.h"
+ 
+ #include "driver/i2c.h"
++#include "board_hooks.h"
+ 
+ #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 4, 0)
+ #include "hal/i2c_ll.h"
+@@ -74,6 +75,21 @@
+ STATIC machine_hw_i2c_obj_t machine_hw_i2c_obj[I2C_NUM_MAX];
+ 
+ STATIC void machine_hw_i2c_init(machine_hw_i2c_obj_t *self, uint32_t freq, uint32_t timeout_us, bool first_init) {
++    #ifdef __hook_mpy_machine_hw_i2c_init
++    bool initialized = false;
++    bool config_err = false;
++    __hook_mpy_machine_hw_i2c_init(self->port, self->scl, self->sda, freq,
++        timeout_us/1000u, &initialized, &config_err);
++    if(config_err)
++    {
++        mp_raise_msg_varg(&mp_type_RuntimeError, MP_ERROR_TEXT(
++                "i2c board configuration violation"));
++    }
++    if(initialized)
++    {
++        return;
++    }
++    #endif
+     if (!first_init) {
+         i2c_driver_delete(self->port);
+     }
