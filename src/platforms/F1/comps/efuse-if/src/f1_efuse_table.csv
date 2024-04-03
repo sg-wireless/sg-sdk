@@ -1,0 +1,21 @@
+#
+# These are the manufactured efuses in the ESP32-S3 chip of F1 boards.
+#
+# The following is the version 0 layout designation
+#   LoRa-WAN DevEUI   8 bytes
+#   Serial Number     6 bytes
+#   HW ID             3 bytes
+#   Project ID        3 bytes
+#   RFU               4 bytes
+#   eFuse Rev         1 byte
+#   WiFi MAC          6 bytes
+#   USER_DATA CRC8    1 byte
+
+USER_DATA.LPWAN_MAC,        EFUSE_BLK3,     0,  64,     LoRa-WAN DevEUI
+USER_DATA.SERIAL_NUMBER,    EFUSE_BLK3,     ,   48,     Board Serial Number
+USER_DATA.HW_ID,            EFUSE_BLK3,     ,   24,     HW ID
+USER_DATA.PROJECT_ID,       EFUSE_BLK3,     ,   24,     Specific Project ID
+USER_DATA.LAYOUT_VERSION,   EFUSE_BLK3,  192,    8,     Version of this layout
+
+USER_DATA.WIFI_MAC,         EFUSE_BLK3,  200,   48,     WiFi MAC Addr
+USER_DATA.CRC8,             EFUSE_BLK3,  248,    8,     USER_DATA CRC8

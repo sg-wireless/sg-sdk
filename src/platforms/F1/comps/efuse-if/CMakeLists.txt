@@ -1,3 +1,4 @@
+
 # ---------------------------------------------------------------------------- #
 # Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
 #
@@ -21,43 +22,29 @@
 #
 # Author    Ahmed Sabry (SG Wireless)
 #
-# Desc      CMake list file for micropython main component build description.
+# Desc      This file plugs the efuse interface component in the build system
 # ---------------------------------------------------------------------------- #
 
-__sdk_add_component( micropython_main
-
-    MPY_EXCLUDE_FILES
-        ${__dir_micropython}/ports/esp32/main.c
+__sdk_add_component( f1_efuse_if
 
     MPY_MODS
-        ${CMAKE_CURRENT_LIST_DIR}/main.c
+        ${CMAKE_CURRENT_LIST_DIR}/src/mod_efuse.c
+
+    LOGS_DEFS
+        ${CMAKE_CURRENT_LIST_DIR}/src/efuse_if.c
 
     SRCS
-        ${CMAKE_CURRENT_LIST_DIR}/main.c
-
-    INCS
-        ${__dir_ext}/esp-idf/components/log/include
-        ${__dir_ext}/esp-idf/components/spi_flash/include
-        ${__dir_ext}/esp-idf/components/nvs_flash/include
+        "${CMAKE_CURRENT_LIST_DIR}/src/*.c"
 
     INCS_IF
-        ${CMAKE_CURRENT_LIST_DIR}
-        ${__dir_micropython}
-        ${__dir_micropython}/ports/esp32
-        ${__dir_platform}
+        ${CMAKE_CURRENT_LIST_DIR}/inc
+
+    REQUIRED_ESP_LIBS
+        efuse
+
+    MENU_CONFIG     ${CMAKE_CURRENT_LIST_DIR}/cfg/efuse.config
+    MENU_PROMPT     "Board eFuses"
+    MENU_GROUP      MAIN.PLATFORM.F1
 )
-
-# __sdk_add_kconfig_default(${__dir_board}/sdk-config/sdkconfig.micropython)
-
-__sdk_add_compile_options(
-    "-DMICROPY_VFS_LFS2=1"
-    "-DBASE=0"
-    "-DMP_CONFIGFILE=\"${CMAKE_CURRENT_LIST_DIR}/mpconfigport.h\""
-    "-g"
-    "-Os"
-)
-
-__sdk_add_micropython_frozen_manifest(
-    ${CMAKE_CURRENT_LIST_DIR}/main_manifest.py)
 
 # --- end of file ------------------------------------------------------------ #

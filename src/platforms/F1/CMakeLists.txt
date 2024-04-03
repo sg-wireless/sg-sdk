@@ -48,6 +48,8 @@ __sdk_add_comp_dirs(
     ${__dir_platform_comps}/logs-if
     ${__dir_platform_comps}/ioexp-if
     ${__dir_platform_comps}/sys-inspect-if
+    ${__dir_platform_comps}/efuse-if
+    ${__dir_platform_comps}/sys-info
 
     ${__dir_platform}/mpy-hooks
     ${__dir_sdk_drivers}/common
