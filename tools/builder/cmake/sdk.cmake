@@ -616,6 +616,70 @@ function(__sdk_process_patching
 endfunction()
 
 # ---------------------------------------------------------------------------- #
+# synopsis:     __sdk_patch_collect_final_files(
+#                   <entity>
+#                   <out-var>
+#               )
+#
+# description:
+#
+#   § retrieve the list of final files of patches of and the extra includes.
+# 
+#   § It takes the following arguments:
+#       <entity>    The SDK entity name.
+#       <out-var>   A variable to be set with the final files list of this
+#                   patched entity
+# ---------------------------------------------------------------------------- #
+function(__sdk_patch_collect_final_files __entity __out_var)
+
+    __entity_get_attribute(${__entity} PATCH_FILE __pairs)
+
+    set(__final_files_list)
+    foreach(__pair ${__pairs})
+        if(${__pair} MATCHES "^\\((.+)?,(.+)?,(.+)?\\)\$")
+            set(__orig_file ${CMAKE_MATCH_1})
+            set(__patch_file ${CMAKE_MATCH_2})
+            set(__final_dir ${CMAKE_MATCH_3})
+            log_dbg("--> patch file ${__cyan__}${__patch_file}${__default__}")
+            log_dbg("    orig file  ${__cyan__}${__orig_file}${__default__}")
+            log_dbg("    final dir  ${__cyan__}${__final_dir}${__default__}")
+
+            get_filename_component(__orig_filename ${__orig_file} NAME)
+            list(APPEND __final_files_list ${__final_dir}/${__orig_filename})
+        endif()
+    endforeach()
+
+    math(EXPR __step_idx "${__step_idx} + 1")
+    __entity_get_attribute(${__entity} PATCH_DIR __pairs)
+    foreach(__pair ${__pairs})
+        if(${__pair} MATCHES "^\\((.+)?,(.+)?\\)\$")
+            set(__patch_dir ${CMAKE_MATCH_1})
+            set(__final_dir ${CMAKE_MATCH_2})
+            log_dbg(
+                " --> found patch dir ${__cyan__}${__patch_dir}${__default__}")
+            log_dbg("     final dir ${__cyan__}${__final_dir}${__default__}")
+            if(NOT EXISTS ${__patch_dir})
+                log_dbg("error: patch dir ${__patch_dir} does not exist"
+                    fatal_error)
+            endif()
+
+            # pick up all patch files in the patches directory
+            file(GLOB __patch_files "${__patch_dir}/*.patch")
+
+            foreach(__patch_file ${__patch_files})
+                # look for the corresponding original file in the target sources
+                string(REGEX REPLACE ".*/(.*)\.patch\$" "\\1"
+                    __filename ${__patch_file})
+                list(APPEND __final_files_list ${__final_dir}/${__filename})
+            endforeach()
+        endif()
+    endforeach()
+
+    if(__out_var)
+        set(${__out_var} ${__final_files_list} PARENT_SCOPE)
+    endif()
+endfunction()
+# ---------------------------------------------------------------------------- #
 # synopsis:     __sdk_patch_target(
 #                   <entity>
 #                   <target>
@@ -688,7 +752,8 @@ function(__sdk_patch_target __entity __target)
         if(${__pair} MATCHES "^\\((.+)?,(.+)?\\)\$")
             set(__patch_dir ${CMAKE_MATCH_1})
             set(__final_dir ${CMAKE_MATCH_2})
-            log_dbg(" --> found patch dir ${__cyan__}${__patch_dir}${__default__}")
+            log_dbg(
+                " --> found patch dir ${__cyan__}${__patch_dir}${__default__}")
             log_dbg("     final dir ${__cyan__}${__final_dir}${__default__}")
             if(NOT EXISTS ${__patch_dir})
                 log_dbg("error: patch dir ${__patch_dir} does not exist"

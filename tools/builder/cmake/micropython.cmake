@@ -81,6 +81,36 @@ function(__micropython_update_usermod_list_files)
         file( MAKE_DIRECTORY ${__usermod_lists_dir} )
     endif()
 
+    __sdk_patch_collect_final_files(micropython __mpy_patched_files)
+    __get_global_attribute(SDK_INCS __incs_sdk)
+    list(REMOVE_DUPLICATES __incs_sdk)
+    if(__mpy_patched_files)
+        set(__contents)
+        set(__lib_name usermod_patched_micropython)
+        string(APPEND __contents
+            "add_library(${__lib_name} INTERFACE IMPORTED)\n"
+            "target_sources(${__lib_name} INTERFACE\n")
+        foreach(__file ${__mpy_patched_files})
+            string(APPEND __contents  "    ${__file}\n")
+        endforeach()
+        string(APPEND __contents  "    )\n")
+
+        if(__incs_sdk)
+            string(APPEND __contents
+                "target_include_directories(${__lib_name} INTERFACE\n")
+            foreach(__inc_dir ${__incs_sdk})
+                string(APPEND __contents  "    ${__inc_dir}\n")
+            endforeach()
+            string(APPEND __contents  "    )\n")
+        endif()
+
+        string(APPEND __contents
+            "target_link_libraries(usermod INTERFACE ${__lib_name})\n")
+        set(__list_file ${__usermod_lists_dir}/${__lib_name}.cmake)
+        __sdk_update_file_contents(${__list_file} ${__contents})
+        __entity_set_attribute(micropython MPY_USERMOD_LIST_FILE ${__list_file})
+    endif()
+
     foreach(__sdk_lib ${__libs_with_cmods})
 
         set(__lib_name usermod_${__sdk_lib})
@@ -105,7 +135,6 @@ function(__micropython_update_usermod_list_files)
         string(APPEND __contents  "${__ts})\n")
 
         __entity_get_attribute(${__sdk_lib} INCS_PRIV __incs_priv LOG_OFF)
-        __get_global_attribute(SDK_INCS __incs_sdk)
         set(__incs ${__incs_priv} ${__incs_sdk})
         list(REMOVE_DUPLICATES __incs)
         string(APPEND __contents
