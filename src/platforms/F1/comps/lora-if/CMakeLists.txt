@@ -21,33 +21,23 @@
 #
 # Author    Ahmed Sabry (SG Wireless)
 #
-# Desc      This file plugs the ioexp interface component in the build system
+# Desc      This file plugs the lora-stack interface component in the build sys
 # ---------------------------------------------------------------------------- #
 
-if(__feature_lora OR __feature_lte OR __feature_secure_element)
-    __sdk_add_compile_options(-DCONFIG_IOEXP_ENABLED)
-    set(CONFIG_IOEXP_ENABLED ON)
-    __sdk_add_comp_dirs( ${__dir_sdk_drivers}/pcal6408a )
-endif()
+__sdk_add_component( lora_if
 
-if(CONFIG_IOEXP_ENABLED)
-    __sdk_add_component( ioexp_if
+    SRCS
+        "${CMAKE_CURRENT_LIST_DIR}/*.c"
 
-        MPY_MODS
-            ${CMAKE_CURRENT_LIST_DIR}/mod_ioexp.c
+    INCS_PRIV
+        ${CMAKE_CURRENT_LIST_DIR}
+        ${__dir_ext}/LoRaMac-node/src
+        ${__dir_esp_idf}/components/nvs_flash/include
+        ${__dir_esp_idf}/components/freertos/include/freertos
 
-        LOGS_DEFS
-            ${CMAKE_CURRENT_LIST_DIR}/ioexp.c
-
-        SRCS
-            "${CMAKE_CURRENT_LIST_DIR}/*.c"
-
-        INCS_IF
-            ${CMAKE_CURRENT_LIST_DIR}
-
-        REQUIRED_SDK_LIBS
-            driver_pcal6408a
-    )
-endif()
+    REQUIRED_SDK_LIBS
+        ioexp_if
+        lora_stack
+)
 
 # --- end of file ------------------------------------------------------------ #

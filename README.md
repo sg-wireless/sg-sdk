@@ -49,7 +49,8 @@ These are a quick references to contents of the SDK.
 * SDK Framework
     * [Build System](tools/builder/docs/builder.md)
     * [FW Versioning Structure](src/comps/fw-version/README.md)
-* F1 Platform Specific Features.
+* Connectivity Features
+    * [LoRa](src/comps/lora/docs/lora-main.md)
 * F1 Platform Specific Services.
     * [Safeboot](
         src/platforms/F1/bootloader_components/boot-if/docs/safeboot.md)

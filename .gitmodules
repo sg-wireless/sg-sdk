@@ -4,3 +4,6 @@
 [submodule "ext/esp-idf"]
 	path = ext/esp-idf
 	url = https://github.com/espressif/esp-idf.git
+[submodule "ext/LoRaMac-node"]
+	path = ext/LoRaMac-node
+	url = https://github.com/Lora-net/LoRaMac-node.git

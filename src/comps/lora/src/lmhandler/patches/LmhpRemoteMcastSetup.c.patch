@@ -1,0 +1,250 @@
+--- ../../../../../ext/LoRaMac-node/src/apps/LoRaMac/common/LmHandler/packages/LmhpRemoteMcastSetup.c	2023-06-14 18:49:48
++++ ./modified_sources/LmhpRemoteMcastSetup.c	2023-09-20 16:52:27
+@@ -21,6 +21,10 @@
+  */
+ #include "LmHandler.h"
+ #include "LmhpRemoteMcastSetup.h"
++#define __log_subsystem  lora_pkg
++#define __log_component  wan_mcast
++#include "log_lib.h"
++#include "LoRaMac.h"
+ 
+ #define DBG_TRACE                                   1
+ 
+@@ -29,11 +33,7 @@
+     /*!
+      * Works in the same way as the printf function does.
+      */
+-    #define DBG( ... )                               \
+-        do                                           \
+-        {                                            \
+-            printf( __VA_ARGS__ );                   \
+-        }while( 0 )
++    #define DBG( args ... )  __log_printf(args)
+ 
+     #define DBG_SESSION( id, isRxParamsSetup )                                                         \
+         do                                                                                             \
+@@ -236,6 +236,7 @@
+ {
+     if( dataBuffer != NULL )
+     {
++        __log_info("init");
+         LmhpRemoteMcastSetupState.DataBuffer = dataBuffer;
+         LmhpRemoteMcastSetupState.DataBufferMaxSize = dataBufferMaxSize;
+         LmhpRemoteMcastSetupState.Initialized = true;
+@@ -261,6 +262,8 @@
+ 
+ static void LmhpRemoteMcastSetupProcess( void )
+ {
++    __log_info("process");
++
+     LmhpRemoteMcastSetupSessionStates_t state;
+ 
+     CRITICAL_SECTION_BEGIN( );
+@@ -271,17 +274,28 @@
+     switch( state )
+     {
+         case REMOTE_MCAST_SETUP_SESSION_STATE_START:
++            __log_info("start() --> req class-C");
+             // Switch to Class C
+-            LmHandlerRequestClass( CLASS_C );
++            // LmHandlerRequestClass( CLASS_C );
+ 
++            extern void lmh_start_class_c_temp_session(void);
++            lmh_start_class_c_temp_session();
++
++            __log_enforce("Class-C window: %d seconds", 1 << McSessionData[0].SessionTimeout);
++
+             TimerSetValue( &SessionStopTimer, ( 1 << McSessionData[0].SessionTimeout ) * 1000 );
+             TimerStart( &SessionStopTimer );
+             break;
+         case REMOTE_MCAST_SETUP_SESSION_STATE_STOP:
++            __log_info("stop()  --> req class-A");
+             // Switch back to Class A
+-            LmHandlerRequestClass( CLASS_A );
++            // LmHandlerRequestClass( CLASS_A );
++            extern void lmh_stop_class_c_temp_session(void);
++            lmh_stop_class_c_temp_session();
++
+             break;
+         case REMOTE_MCAST_SETUP_SESSION_STATE_IDLE:
++            __log_info("idle()");
+         // Intentional fall through
+         default:
+             // Nothing to do.
+@@ -299,12 +313,16 @@
+         return;
+     }
+ 
++    __log_info("on MCPS indication");
++
+     while( cmdIndex < mcpsIndication->BufferSize )
+     {
+         switch( mcpsIndication->Buffer[cmdIndex++] )
+         {
+             case REMOTE_MCAST_SETUP_PKG_VERSION_REQ:
+             {
++                __log_info("on PackageVersionReq");
++                __log_output(__yellow__"--> multicast package-version-req\n"__default__);
+                 LmhpRemoteMcastSetupState.DataBuffer[dataBufferIndex++] = REMOTE_MCAST_SETUP_PKG_VERSION_ANS;
+                 LmhpRemoteMcastSetupState.DataBuffer[dataBufferIndex++] = REMOTE_MCAST_SETUP_ID;
+                 LmhpRemoteMcastSetupState.DataBuffer[dataBufferIndex++] = REMOTE_MCAST_SETUP_VERSION;
+@@ -312,11 +330,47 @@
+             }
+             case REMOTE_MCAST_SETUP_MC_GROUP_STATUS_REQ:
+             {
++                __log_info("on McGroupStatusReq");
++                __log_output(__yellow__"--> multicast group-status-req\n"__default__);
+                 // TODO implement command processing and handling
++                MulticastCtx_t* mac_mc_List;
++                MibRequestConfirm_t mib = { .Type = MIB_NVM_CTXS};
++                LoRaMacMibGetRequestConfirm(&mib);
++                mac_mc_List = mib.Param.Contexts->MacGroup2.MulticastChannelList;
++
++                uint8_t* payload = mcpsIndication->Buffer;
++                uint8_t req_group_mask = payload[cmdIndex++] & 0x0F;
++
++                uint8_t ans_groups_mask = 0;
++                uint8_t total_groups = 0;
++                uint8_t* buf = LmhpRemoteMcastSetupState.DataBuffer;
++                buf[dataBufferIndex++] = REMOTE_MCAST_SETUP_MC_GROUP_STATUS_ANS;
++                uint8_t* p_ans_status = &buf[dataBufferIndex++];
++                for(int i = 0; i < LORAMAC_MAX_MC_CTX; i++) {
++                    if( mac_mc_List[i].ChannelParams.IsEnabled ) {
++                        total_groups ++;
++                        if( ( req_group_mask & (1 << i)) &&
++                            dataBufferIndex + 5 <=
++                                LmhpRemoteMcastSetupState.DataBufferMaxSize) {
++
++                            ans_groups_mask |= 1 << i;
++                            buf[dataBufferIndex++] = mac_mc_List[i].ChannelParams.GroupID;
++                            uint8_t* p_addr = (uint8_t*)&mac_mc_List[i].ChannelParams.Address;
++                            buf[dataBufferIndex++] = p_addr[0];
++                            buf[dataBufferIndex++] = p_addr[1];
++                            buf[dataBufferIndex++] = p_addr[2];
++                            buf[dataBufferIndex++] = p_addr[3];
++                        }
++                    }
++                }
++                __log_warn("dataBufferIndex = %d", dataBufferIndex);
++                *p_ans_status = (total_groups << 4) | ans_groups_mask;
+                 break;
+             }
+             case REMOTE_MCAST_SETUP_MC_GROUP_SETUP_REQ:
+             {
++                __log_info("on McGroupSetupReq");
++                __log_output(__yellow__"--> multicast group-setup-req\n"__default__);
+                 uint8_t idError = 0x01; // One bit value
+                 uint8_t id = mcpsIndication->Buffer[cmdIndex++];
+ 
+@@ -373,6 +427,8 @@
+             }
+             case REMOTE_MCAST_SETUP_MC_GROUP_DELETE_REQ:
+             {
++                __log_info("on McGroupDeleteReq");
++                __log_output(__yellow__"--> multicast group-delete-req\n"__default__);
+                 uint8_t status = 0x00;
+                 uint8_t id = mcpsIndication->Buffer[cmdIndex++] & 0x03;
+ 
+@@ -389,6 +445,8 @@
+             }
+             case REMOTE_MCAST_SETUP_MC_GROUP_CLASS_C_SESSION_REQ:
+             {
++                __log_info("on McClassCSessionReq");
++                __log_output(__yellow__"--> multicast class-c-session-req\n"__default__);
+                 bool isTimerSet = false;
+                 int32_t timeToSessionStart = 0;
+                 uint8_t status = 0x00;
+@@ -420,6 +478,7 @@
+                         curTime = SysTimeGet( );
+ 
+                         timeToSessionStart = McSessionData[id].SessionTime - curTime.Seconds;
++                        __log_enforce("==> session time to start: %d seconds", timeToSessionStart);
+                         if( timeToSessionStart > 0 )
+                         {
+                             // Start session start timer
+@@ -436,9 +495,11 @@
+                             status |= 0x10; // McGroupUndefined bit set
+                         }
+                     }
++                    __log_enforce("--> status: %02x", (uint32_t)status);
+                 }
+                 else
+                 {
++                    __log_enforce("==> status: %02x", (uint32_t)status);
+                     status |= 0x10; // McGroupUndefined bit set
+                 }
+ 
+@@ -455,6 +516,8 @@
+             }
+             case REMOTE_MCAST_SETUP_MC_GROUP_CLASS_B_SESSION_REQ:
+             {
++                __log_info("on McClassBSessionReq");
++                __log_output(__yellow__"--> multicast class-b-session-req\n"__default__);
+                 bool isTimerSet = false;
+                 int32_t timeToSessionStart = 0;
+                 uint8_t status = 0x00;
+@@ -522,6 +585,7 @@
+             }
+             default:
+             {
++                __log_info("on Unknown Req");
+                 break;
+             }
+         }
+@@ -530,21 +594,47 @@
+     if( dataBufferIndex != 0 )
+     {
+         // Answer commands
++        __log_info("%CcdataBufferIndex = %d", dataBufferIndex);
+         LmHandlerAppData_t appData =
+         {
+             .Buffer = LmhpRemoteMcastSetupState.DataBuffer,
+             .BufferSize = dataBufferIndex,
+             .Port = REMOTE_MCAST_SETUP_PORT
+         };
++        switch(LmhpRemoteMcastSetupState.DataBuffer[0]) {
++        case REMOTE_MCAST_SETUP_PKG_VERSION_ANS:
++            __log_output(__cyan__"<-- multicast package-version-ans\n"__default__);
++            break;
++        case REMOTE_MCAST_SETUP_MC_GROUP_STATUS_ANS:
++            __log_output(__cyan__"--> multicast group-status-ans\n"__default__);
++            break;
++        case REMOTE_MCAST_SETUP_MC_GROUP_DELETE_ANS:
++            __log_output(__cyan__"--> multicast group-delete-ans\n"__default__);
++            break;
++        case REMOTE_MCAST_SETUP_MC_GROUP_SETUP_ANS:
++            __log_output(__cyan__"--> multicast group-setup-ans\n"__default__);
++            break;
++        case REMOTE_MCAST_SETUP_MC_GROUP_CLASS_C_SESSION_ANS:
++            __log_output(__cyan__"--> multicast class-c-session-ans\n"__default__);
++            break;
++        case REMOTE_MCAST_SETUP_MC_GROUP_CLASS_B_SESSION_ANS:
++            __log_output(__cyan__"--> multicast class-b-session-ans\n"__default__);
++            break;
++        }
+         LmHandlerSend( &appData, LORAMAC_HANDLER_UNCONFIRMED_MSG );
+     }
+ }
+ 
++#include "lora_wan_process.h"
+ static void OnSessionStartTimer( void *context )
+ {
++    __log_info(__yellow__"session started");
+     TimerStop( &SessionStartTimer );
+ 
+     LmhpRemoteMcastSetupState.SessionState = REMOTE_MCAST_SETUP_SESSION_STATE_START;
++
++    /* send process mac request to take the proper action */
++    lora_wan_process_request(__LORA_WAN_PROCESS_PROCESS_MAC, NULL);
+ }
+ 
+ static void OnSessionStopTimer( void *context )
+@@ -552,4 +642,7 @@
+     TimerStop( &SessionStopTimer );
+ 
+     LmhpRemoteMcastSetupState.SessionState = REMOTE_MCAST_SETUP_SESSION_STATE_STOP;
++
++    /* send process mac request to take the proper action */
++    lora_wan_process_request(__LORA_WAN_PROCESS_PROCESS_MAC, NULL);
+ }

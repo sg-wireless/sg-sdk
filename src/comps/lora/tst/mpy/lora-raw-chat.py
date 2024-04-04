@@ -21,33 +21,32 @@
 #
 # Author    Ahmed Sabry (SG Wireless)
 #
-# Desc      This file plugs the ioexp interface component in the build system
+# Desc      Implements simple lora chat demo for the lora-raw mode
+#           should be run on two different devices.
 # ---------------------------------------------------------------------------- #
 
-if(__feature_lora OR __feature_lte OR __feature_secure_element)
-    __sdk_add_compile_options(-DCONFIG_IOEXP_ENABLED)
-    set(CONFIG_IOEXP_ENABLED ON)
-    __sdk_add_comp_dirs( ${__dir_sdk_drivers}/pcal6408a )
-endif()
+# disable logs
+import logs
+logs.filter_subsystem('lora', False)
 
-if(CONFIG_IOEXP_ENABLED)
-    __sdk_add_component( ioexp_if
+# import the responsible module
+import lora
 
-        MPY_MODS
-            ${CMAKE_CURRENT_LIST_DIR}/mod_ioexp.c
+# switch to lora raw if not there
+if lora.mode() != lora._mode.RAW:
+    lora.mode(lora._mode.RAW)
 
-        LOGS_DEFS
-            ${CMAKE_CURRENT_LIST_DIR}/ioexp.c
+# define the callback
+def lora_callback(event, bytes):
+    if event == lora._event.RX_PACKET_EVENT:
+        print(bytes)
+    pass
+lora.callback(handler=lora_callback)
 
-        SRCS
-            "${CMAKE_CURRENT_LIST_DIR}/*.c"
+# start continuous reception
+lora.recv_cont_start()
 
-        INCS_IF
-            ${CMAKE_CURRENT_LIST_DIR}
-
-        REQUIRED_SDK_LIBS
-            driver_pcal6408a
-    )
-endif()
+# start chating by sending
+lora.send('Hello from LoRa chat')
 
 # --- end of file ------------------------------------------------------------ #

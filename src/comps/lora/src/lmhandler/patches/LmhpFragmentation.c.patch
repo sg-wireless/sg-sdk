@@ -1,0 +1,67 @@
+--- ../../../../../ext/LoRaMac-node/src/apps/LoRaMac/common/LmHandler/packages/LmhpFragmentation.c	2023-09-20 15:47:17
++++ ./modified_sources/LmhpFragmentation.c	2023-09-20 16:52:27
+@@ -22,6 +22,9 @@
+ #include "LmHandler.h"
+ #include "LmhpFragmentation.h"
+ #include "FragDecoder.h"
++#define __log_subsystem     lora_pkg
++#define __log_component     wan_frag
++#include "log_lib.h"
+ 
+ /*!
+  * LoRaWAN Application Layer Fragmented Data Block Transport Specification
+@@ -249,12 +252,14 @@
+     switch( delayTimerState )
+     {
+         case FRAGMENTATION_TX_DELAY_STATE_START:
++            __log_info("process() -> FRAGMENTATION_TX_DELAY_STATE_START");
+             // Set the timer with the initially calculated Delay value.
+             TimerSetValue( &FragmentTxDelayTimer, TxDelayTime );
+             // Start the timer.
+             TimerStart( &FragmentTxDelayTimer );
+             break;
+         case FRAGMENTATION_TX_DELAY_STATE_STOP:
++            __log_info("process() -> FRAGMENTATION_TX_DELAY_STATE_START");
+             // Send the reply.
+             LmHandlerSend( &DelayedReplyAppData, LORAMAC_HANDLER_UNCONFIRMED_MSG );
+             break;
+@@ -287,6 +292,7 @@
+         {
+             case FRAGMENTATION_PKG_VERSION_REQ:
+             {
++                __log_info("mcps() -> FRAGMENTATION_PKG_VERSION_REQ");
+                 if( mcpsIndication->Multicast == 1 )
+                 {
+                     // Multicast channel. Don't process command.
+@@ -299,6 +305,7 @@
+             }
+             case FRAGMENTATION_FRAG_STATUS_REQ:
+             {
++                __log_info("mcps() -> FRAGMENTATION_FRAG_STATUS_REQ");
+                 uint8_t fragIndex = mcpsIndication->Buffer[cmdIndex++];
+                 uint8_t participants = fragIndex & 0x01;
+ 
+@@ -323,6 +330,7 @@
+             }
+             case FRAGMENTATION_FRAG_SESSION_SETUP_REQ:
+             {
++                __log_info("mcps() -> FRAGMENTATION_FRAG_SESSION_SETUP_REQ");
+                 if( mcpsIndication->Multicast == 1 )
+                 {
+                     // Multicast channel. Don't process command.
+@@ -405,6 +413,7 @@
+             }
+             case FRAGMENTATION_FRAG_SESSION_DELETE_REQ:
+             {
++                __log_info("mcps() -> FRAGMENTATION_FRAG_SESSION_DELETE_REQ");
+                 if( mcpsIndication->Multicast == 1 )
+                 {
+                     // Multicast channel. Don't process command.
+@@ -430,6 +439,7 @@
+             }
+             case FRAGMENTATION_DATA_FRAGMENT:
+             {
++                __log_info("mcps() -> FRAGMENTATION_DATA_FRAGMENT");
+                 uint8_t fragIndex = 0;
+                 uint16_t fragCounter = 0;
+ 

@@ -1,0 +1,22 @@
+--- ../../ext/micropython/shared/runtime/pyexec.c	2023-06-16 11:14:52
++++ ./modified_sources/pyexec.c	2023-06-16 11:13:03
+@@ -119,6 +119,9 @@
+         #endif
+         mp_call_function_0(module_fun);
+         mp_hal_set_interrupt_char(-1); // disable interrupt
++        #if MICROPY_ENABLE_SCHEDULER
++        while( (MP_STATE_VM(sched_state) == MP_SCHED_PENDING) )
++        #endif
+             mp_handle_pending(true); // handle any pending exceptions (and any callbacks)
+         nlr_pop();
+         ret = 1;
+@@ -128,6 +131,9 @@
+     } else {
+         // uncaught exception
+         mp_hal_set_interrupt_char(-1); // disable interrupt
++        #if MICROPY_ENABLE_SCHEDULER
++        while( (MP_STATE_VM(sched_state) == MP_SCHED_PENDING) )
++        #endif
+             mp_handle_pending(false); // clear any pending exceptions (and run any callbacks)
+ 
+         if (exec_flags & EXEC_FLAG_SOURCE_IS_READER) {

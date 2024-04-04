@@ -1,0 +1,37 @@
+--- ../../../../../ext/LoRaMac-node/src/mac/LoRaMac.c	2023-06-14 18:49:49
++++ ./modified_sources/LoRaMac.c	2023-10-05 13:16:44
+@@ -48,6 +48,10 @@
+ 
+ #include "LoRaMac.h"
+ 
++// #define __log_subsystem lora
++// #define __log_component wan_mac
++// #include "log_lib.h"
++
+ /*!
+  * Maximum PHY layer payload size
+  */
+@@ -2566,7 +2570,9 @@
+                     // Copy received GPS Epoch time into system time
+                     sysTime = gpsEpochTime;
+                     // Add Unix to Gps epoch offset. The system time is based on Unix time.
+-                    sysTime.Seconds += UNIX_GPS_EPOCH_OFFSET;
++                    extern uint32_t time_gps_to_unix(uint32_t);
++                    // sysTime.Seconds += UNIX_GPS_EPOCH_OFFSET;
++                    sysTime.Seconds = time_gps_to_unix(sysTime.Seconds);
+ 
+                     // Compensate time difference between Tx Done time and now
+                     sysTimeCurrent = SysTimeGet( );
+@@ -5245,11 +5251,8 @@
+  */
+ static void AbpJoinPendingStart( void )
+ {
+-    static bool initialized = false;
+-
+-    if( initialized == false )
++    if( MacCtx.AbpJoinPendingTimer.Context == NULL )
+     {
+-        initialized = true;
+         TimerInit( &MacCtx.AbpJoinPendingTimer, OnAbpJoinPendingTimerEvent );
+     }
+ 

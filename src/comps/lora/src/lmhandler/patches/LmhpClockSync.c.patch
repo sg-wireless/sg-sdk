@@ -1,0 +1,134 @@
+--- ../../../../../ext/LoRaMac-node/src/apps/LoRaMac/common/LmHandler/packages/LmhpClockSync.c	2023-09-20 15:47:05
++++ ./modified_sources/LmhpClockSync.c	2023-09-20 16:52:27
+@@ -21,6 +21,11 @@
+  */
+ #include "LmHandler.h"
+ #include "LmhpClockSync.h"
++#define __log_subsystem     lora_pkg
++#define __log_component     wan_clock
++#include "log_lib.h"
++#include "time.h"
++#include "utils_time.h"
+ 
+ /*!
+  * LoRaWAN Application Layer Clock Synchronization Specification
+@@ -154,6 +159,7 @@
+ {
+     if( dataBuffer != NULL )
+     {
++        __log_info("init");
+         LmhpClockSyncState.DataBuffer = dataBuffer;
+         LmhpClockSyncState.DataBufferMaxSize = dataBufferMaxSize;
+         LmhpClockSyncState.Initialized = true;
+@@ -190,6 +196,7 @@
+ {
+     MibRequestConfirm_t mibReq;
+ 
++    __log_info("MCPS confirm");
+     if( LmhpClockSyncState.AppTimeReqPending == true )
+     {
+         // Revert ADR setting
+@@ -227,6 +234,8 @@
+         {
+             case CLOCK_SYNC_PKG_VERSION_REQ:
+             {
++                __log_info("MCPS ind -> pkg version");
++                __log_output(__yellow__"--> clock-sync package-version-request\n"__default__);
+                 LmhpClockSyncState.DataBuffer[dataBufferIndex++] = CLOCK_SYNC_PKG_VERSION_ANS;
+                 LmhpClockSyncState.DataBuffer[dataBufferIndex++] = CLOCK_SYNC_ID;
+                 LmhpClockSyncState.DataBuffer[dataBufferIndex++] = CLOCK_SYNC_VERSION;
+@@ -234,6 +243,9 @@
+             }
+             case CLOCK_SYNC_APP_TIME_ANS:
+             {
++                __log_info("MCPS ind -> app time ans");
++                __log_output(__yellow__"--> clock-sync app-time-ans\n"__default__);
++                
+                 LmhpClockSyncState.NbTransmissions = 0;
+ 
+                 // Check if a more precise time correction has been received.
+@@ -252,6 +264,7 @@
+                 {
+                     SysTime_t curTime = { .Seconds = 0, .SubSeconds = 0 };
+                     curTime = SysTimeGet( );
++                    __log_debug("received time correction %d", timeCorrection);
+                     curTime.Seconds += timeCorrection;
+                     SysTimeSet( curTime );
+                     LmhpClockSyncState.TimeReqParam.Fields.TokenReq = ( LmhpClockSyncState.TimeReqParam.Fields.TokenReq + 1 ) & 0x0F;
+@@ -273,6 +286,8 @@
+             }
+             case CLOCK_SYNC_APP_TIME_PERIOD_REQ:
+             {
++                __log_info("MCPS ind -> app time req");
++                __log_output(__yellow__"--> clock-sync app-time-period-req\n"__default__);
+                 // Increment index
+                 cmdIndex++;
+                 // TODO implement command prosessing and handling
+@@ -282,7 +297,8 @@
+ 
+                 SysTime_t curTime = SysTimeGet( );
+                 // Substract Unix to Gps epcoh offset. The system time is based on Unix time.
+-                curTime.Seconds -= UNIX_GPS_EPOCH_OFFSET;
++                // curTime.Seconds -= UNIX_GPS_EPOCH_OFFSET;
++                curTime.Seconds = time_unix_to_gps(curTime.Seconds);
+                 LmhpClockSyncState.DataBuffer[dataBufferIndex++] = ( curTime.Seconds >> 0  ) & 0xFF;
+                 LmhpClockSyncState.DataBuffer[dataBufferIndex++] = ( curTime.Seconds >> 8  ) & 0xFF;
+                 LmhpClockSyncState.DataBuffer[dataBufferIndex++] = ( curTime.Seconds >> 16 ) & 0xFF;
+@@ -291,6 +307,7 @@
+             }
+             case CLOCK_SYNC_FORCE_RESYNC_REQ:
+             {
++                __log_output(__yellow__"--> clock-sync force-resync-req\n"__default__);
+                 LmhpClockSyncState.NbTransmissions = mcpsIndication->Buffer[cmdIndex++] & 0X07;
+                 break;
+             }
+@@ -306,6 +323,14 @@
+             .BufferSize = dataBufferIndex,
+             .Port = CLOCK_SYNC_PORT
+         };
++        switch(LmhpClockSyncState.DataBuffer[0]) {
++            case CLOCK_SYNC_PKG_VERSION_ANS:
++            __log_output(__cyan__"<-- clock-sync package-version-ans\n"__default__);
++            break;
++            case CLOCK_SYNC_APP_TIME_PERIOD_ANS:
++            __log_output(__cyan__"<-- clock-sync app-time-period-ans\n"__default__);
++            break;
++        }
+         LmHandlerSend( &appData, LORAMAC_HANDLER_UNCONFIRMED_MSG );
+     }
+ }
+@@ -321,6 +346,8 @@
+     {
+         MibRequestConfirm_t mibReq;
+ 
++        __log_info("req time");
++
+         // Disable ADR
+         mibReq.Type = MIB_ADR;
+         LoRaMacMibGetRequestConfirm( &mibReq );
+@@ -351,7 +378,8 @@
+     uint8_t dataBufferIndex = 0;
+ 
+     // Substract Unix to Gps epcoh offset. The system time is based on Unix time.
+-    curTime.Seconds -= UNIX_GPS_EPOCH_OFFSET;
++    // curTime.Seconds -= UNIX_GPS_EPOCH_OFFSET;
++    curTime.Seconds = time_unix_to_gps(curTime.Seconds);
+ 
+     LmhpClockSyncState.DataBuffer[dataBufferIndex++] = CLOCK_SYNC_APP_TIME_REQ;
+     LmhpClockSyncState.DataBuffer[dataBufferIndex++] = ( curTime.Seconds >> 0  ) & 0xFF;
+@@ -361,6 +389,8 @@
+     LmhpClockSyncState.TimeReqParam.Fields.AnsRequired = 0;
+     LmhpClockSyncState.DataBuffer[dataBufferIndex++] = LmhpClockSyncState.TimeReqParam.Value;
+ 
++    __log_debug("TokenReq value: %d", LmhpClockSyncState.TimeReqParam.Fields.TokenReq);
++
+     LmHandlerAppData_t appData =
+     {
+         .Buffer = LmhpClockSyncState.DataBuffer,
+@@ -368,5 +398,6 @@
+         .Port = CLOCK_SYNC_PORT
+     };
+     LmhpClockSyncState.AppTimeReqPending = true;
++    __log_output(__cyan__"<-- clock-sync app-time-req\n"__default__);
+     return LmHandlerSend( &appData, LORAMAC_HANDLER_UNCONFIRMED_MSG );
+ }

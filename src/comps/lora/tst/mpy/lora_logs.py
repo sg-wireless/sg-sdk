@@ -1,0 +1,46 @@
+
+
+import logs
+
+logs.filter_subsystem('lora', True)
+
+logs.filter_component('lora', 'mgr_api'        , False)
+logs.filter_component('lora', 'port_spi'       , False)
+logs.filter_component('lora', 'port_sx126x'    , False)
+logs.filter_component('lora', 'port_system'    , False)
+logs.filter_component('lora', 'port_analyser'  , False)
+logs.filter_component('lora', 'stub_sx126x'    , False)
+logs.filter_component('lora', 'stub_board'     , False)
+logs.filter_component('lora', 'stub_main'      , False)
+logs.filter_component('lora', 'stub_nvm'       , False)
+logs.filter_component('lora', 'stub_system'    , False)
+logs.filter_component('lora', 'stub_timers'    , False)
+logs.filter_component('lora', 'raw_api'        , False)
+logs.filter_component('lora', 'raw_process'    , False)
+logs.filter_component('lora', 'raw_sm'         , False)
+logs.filter_component('lora', 'raw_radio_if'   , False)
+logs.filter_component('lora', 'wan_comision'   , False)
+logs.filter_component('lora', 'wan_process'    , False)
+logs.filter_component('lora', 'wan_lmh'        , False)
+logs.filter_component('lora', 'wan_utils'      , False)
+logs.filter_component('lora', 'wan_nvm'        , False)
+logs.filter_component('lora', 'wan_api'        , False)
+logs.filter_component('lora', 'wan_sm'         , False)
+logs.filter_component('lora', 'wan_port'       , False)
+logs.filter_component('lora', 'util_nvm'       , False)
+logs.filter_component('lora', 'util_sync_obj'  , False)
+logs.filter_component('lora', 'util_evt_hndle' , False)
+logs.filter_component('lora', 'radio_ext'      , False)
+logs.filter_component('lora', 'patched_file'   , False)
+logs.filter_component('lora', 'mpy_lora'       , False)
+logs.filter_component('lora', 'default'        , False)
+
+logs.filter_subsystem('lora_pkg', True)
+
+logs.filter_component('lora_pkg', 'wan_compli' , False)
+logs.filter_component('lora_pkg', 'wan_clock'  , False)
+logs.filter_component('lora_pkg', 'wan_frag'   , False)
+logs.filter_component('lora_pkg', 'wan_mcast'  , False)
+logs.filter_component('lora_pkg', 'default'    , False)
+
+logs.filter_subsystem('default', True)

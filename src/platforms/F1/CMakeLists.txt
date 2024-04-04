@@ -61,6 +61,13 @@ __sdk_add_comp_dirs(
     ${__dir_sdk_comps}/fw-version
 )
 
+if( __feature_lora )
+    __sdk_add_comp_dirs(
+        ${__dir_platform_comps}/lora-if
+        ${__dir_sdk_comps}/lora
+    )
+endif()
+
 # platform log_lib platform subsystem define
 __sdk_add_logs_defs_files(${CMAKE_CURRENT_LIST_DIR}/logs_defs.h)
 

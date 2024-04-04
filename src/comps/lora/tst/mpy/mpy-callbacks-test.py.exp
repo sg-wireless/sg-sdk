@@ -1,0 +1,18 @@
+(  cb_on_any   )--> event: EVENT_TX_DONE
+(  cb_on_any   )--> event: EVENT_TX_TIMEOUT
+(  cb_on_any   )--> event: EVENT_TX_FAILED
+(  cb_on_any   )--> event: EVENT_TX_CONFIRM
+(  cb_on_any   )--> event: EVENT_RX_DONE
+bytearray(b'test data\x00')
+(  cb_on_any   )--> event: EVENT_RX_TIMEOUT
+(  cb_on_any   )--> event: EVENT_RX_FAIL
+( cb_on_port_1 )--> event: EVENT_TX_DONE
+1000
+(  cb_on_any   )--> event: EVENT_TX_DONE
+1002
+(  cb_on_any   )--> event: EVENT_TX_FAILED
+1006
+(  cb_on_any   )--> event: EVENT_TX_FAILED
+1007
+( cb_on_port_1 )--> event: EVENT_RX_DONE
+bytearray(b'port 1 test buf')

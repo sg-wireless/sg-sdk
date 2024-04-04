@@ -1,0 +1,17 @@
+---------------------------------------------------------------------
+| verdict | port | msg-id | timeout | confirm |  sync  | fail-cause |
+---------------------------------------------------------------------
+|  PASS   |    1 |   1001 |    3000 | True    | False  |     --     |
+|  PASS   |    1 |   1002 |    1000 | True    | False  |     --     |
+|  PASS   |    2 |   2001 |         | True    | False  |     --     |
+|  PASS   |    1 |   1003 |    7000 | True    | False  |     --     |
+|  PASS   |    5 |   5001 |         | False   | True   |     --     |
+|  PASS   |    1 |   1004 |   20000 | True    | False  |     --     |
+|  PASS   |    1 |   1005 |         | True    | True   |     --     |
+|  PASS   |    3 |   3001 |   30000 | False   | False  |     --     |
+|  PASS   |    5 |   5002 |   30000 | False   | False  |     --     |
+|  PASS   |    1 |   1006 |   60000 | False   | True   |     --     |
+|  PASS   |    5 |   5003 |   60000 | False   | False  |     --     |
+|  PASS   |    1 |   1007 |   90000 | True    | True   |     --     |
+|  PASS   |    5 |   5004 |   90000 | True    | True   |     --     |
+

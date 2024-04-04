@@ -21,33 +21,49 @@
 #
 # Author    Ahmed Sabry (SG Wireless)
 #
-# Desc      This file plugs the ioexp interface component in the build system
+# Desc      This file is responsible for building the Semtech LoRaMac-Handler
 # ---------------------------------------------------------------------------- #
 
-if(__feature_lora OR __feature_lte OR __feature_secure_element)
-    __sdk_add_compile_options(-DCONFIG_IOEXP_ENABLED)
-    set(CONFIG_IOEXP_ENABLED ON)
-    __sdk_add_comp_dirs( ${__dir_sdk_drivers}/pcal6408a )
-endif()
+set( __loramac_appcommon_dir ${__loramac_dir}/apps/LoRaMac/common)
 
-if(CONFIG_IOEXP_ENABLED)
-    __sdk_add_component( ioexp_if
+set( __modified_files_dir ${CMAKE_CURRENT_LIST_DIR}/modified_sources)
+set( __patches_files_dir  ${CMAKE_CURRENT_LIST_DIR}/patches )
 
-        MPY_MODS
-            ${CMAKE_CURRENT_LIST_DIR}/mod_ioexp.c
+# collect needed source files from Semtech LoRaMac application handler layer
+file(GLOB __loramac_handler_original_sources
+    ${__loramac_appcommon_dir}/LmHandler/*.c
+    ${__loramac_appcommon_dir}/LmHandler/packages/*.c
 
-        LOGS_DEFS
-            ${CMAKE_CURRENT_LIST_DIR}/ioexp.c
+    ${__loramac_appcommon_dir}/CayenneLpp.c
+    # ${__loramac_appcommon_dir}/NvmDataMgmt.c
+)
 
-        SRCS
-            "${CMAKE_CURRENT_LIST_DIR}/*.c"
+# --- preparing Pycom FW component ------------------------------------------- #
+set(__loramac_handler_includes
+    ${__loramac_appcommon_dir}
+    ${__loramac_appcommon_dir}/LmHandler
+    ${__loramac_appcommon_dir}/LmHandler/packages
+)
+__sdk_add_component( loramac_handler
+    SRCS
+        "${__loramac_handler_original_sources}"
+        "${CMAKE_CURRENT_LIST_DIR}/*.c"
 
-        INCS_IF
-            ${CMAKE_CURRENT_LIST_DIR}
+    INCS_PRIV
+        ${CMAKE_CURRENT_LIST_DIR}
+        ${__loramac_handler_includes}
 
-        REQUIRED_SDK_LIBS
-            driver_pcal6408a
-    )
-endif()
+        ${__lorastack_includes}
+    REQUIRED_SDK_LIBS
+        utils_lib
+        lora_stack
+)
+
+__sdk_add_patch(
+    ENTITY_NAME     loramac_handler
+    FINAL_DIR       ${CMAKE_CURRENT_LIST_DIR}/modified_sources
+    PATCHES_DIRS    ${CMAKE_CURRENT_LIST_DIR}/patches
+)
+
 
 # --- end of file ------------------------------------------------------------ #

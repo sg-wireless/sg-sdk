@@ -47,7 +47,7 @@
     # submodules specific to the existence of specific feature
     [submodules.features]
 
-        # lora = [ "LoRaMac-node" ]
+        lora = [ "LoRaMac-node" ]
 
 # ---------------------------------------------------------------------------- #
 # prerquisite tools to be installed

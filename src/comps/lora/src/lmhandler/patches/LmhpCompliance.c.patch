@@ -1,0 +1,52 @@
+--- ../../../../../ext/LoRaMac-node/src/apps/LoRaMac/common/LmHandler/packages/LmhpCompliance.c	2023-09-20 15:47:11
++++ ./modified_sources/LmhpCompliance.c	2023-09-20 16:52:27
+@@ -27,6 +27,9 @@
+ #include "LmHandler.h"
+ #include "LmhpCompliance.h"
+ 
++#define __log_subsystem     lora_pkg
++#define __log_component     wan_compli
++#include "log_lib.h"
+ /*!
+  * LoRaWAN compliance certification protocol port number.
+  *
+@@ -214,6 +217,7 @@
+ 
+ static void LmhpComplianceInit( void* params, uint8_t* dataBuffer, uint8_t dataBufferMaxSize )
+ {
++    __log_info("init compliance package");
+     if( ( params != NULL ) && ( dataBuffer != NULL ) )
+     {
+         ComplianceParams                      = ( LmhpComplianceParams_t* ) params;
+@@ -246,6 +250,7 @@
+ 
+ static void LmhpComplianceProcess( void )
+ {
++    __log_info("compliance processing");
+     if( ComplianceTestState.IsTxPending == true )
+     {
+         TimerTime_t now = TimerGetCurrentTime( );
+@@ -300,6 +305,7 @@
+     {
+         return;
+     }
++    __log_info(__yellow__ "MCPS indication compliance");
+ 
+     // Increment the compliance certification protocol downlink counter
+     // Not counting downlinks on FPort 0
+@@ -526,6 +532,7 @@
+ 
+ static void LmhpComplianceOnMlmeConfirm( MlmeConfirm_t *mlmeConfirm )
+ {
++    __log_info("MLME confirm compliance");
+     switch( mlmeConfirm->MlmeRequest )
+     {
+     case MLME_BEACON_ACQUISITION:
+@@ -552,6 +559,7 @@
+     {
+         return;
+     }
++    __log_info("MLME indication compliance");
+ 
+     switch( mlmeIndication->MlmeIndication )
+     {

@@ -1,3 +1,4 @@
+#!/bin/bash
 # ---------------------------------------------------------------------------- #
 # Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
 #
@@ -21,33 +22,17 @@
 #
 # Author    Ahmed Sabry (SG Wireless)
 #
-# Desc      This file plugs the ioexp interface component in the build system
+# Desc      This file is responsible for updating the patches of the loramac
+#           handler
 # ---------------------------------------------------------------------------- #
 
-if(__feature_lora OR __feature_lte OR __feature_secure_element)
-    __sdk_add_compile_options(-DCONFIG_IOEXP_ENABLED)
-    set(CONFIG_IOEXP_ENABLED ON)
-    __sdk_add_comp_dirs( ${__dir_sdk_drivers}/pcal6408a )
-endif()
+__root_dir=../../../../..
+__modified_dir=./modified_sources
+__original_dir=${__root_dir}/ext/LoRaMac-node/src/apps/LoRaMac/common
+__patch_dir=./patches
 
-if(CONFIG_IOEXP_ENABLED)
-    __sdk_add_component( ioexp_if
+__main_update_script=${__root_dir}/tools/builder/cmake/update_patches.sh
 
-        MPY_MODS
-            ${CMAKE_CURRENT_LIST_DIR}/mod_ioexp.c
-
-        LOGS_DEFS
-            ${CMAKE_CURRENT_LIST_DIR}/ioexp.c
-
-        SRCS
-            "${CMAKE_CURRENT_LIST_DIR}/*.c"
-
-        INCS_IF
-            ${CMAKE_CURRENT_LIST_DIR}
-
-        REQUIRED_SDK_LIBS
-            driver_pcal6408a
-    )
-endif()
+${__main_update_script} ${__original_dir} ${__modified_dir} ${__patch_dir}
 
 # --- end of file ------------------------------------------------------------ #

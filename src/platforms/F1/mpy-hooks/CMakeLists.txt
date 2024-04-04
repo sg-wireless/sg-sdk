@@ -48,6 +48,13 @@ __sdk_add_patch(
     FINAL_DIR       ${CMAKE_CURRENT_LIST_DIR}/modified_sources
 )
 
+__sdk_add_patch(
+    ENTITY_NAME     micropython
+    ORIGINAL_FILE   ${__dir_micropython}/shared/runtime/pyexec.c
+    PATCH_FILE      ${CMAKE_CURRENT_LIST_DIR}/patches/pyexec.c.patch
+    FINAL_DIR       ${CMAKE_CURRENT_LIST_DIR}/modified_sources
+)
+
 
 __sdk_add_component( f1_mpy_hooks
 
