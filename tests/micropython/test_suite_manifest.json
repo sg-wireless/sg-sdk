@@ -1,0 +1,44 @@
+{
+    "name"                  : "micropython",
+    "show-pass-results"     : false,
+    "hide-fail-results"     : false,
+    "enable-host-expect"    : true,
+    "timeout"               : 10,
+    "results-dir"           : "./test-results",
+    "relative-path"         : "ext/micropython/tests",
+
+    "test-cases" : [],
+    "test-dirs"  : [
+        "basics",
+        "float",
+        "extmod",
+        "misc",
+        "micropython",
+        "../../../tests/micropython/test-cases"
+    ],
+
+    "regex-test-cases" : [
+        "basics/bytes_compare3.py",
+        "basics/builtin_help.py",
+        "micropython/meminfo.py"
+    ],
+    "regex-test-cases-lists" : [],
+
+    "ignore-test-cases" : [
+        "float/math_domain_special.py",
+        "float/inf_nan_arith.py"
+    ],
+    "ignore-test-cases-lists" : [],
+
+    "skip-test-cases" : [
+        "micropython/meminfo.py",
+        "float/float_format_ints_doubleprec.py",
+        "float/float2int_doubleprec_intbig.py",
+        "float/float_parse_doubleprec.py",
+        "float/float_divmod.py",
+        "extmod/ussl_poll.py",
+        "extmod/machine_timer.py",
+        "extmod/machine_i2s_rate.py"
+    ],
+    "skip-test-cases-lists" : []
+}

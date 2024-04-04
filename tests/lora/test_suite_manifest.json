@@ -1,0 +1,25 @@
+{
+    "name"                  : "lora",
+    "show-pass-results"     : false,
+    "hide-fail-results"     : false,
+    "enable-host-expect"    : false,
+    "timeout"               : 30,
+    "results-dir"           : "./test-results",
+    "relative-path"         : "tests/lora",
+
+    "test-cases" : [],
+    "test-dirs"  : [
+        "raw/ping-pong",
+        "raw/radio-params"
+    ],
+
+    "regex-test-cases" : [
+    ],
+    "regex-test-cases-lists" : [],
+
+    "ignore-test-cases" : [],
+    "ignore-test-cases-lists" : [],
+
+    "skip-test-cases" : [],
+    "skip-test-cases-lists" : []
+}

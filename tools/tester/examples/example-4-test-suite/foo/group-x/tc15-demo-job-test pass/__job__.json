@@ -1,0 +1,31 @@
+{
+    "job-tests" : [
+        {
+            "protocol"  : "micropython-repl-raw",
+            "tst-proc"  : [
+                "sub-node-test-1.py"
+            ],
+            "exp-host"  : true,
+            "show-pass" : false,
+            "timeout"   : 10,
+            "regex"     : false,
+            "skip"      : false,
+            "ignore"    : false
+        },
+        {
+            "protocol"  : "micropython-repl-raw",
+            "tst-proc"  : [
+                "sub-node-test-2.py"
+            ],
+            "exp-value" : [
+                "########job sub test two -- line: \\d"
+            ],
+            "exp-host"  : false,
+            "show-pass" : false,
+            "timeout"   : 10,
+            "regex"     : true,
+            "skip"      : false,
+            "ignore"    : false
+        }
+    ]
+}

@@ -1,0 +1,10 @@
+{
+    "tst-proc" : [
+        "print('line 1')",
+        "print('line 2')"
+    ],
+    "timeout" : 7,
+    "regex"   : true,
+    "skip"    : false,
+    "ignore"  : false
+}

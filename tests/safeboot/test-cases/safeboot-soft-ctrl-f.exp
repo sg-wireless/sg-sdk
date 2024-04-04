@@ -1,0 +1,9 @@
+########
+== running in safeboot mode ==.+
+MicroPython .+
+Type "help\(\)" for more information.
+>>> import machine
+>>> machine\.reset\(\)
+########
+== running in micropython mode
+########

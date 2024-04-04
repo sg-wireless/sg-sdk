@@ -1,0 +1,18 @@
+{
+    "tst-proc" : [
+        "print('line 1')",
+        "print('line 2')"
+    ],
+    "exp-value" : [
+        "########",
+        ">>> print\\('line 1'\\)",
+        "line x",
+        ">>> print\\('line 2'\\)",
+        "line 2",
+        ">>> "
+    ],
+    "timeout" : 7,
+    "regex"   : true,
+    "skip"    : false,
+    "ignore"  : false
+}

@@ -1,0 +1,7 @@
+########
+Control commands:
+########
+  CTRL-F        -- do hard reset in safeboot mode
+
+For further help on a specific object, type help\(obj\)
+For a list of available modules, type help\('modules'\)

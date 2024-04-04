@@ -1,0 +1,260 @@
+--- region [ REGION_AS923 ] ------------------------------
+    regional params
+        region         : AS-923
+        frequency      : 923000000 Hz
+        freq_khz       : 923000.000 KHz
+        freq_mhz       : 923.000 MHz
+    modulation params
+        sf             : 10
+        bandwidth      : 125 KHz
+        coding_rate    : 4_5
+    packet params
+        preamble       : 8
+        payload        : 115
+        crc_on         : True
+    lora tranceiver
+        chip           : SX1262
+        max tx_power   : +22 dBm
+    tx params
+        tx_power       : +16 dBm
+        antenna_gain   : +2.15 dBi
+        tx_power_eff   : +13 dBm
+        tx_timeout     : 6000 msec
+        tx_iq          : False
+    rx params
+        rx_timeout     : 6000 msec
+        rx_iq          : False
+--- region [ REGION_AU915 ] ------------------------------
+    regional params
+        region         : AU-915
+        frequency      : 915000000 Hz
+        freq_khz       : 915000.000 KHz
+        freq_mhz       : 915.000 MHz
+    modulation params
+        sf             : 10
+        bandwidth      : 125 KHz
+        coding_rate    : 4_5
+    packet params
+        preamble       : 8
+        payload        : 51
+        crc_on         : True
+    lora tranceiver
+        chip           : SX1262
+        max tx_power   : +22 dBm
+    tx params
+        tx_power       : +24 dBm
+        antenna_gain   : +2.15 dBi
+        tx_power_eff   : +21 dBm
+        tx_timeout     : 6000 msec
+        tx_iq          : False
+    rx params
+        rx_timeout     : 6000 msec
+        rx_iq          : False
+--- region [ REGION_CN470 ] ------------------------------
+    regional params
+        region         : CN-470
+        frequency      : 470000000 Hz
+        freq_khz       : 470000.000 KHz
+        freq_mhz       : 470.000 MHz
+    modulation params
+        sf             : 11
+        bandwidth      : 125 KHz
+        coding_rate    : 4_5
+    packet params
+        preamble       : 8
+        payload        : 23
+        crc_on         : True
+    lora tranceiver
+        chip           : SX1262
+        max tx_power   : +22 dBm
+    tx params
+        tx_power       : +19 dBm
+        antenna_gain   : +2.15 dBi
+        tx_power_eff   : +16 dBm
+        tx_timeout     : 6000 msec
+        tx_iq          : False
+    rx params
+        rx_timeout     : 6000 msec
+        rx_iq          : False
+--- region [ REGION_CN779 ] ------------------------------
+    regional params
+        region         : CN-779
+        frequency      : 779000000 Hz
+        freq_khz       : 779000.000 KHz
+        freq_mhz       : 779.000 MHz
+    modulation params
+        sf             : 12
+        bandwidth      : 125 KHz
+        coding_rate    : 4_5
+    packet params
+        preamble       : 8
+        payload        : 51
+        crc_on         : True
+    lora tranceiver
+        chip           : SX1262
+        max tx_power   : +22 dBm
+    tx params
+        tx_power       : +12 dBm
+        antenna_gain   : +2.15 dBi
+        tx_power_eff   : +9 dBm
+        tx_timeout     : 6000 msec
+        tx_iq          : False
+    rx params
+        rx_timeout     : 6000 msec
+        rx_iq          : False
+--- region [ REGION_EU433 ] ------------------------------
+    regional params
+        region         : EU-433
+        frequency      : 433000000 Hz
+        freq_khz       : 433000.000 KHz
+        freq_mhz       : 433.000 MHz
+    modulation params
+        sf             : 12
+        bandwidth      : 125 KHz
+        coding_rate    : 4_5
+    packet params
+        preamble       : 8
+        payload        : 51
+        crc_on         : True
+    lora tranceiver
+        chip           : SX1262
+        max tx_power   : +22 dBm
+    tx params
+        tx_power       : +12 dBm
+        antenna_gain   : +2.15 dBi
+        tx_power_eff   : +9 dBm
+        tx_timeout     : 6000 msec
+        tx_iq          : False
+    rx params
+        rx_timeout     : 6000 msec
+        rx_iq          : False
+--- region [ REGION_EU868 ] ------------------------------
+    regional params
+        region         : EU-868
+        frequency      : 868000000 Hz
+        freq_khz       : 868000.000 KHz
+        freq_mhz       : 868.000 MHz
+    modulation params
+        sf             : 12
+        bandwidth      : 125 KHz
+        coding_rate    : 4_5
+    packet params
+        preamble       : 8
+        payload        : 51
+        crc_on         : True
+    lora tranceiver
+        chip           : SX1262
+        max tx_power   : +22 dBm
+    tx params
+        tx_power       : +16 dBm
+        antenna_gain   : +2.15 dBi
+        tx_power_eff   : +13 dBm
+        tx_timeout     : 6000 msec
+        tx_iq          : False
+    rx params
+        rx_timeout     : 6000 msec
+        rx_iq          : False
+--- region [ REGION_IN865 ] ------------------------------
+    regional params
+        region         : IN-865
+        frequency      : 865000000 Hz
+        freq_khz       : 865000.000 KHz
+        freq_mhz       : 865.000 MHz
+    modulation params
+        sf             : 12
+        bandwidth      : 125 KHz
+        coding_rate    : 4_5
+    packet params
+        preamble       : 8
+        payload        : 51
+        crc_on         : True
+    lora tranceiver
+        chip           : SX1262
+        max tx_power   : +22 dBm
+    tx params
+        tx_power       : +24 dBm
+        antenna_gain   : +2.15 dBi
+        tx_power_eff   : +21 dBm
+        tx_timeout     : 6000 msec
+        tx_iq          : False
+    rx params
+        rx_timeout     : 6000 msec
+        rx_iq          : False
+--- region [ REGION_KR920 ] ------------------------------
+    regional params
+        region         : KR-920
+        frequency      : 920000000 Hz
+        freq_khz       : 920000.000 KHz
+        freq_mhz       : 920.000 MHz
+    modulation params
+        sf             : 12
+        bandwidth      : 125 KHz
+        coding_rate    : 4_5
+    packet params
+        preamble       : 8
+        payload        : 51
+        crc_on         : True
+    lora tranceiver
+        chip           : SX1262
+        max tx_power   : +22 dBm
+    tx params
+        tx_power       : +14 dBm
+        antenna_gain   : +2.15 dBi
+        tx_power_eff   : +11 dBm
+        tx_timeout     : 6000 msec
+        tx_iq          : False
+    rx params
+        rx_timeout     : 6000 msec
+        rx_iq          : False
+--- region [ REGION_RU864 ] ------------------------------
+    regional params
+        region         : RU-864
+        frequency      : 864000000 Hz
+        freq_khz       : 864000.000 KHz
+        freq_mhz       : 864.000 MHz
+    modulation params
+        sf             : 12
+        bandwidth      : 125 KHz
+        coding_rate    : 4_5
+    packet params
+        preamble       : 8
+        payload        : 51
+        crc_on         : True
+    lora tranceiver
+        chip           : SX1262
+        max tx_power   : +22 dBm
+    tx params
+        tx_power       : +16 dBm
+        antenna_gain   : +2.15 dBi
+        tx_power_eff   : +13 dBm
+        tx_timeout     : 6000 msec
+        tx_iq          : False
+    rx params
+        rx_timeout     : 6000 msec
+        rx_iq          : False
+--- region [ REGION_US915 ] ------------------------------
+    regional params
+        region         : US-915
+        frequency      : 915000000 Hz
+        freq_khz       : 915000.000 KHz
+        freq_mhz       : 915.000 MHz
+    modulation params
+        sf             : 10
+        bandwidth      : 125 KHz
+        coding_rate    : 4_5
+    packet params
+        preamble       : 8
+        payload        : 11
+        crc_on         : True
+    lora tranceiver
+        chip           : SX1262
+        max tx_power   : +22 dBm
+    tx params
+        tx_power       : +22 dBm
+        antenna_gain   : +0.00 dBi
+        tx_power_eff   : +22 dBm
+        tx_timeout     : 6000 msec
+        tx_iq          : False
+    rx params
+        rx_timeout     : 6000 msec
+        rx_iq          : False

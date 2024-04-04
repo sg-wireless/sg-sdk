@@ -1,0 +1,66 @@
+{
+    "job-tests" : [
+        {
+            "protocol"  : "micropython-repl-raw",
+            "name"      : "individual-py-test",
+            "tst-proc"  : [
+                "test-common.py",
+                "sub-node-test-1.py"
+            ],
+            "exp-file"  : "sub-node-test-1.py.exp",
+            "exp-value" : [
+                "exp-value: line 1",
+                "exp-value: line 2"
+            ],
+            "exp-host"  : false,
+            "show-pass" : false,
+            "timeout"   : 10,
+            "regex"     : false,
+            "skip"      : false,
+            "ignore"    : false
+        },
+        {
+            "protocol"  : "micropython-repl-friendly",
+            "tst-proc"  : [
+                "CTRL-F"
+            ],
+            "exp-value" : [
+                "########",
+                "== running in safeboot mode ==.+",
+                "########"
+            ],
+            "exp-host"  : true,
+            "show-pass" : false,
+            "timeout"   : 10,
+            "regex"     : true,
+            "skip"      : false,
+            "ignore"    : false
+        },
+        {
+            "protocol"  : "micropython-repl-raw",
+            "tst-proc"  : [
+                "sub-node-test-2.py"
+            ],
+            "exp-host"  : true,
+            "show-pass" : false,
+            "timeout"   : 10,
+            "regex"     : false,
+            "skip"      : false,
+            "ignore"    : false
+        },
+        {
+            "protocol"  : "host-process",
+            "tst-proc"  : [
+                "echo 'I am a host test line'"
+            ],
+            "exp-value" : [
+                "'I am a host test line'"
+            ],
+            "show-pass" : false,
+            "timeout"   : 10,
+            "regex"     : false,
+            "skip"      : false,
+            "ignore"    : false
+        }
+    ]
+}

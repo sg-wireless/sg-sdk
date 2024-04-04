@@ -1,0 +1,5 @@
+demonstrating single micropython test case
+the test case expectation by running this script on the host
+########counting up \d+
+end test case
+

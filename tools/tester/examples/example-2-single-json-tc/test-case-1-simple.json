@@ -1,0 +1,10 @@
+{
+    "tst-proc" : [
+        "import machine",
+        "machine.reset()"
+    ],
+    "timeout" : 20,
+    "regex"   : true,
+    "skip"    : false,
+    "ignore"  : false
+}

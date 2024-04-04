@@ -1,0 +1,28 @@
+    regional params
+        region         : EU-433
+        frequency      : 433000000 Hz
+        freq_khz       : 433000.000 KHz
+        freq_mhz       : 433.000 MHz
+    modulation params
+        sf             : 7
+        bandwidth      : 125 KHz
+        coding_rate    : 4_5
+    packet params
+        preamble       : 8
+        payload        : 51
+        crc_on         : True
+    lora tranceiver
+        chip           : SX1262
+        max tx_power   : +22 dBm
+    tx params
+        tx_power       : +10 dBm
+        antenna_gain   : +2.15 dBi
+        tx_power_eff   : +7 dBm
+        tx_timeout     : 5000 msec
+        tx_iq          : False
+    rx params
+        rx_timeout     : 5000 msec
+        rx_iq          : False
+bytearray(b'PING')
+PING
+

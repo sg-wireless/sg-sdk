@@ -1,0 +1,166 @@
+-- reset all parameters -- region EU868 ----------------
+-- lora stats
+    regional params
+        region         : EU-868
+        frequency      : 868000000 Hz
+        freq_khz       : 868000.000 KHz
+        freq_mhz       : 868.000 MHz
+    modulation params
+        sf             : 12
+        bandwidth      : 125 KHz
+        coding_rate    : 4_5
+    packet params
+        preamble       : 8
+        payload        : 51
+        crc_on         : True
+    lora tranceiver
+        chip           : SX1262
+        max tx_power   : +22 dBm
+    tx params
+        tx_power       : +16 dBm
+        antenna_gain   : +2.15 dBi
+        tx_power_eff   : +13 dBm
+        tx_timeout     : 6000 msec
+        tx_iq          : False
+    rx params
+        rx_timeout     : 6000 msec
+        rx_iq          : False
+-- detect false region ---------------------------------
+error: invalid argument value 'region'
+-- detect false frequency ------------------------------
+error: invalid value for 'frequency'
+-- detect false frequency with a given region ----------
+error: invalid value for 'frequency'
+-- correct frequency with a given region ---------------
+    regional params
+        region         : AS-923
+        frequency      : 923000000 Hz
+        freq_khz       : 923000.000 KHz
+        freq_mhz       : 923.000 MHz
+    modulation params
+        sf             : 10
+        bandwidth      : 125 KHz
+        coding_rate    : 4_5
+    packet params
+        preamble       : 8
+        payload        : 115
+        crc_on         : True
+    lora tranceiver
+        chip           : SX1262
+        max tx_power   : +22 dBm
+    tx params
+        tx_power       : +16 dBm
+        antenna_gain   : +2.15 dBi
+        tx_power_eff   : +13 dBm
+        tx_timeout     : 6000 msec
+        tx_iq          : False
+    rx params
+        rx_timeout     : 6000 msec
+        rx_iq          : False
+-- reset all parameters -- region EU868 ----------------
+    regional params
+        region         : EU-868
+        frequency      : 868000000 Hz
+        freq_khz       : 868000.000 KHz
+        freq_mhz       : 868.000 MHz
+    modulation params
+        sf             : 12
+        bandwidth      : 125 KHz
+        coding_rate    : 4_5
+    packet params
+        preamble       : 8
+        payload        : 51
+        crc_on         : True
+    lora tranceiver
+        chip           : SX1262
+        max tx_power   : +22 dBm
+    tx params
+        tx_power       : +16 dBm
+        antenna_gain   : +2.15 dBi
+        tx_power_eff   : +13 dBm
+        tx_timeout     : 6000 msec
+        tx_iq          : False
+    rx params
+        rx_timeout     : 6000 msec
+        rx_iq          : False
+-- false spreading factor ------------------------------
+sf =  1 --> error: invalid value for 'sf'
+
+sf =  2 --> error: invalid value for 'sf'
+
+sf =  3 --> error: invalid value for 'sf'
+
+sf =  4 --> error: invalid value for 'sf'
+
+sf =  5 --> error: invalid value for 'sf'
+
+sf =  6 --> 
+sf =  7 --> 
+sf =  8 --> 
+sf =  9 --> 
+sf = 10 --> 
+sf = 11 --> 
+sf = 12 --> 
+sf = 13 --> error: invalid value for 'sf'
+
+sf = 14 --> error: invalid value for 'sf'
+
+    regional params
+        region         : EU-868
+        frequency      : 868000000 Hz
+        freq_khz       : 868000.000 KHz
+        freq_mhz       : 868.000 MHz
+    modulation params
+        sf             : 12
+        bandwidth      : 125 KHz
+        coding_rate    : 4_5
+    packet params
+        preamble       : 8
+        payload        : 51
+        crc_on         : True
+    lora tranceiver
+        chip           : SX1262
+        max tx_power   : +22 dBm
+    tx params
+        tx_power       : +16 dBm
+        antenna_gain   : +2.15 dBi
+        tx_power_eff   : +13 dBm
+        tx_timeout     : 6000 msec
+        tx_iq          : False
+    rx params
+        rx_timeout     : 6000 msec
+        rx_iq          : False
+-- false bandwidth -------------------------------------
+bandwidth = lora._bw.BW_125KHZ --> 
+bandwidth = lora._bw.BW_250KHZ --> 
+bandwidth = lora._bw.BW_500KHZ --> 
+bandwidth = 750 --> error: invalid value for 'bandwidth'
+
+bandwidth = 100 --> error: invalid value for 'bandwidth'
+
+    regional params
+        region         : EU-868
+        frequency      : 868000000 Hz
+        freq_khz       : 868000.000 KHz
+        freq_mhz       : 868.000 MHz
+    modulation params
+        sf             : 12
+        bandwidth      : 500 KHz
+        coding_rate    : 4_5
+    packet params
+        preamble       : 8
+        payload        : 51
+        crc_on         : True
+    lora tranceiver
+        chip           : SX1262
+        max tx_power   : +22 dBm
+    tx params
+        tx_power       : +16 dBm
+        antenna_gain   : +2.15 dBi
+        tx_power_eff   : +13 dBm
+        tx_timeout     : 6000 msec
+        tx_iq          : False
+    rx params
+        rx_timeout     : 6000 msec
+        rx_iq          : False
+-- detect false region ---------------------------------

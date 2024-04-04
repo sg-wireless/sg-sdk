@@ -1,0 +1,31 @@
+{
+    "name"                  : "foo",
+    "show-pass-results"     : false,
+    "hide-fail-results"     : true,
+    "enable-host-expect"    : true,
+    "timeout"               : 10,
+    "results-dir"   : "",
+    "relative-path" : "tools/tester/examples/example-4-test-suite/foo",
+
+    "test-cases" : [],
+    "test-dirs"  : [
+        "group-x",
+        "group-y"
+    ],
+
+    "regex-test-cases" : [
+        "group-x/tc02-demo-pass-with-regex.py",
+        "group-x/tc07-demo-fail-with-regex.py"
+    ],
+    "regex-test-cases-lists" : [],
+
+    "ignore-test-cases" : [
+        "group-x/tc09-demo-ignored-fail.py"
+    ],
+    "ignore-test-cases-lists" : [],
+
+    "skip-test-cases" : [
+        "group-x/tc05-demo-skip-by-user.py"
+    ],
+    "skip-test-cases-lists" : []
+}
