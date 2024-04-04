@@ -55,6 +55,12 @@ __sdk_add_patch(
     FINAL_DIR       ${CMAKE_CURRENT_LIST_DIR}/modified_sources
 )
 
+__sdk_add_patch(
+    ENTITY_NAME     micropython
+    ORIGINAL_FILE   ${__dir_micropython}/ports/esp32/machine_sdcard.c
+    PATCH_FILE      ${CMAKE_CURRENT_LIST_DIR}/patches/machine_sdcard.c.patch
+    FINAL_DIR       ${CMAKE_CURRENT_LIST_DIR}/modified_sources
+)
 
 __sdk_add_component( f1_mpy_hooks
 

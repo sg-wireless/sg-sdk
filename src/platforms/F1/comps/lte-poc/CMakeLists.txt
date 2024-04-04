@@ -1,4 +1,3 @@
-#!/bin/bash
 # ---------------------------------------------------------------------------- #
 # Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
 #
@@ -22,37 +21,29 @@
 #
 # Author    Ahmed Sabry (SG Wireless)
 #
-# Desc      This file is responsible for updating the patches for the uPython
+# Desc      Specify the LTE.py implementation in both python and C to the build
+#           system.
 # ---------------------------------------------------------------------------- #
 
-__root_dir=../../../..
-__modified_dir=./modified_sources
-__patch_dir=./patches
-__main_update_script=${__root_dir}/tools/builder/cmake/update_patches.sh
+__sdk_add_component( lte_py_in_c
 
-__original_dir=${__root_dir}/ext/micropython/ports/esp32
-__search_path="uart.c"
-${__main_update_script} ${__original_dir} ${__modified_dir} ${__patch_dir} \
-    ${__search_path}
+    MPY_MODS
+        ${CMAKE_CURRENT_LIST_DIR}/mod_lte.c
 
-__original_dir=${__root_dir}/ext/micropython/ports/esp32
-__search_path="help.c"
-${__main_update_script} ${__original_dir} ${__modified_dir} ${__patch_dir} \
-    ${__search_path}
+    LOGS_DEFS
+        "${CMAKE_CURRENT_LIST_DIR}/*.c"
 
-__original_dir=${__root_dir}/ext/micropython/ports/esp32
-__search_path="machine_i2c.c"
-${__main_update_script} ${__original_dir} ${__modified_dir} ${__patch_dir} \
-    ${__search_path}
+    SRCS
+        ${CMAKE_CURRENT_LIST_DIR}/lte_helpers.c
+        ${CMAKE_CURRENT_LIST_DIR}/lte_ppp.c
+        ${CMAKE_CURRENT_LIST_DIR}/lte_uart.c
+        ${CMAKE_CURRENT_LIST_DIR}/lte.c
+        ${CMAKE_CURRENT_LIST_DIR}/mod_lte.c
 
-__original_dir=${__root_dir}/ext/micropython/shared/runtime
-__search_path="pyexec.c"
-${__main_update_script} ${__original_dir} ${__modified_dir} ${__patch_dir} \
-    ${__search_path}
+    INCS_IF
+        ${CMAKE_CURRENT_LIST_DIR}
+)
 
-__original_dir=${__root_dir}/ext/micropython/ports/esp32
-__search_path="machine_sdcard.c"
-${__main_update_script} ${__original_dir} ${__modified_dir} ${__patch_dir} \
-    ${__search_path}
+__sdk_add_micropython_frozen_manifest("${CMAKE_CURRENT_LIST_DIR}/manifest.py")
 
 # --- end of file ------------------------------------------------------------ #

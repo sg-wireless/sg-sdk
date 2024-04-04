@@ -50,6 +50,7 @@ These are a quick references to contents of the SDK.
     * [Build System](tools/builder/docs/builder.md)
     * [FW Versioning Structure](src/comps/fw-version/README.md)
 * Connectivity Features
+    * [LTE-M](src/platforms/F1/comps/lte-poc/lte_main.md)
     * [LoRa](src/comps/lora/docs/lora-main.md)
 * F1 Platform Specific Services.
     * [Safeboot](

@@ -1,0 +1,14 @@
+--- ../../../ext/micropython/ports/esp32/machine_sdcard.c	2023-10-10 11:37:55
++++ ./modified_sources/machine_sdcard.c	2023-10-23 14:35:47
+@@ -247,6 +247,10 @@
+         DEBUG_printf("  Setting up SDMMC slot configuration");
+         sdmmc_slot_config_t slot_config = SDMMC_SLOT_CONFIG_DEFAULT();
+ 
++        slot_config.clk = 42;
++        slot_config.cmd = 40;
++        slot_config.d0 = 41;
++
+         // Stronger external pull-ups are still needed but apparently
+         // it is a good idea to set the internal pull-ups anyway.
+
+         // slot_config.flags = SDMMC_SLOT_FLAG_INTERNAL_PULLUP;
