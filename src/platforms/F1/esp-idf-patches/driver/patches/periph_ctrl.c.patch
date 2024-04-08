@@ -1,6 +1,6 @@
 --- ../../../../ext/esp-idf/components/driver/periph_ctrl.c	2024-03-27 17:48:30
-+++ ./driver/modified_sources/periph_ctrl.c	2024-03-19 17:03:36
-@@ -8,6 +8,8 @@
++++ ./driver/modified_sources/periph_ctrl.c	2024-04-08 00:12:59
+@@ -8,17 +8,51 @@
  #include "esp_attr.h"
  #include "driver/periph_ctrl.h"
  
@@ -9,18 +9,100 @@
  static portMUX_TYPE periph_spinlock = portMUX_INITIALIZER_UNLOCKED;
  
  static uint8_t ref_counts[PERIPH_MODULE_MAX] = {0};
-@@ -27,7 +29,10 @@
+ 
++/**
++ * power management enhancement
++ * ============================
++ * 
++ * In some cases there only one entity is using the peripheral for short time
++ * and become idle most of the time, so it is better to reduce the clk of the
++ * module without resetting it to keep the configuration intact.
++ * 
++ * In the new periph_module_power_down() function, the module peripheral clk
++ * will be disabled if and only if reference counts are '1', other wise no
++ * change. The reference count will not be changing to be still understood that
++ * some entity is still using the module
++ * 
++ * In the new periph_module_power_up() function, the power up function will use
++ * the same logic, in which it will enable the clk again if and only if the
++ * reference count is '1'.
++ * 
++ * In the old periph_module_enable() function, if the reference count is '1',
++ * it has to check if the clk is disabled, then it shall enable it again.
++ * 
++ * In the old periph_module_disable() function, no change
++ */
++
+ void periph_module_enable(periph_module_t periph)
+ {
+     assert(periph < PERIPH_MODULE_MAX);
+     portENTER_CRITICAL_SAFE(&periph_spinlock);
+     if (ref_counts[periph] == 0) {
+         periph_ll_enable_clk_clear_rst(periph);
++    } else if(ref_counts[periph] == 1) {
++        // -- power management enhancement feature
++        if( DPORT_REG_GET_BIT(
++                periph_ll_get_clk_en_reg(periph),
++                periph_ll_get_clk_en_mask(periph)) == 0) {
++            DPORT_SET_PERI_REG_MASK(
++                periph_ll_get_clk_en_reg(periph),
++                periph_ll_get_clk_en_mask(periph));
+         }
++    }
+     ref_counts[periph]++;
+     portEXIT_CRITICAL_SAFE(&periph_spinlock);
+ }
+@@ -27,19 +61,129 @@
  {
      assert(periph < PERIPH_MODULE_MAX);
      portENTER_CRITICAL_SAFE(&periph_spinlock);
 +    if(ref_counts[periph] > 0)
 +    {
-     ref_counts[periph]--;
+         ref_counts[periph]--;
 +    }
      if (ref_counts[periph] == 0) {
          periph_ll_disable_clk_set_rst(periph);
      }
-@@ -40,6 +45,79 @@
+     portEXIT_CRITICAL_SAFE(&periph_spinlock);
+ }
+ 
++void periph_module_clk_disable(periph_module_t periph)
++{
++    assert(periph < PERIPH_MODULE_MAX);
++    portENTER_CRITICAL_SAFE(&periph_spinlock);
++    if (ref_counts[periph] == 1) {
++        if( DPORT_REG_GET_BIT(
++                periph_ll_get_clk_en_reg(periph),
++                periph_ll_get_clk_en_mask(periph)) != 0) {
++
++            DPORT_CLEAR_PERI_REG_MASK(
++                periph_ll_get_clk_en_reg(periph),
++                periph_ll_get_clk_en_mask(periph));
++        }
++    }
++    portEXIT_CRITICAL_SAFE(&periph_spinlock);
++}
++
++void periph_module_clk_enable(periph_module_t periph)
++{
++    assert(periph < PERIPH_MODULE_MAX);
++    portENTER_CRITICAL_SAFE(&periph_spinlock);
++    if (ref_counts[periph] == 1) {
++        if( DPORT_REG_GET_BIT(
++                periph_ll_get_clk_en_reg(periph),
++                periph_ll_get_clk_en_mask(periph)) == 0){
++
++            DPORT_SET_PERI_REG_MASK(
++                periph_ll_get_clk_en_reg(periph),
++                periph_ll_get_clk_en_mask(periph));
++        }
++    }
++    portEXIT_CRITICAL_SAFE(&periph_spinlock);
++}
++
+ void periph_module_reset(periph_module_t periph)
+ {
+     assert(periph < PERIPH_MODULE_MAX);
      portENTER_CRITICAL_SAFE(&periph_spinlock);
      periph_ll_reset(periph);
      portEXIT_CRITICAL_SAFE(&periph_spinlock);
