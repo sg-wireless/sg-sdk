@@ -7,3 +7,6 @@
 [submodule "ext/LoRaMac-node"]
 	path = ext/LoRaMac-node
 	url = https://github.com/Lora-net/LoRaMac-node.git
+[submodule "ext/ESP32-NeoPixel-WS2812-RMT"]
+	path = ext/ESP32-NeoPixel-WS2812-RMT
+	url = https://github.com/JSchaenzle/ESP32-NeoPixel-WS2812-RMT.git

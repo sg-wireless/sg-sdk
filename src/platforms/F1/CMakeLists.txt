@@ -69,9 +69,11 @@ if( __feature_lora )
 endif()
 
 if( __feature_lte )
-    __sdk_add_comp_dirs(
-        ${__dir_platform_comps}/lte-poc
-    )
+    __sdk_add_comp_dirs( ${__dir_platform_comps}/lte-poc )
+endif()
+
+if( __feature_rgb_led )
+    __sdk_add_comp_dirs( ${__dir_platform_comps}/rgbled-if)
 endif()
 
 # platform log_lib platform subsystem define

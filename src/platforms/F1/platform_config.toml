@@ -32,6 +32,7 @@
     lte  = true
     secure-element = true
     safeboot-switch = false
+    rgb-led = false
 
 # ---------------------------------------------------------------------------- #
 # external submodules
@@ -48,6 +49,7 @@
     [submodules.features]
 
         lora = [ "LoRaMac-node" ]
+        rgb-led = [ "ESP32-NeoPixel-WS2812-RMT" ]
 
 # ---------------------------------------------------------------------------- #
 # prerquisite tools to be installed

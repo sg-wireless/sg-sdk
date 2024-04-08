@@ -57,6 +57,7 @@ These are a quick references to contents of the SDK.
         src/platforms/F1/bootloader_components/boot-if/docs/safeboot.md)
     * [System Inspection](
         src/platforms/F1/comps/sys-inspect-if/docs/sys_inspect.md)
+    * [RGB LED](src/platforms/F1/comps/rgbled-if/rgbled.md)
 * Tools.
     * [Tester](tools/tester/docs/readme.md)
 

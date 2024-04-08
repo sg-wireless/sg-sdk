@@ -112,7 +112,7 @@ def process_command(ctx: BuilderContext):
     app_name = os.path.basename(app_dir) if app_dir != None else "sdk-default"
     variant = ctx.cli.get_variant()
     build_dir = ctx.tree.get_build_dir(app_name, platform, board, variant)
-    features = ctx.cfg.get_config('features')
+    features = ctx.cfg.get_config('features', True)
     ports = ctx.cli.get_ports()
     board_ids = ctx.cfg.get_config('id')
     custom_version_str = ctx.cli.get_custom_version_string()
