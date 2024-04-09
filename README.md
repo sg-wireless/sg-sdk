@@ -46,6 +46,7 @@ from here.
 These are a quick references to contents of the SDK.
 
 * [Getting Started](#get-started)
+* [Change Log](CHANGELOG.md)
 * SDK Framework
     * [Build System](tools/builder/docs/builder.md)
     * [FW Versioning Structure](src/comps/fw-version/README.md)
