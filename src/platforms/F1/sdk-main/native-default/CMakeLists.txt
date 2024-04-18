@@ -39,6 +39,12 @@ __sdk_add_component( native_default_main
 
     REQUIRED_ESP_LIBS
         freertos
+
+    REQUIRED_SDK_LIBS
+        f1_sys_info
+        log_lib
+        f1_logs_if
+        sdk_fw_version
 )
 
 # --- end of file ------------------------------------------------------------ #

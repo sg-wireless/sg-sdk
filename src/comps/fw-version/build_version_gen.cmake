@@ -70,7 +70,7 @@ function(__run_build_version_generator)
     endif()
 
     if(DEFINED __CUSTOM_STRING)
-        set(__custom_str_opt "--custom-string \"${__CUSTOM_STRING}\"")
+        set(__custom_str_opt --custom-string ${__CUSTOM_STRING})
     endif()
 
     set(__temp_file ${__temp_dir}/${__GEN_FILE})

@@ -32,8 +32,10 @@ __sdk_add_component( f1_sys_info
     SRCS
         "${CMAKE_CURRENT_LIST_DIR}/*.c"
 
-    INCS_PRIV
+    INCS_IF
         ${CMAKE_CURRENT_LIST_DIR}
+
+    INCS_PRIV
         ${__dir_ext}/esp-idf/components/spi_flash/include
 )
 

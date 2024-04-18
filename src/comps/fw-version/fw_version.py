@@ -29,6 +29,7 @@ import sys
 import os
 import re
 import datetime
+import binascii
 from pathlib import Path
 script_path = os.path.abspath(os.path.dirname(__file__))
 sys.path.append(f'{os.path.dirname(__file__)}/../../../tools/pylibs')
@@ -70,29 +71,72 @@ def get_fw_build_version(custom_str=None):
         except subprocess.CalledProcessError as e:
             ret = e
         return ret
+    resp = __run_subprocess(['git', 'rev-parse', 'HEAD'])
+    git_hash_str_full = ''
+    if resp.returncode == 0:
+        log(resp.stdout)
+        # git_hash_full = bytes.fromhex(resp.stdout.decode('utf-8'))
+        git_hash_str_full = resp.stdout.decode('utf-8').strip()
     resp = __run_subprocess(['git', 'describe', '--tags', '--dirty',
                              '--match', 'v[0-9]*.[0-9]*.[0-9]*'])
     if resp.returncode == 0:
-        resp = re.match(r'(v\d+.\d+.\d+)-(\d+)-g([0-9a-fA-F]+)(?:-(dirty))?',
-                        resp.stdout.decode('utf-8'))
+        resp = re.match(r'''
+                        (?P<release>v
+                            (?P<major>\d+).
+                            (?P<minor>\d+).
+                            (?P<patch>\d+)
+                        )(?P<extra>-
+                        (?P<delta>\d+)-
+                        g(?P<hash>[0-9a-fA-F]+)
+                        (?:-(?P<dirty>dirty))?
+                        )?
+                        ''',
+                        resp.stdout.decode('utf-8'), re.X)
         if resp:
-            tag_ver = resp.group(1)
-            delta = resp.group(2)
-            hash = resp.group(3)
-            if resp.group(4) != None and custom_str == None:
-                custom_str = resp.group(4)
+            resp_dict = resp.groupdict()
+            rel_str = resp_dict['release']
+            major = resp_dict['major']
+            minor = resp_dict['minor']
+            patch = resp_dict['patch']
+            delta = resp_dict['delta'] if resp_dict['delta'] else 0
+            git_hash_str_short = git_hash_str_full[0:8]
+            if resp_dict['dirty'] and custom_str == None:
+                custom_str = resp_dict['dirty']
+            date_obj = datetime.date.today()
+            date_str = date_obj.strftime('%Y%m%d')
+            date_month = date_obj.month
+            date_day   = date_obj.day
+            date_year  = date_obj.year
             date = datetime.date.today().strftime('%Y%m%d')
-            ver_str = f'{tag_ver}-{delta}-{hash}-{date}'
+            ver_str = f'{rel_str}-{delta}-{git_hash_str_short}-{date_str}'
             if custom_str:
                 custom_str = re.sub(' ', '_', custom_str)
                 ver_str += f'-{custom_str}'
+
             return {
-                'ver-str'   : ver_str,
-                'tag-ver'   : tag_ver,
-                'delta'     : delta,
-                'hash'      : hash,
-                'date'      : date,
-                'custom'    : custom_str
+                # -- typical build version
+                'build-ver-str' : ver_str,
+                'ver-str' : ver_str,
+
+                # -- release version components
+                'rel-ver-str': rel_str,
+                'rel-major'  : major,
+                'rel-minor'  : minor,
+                'rel-patch'  : patch,
+
+                # -- git info comps
+                'git-delta'      : delta,
+                'git-hash-long'  : git_hash_str_full,
+                'git-hash-short' : git_hash_str_short,
+
+                # -- date info comps
+                'date_str'   : date_str,
+                'date_day'   : date_day,
+                'date_month' : date_month,
+                'date_year'  : date_year,
+
+                # --custom comps
+                'custom-str'    : custom_str if custom_str else ''
             }
     else:
         log(f'error: {resp.stderr.decode("utf-8")}')
@@ -100,21 +144,51 @@ def get_fw_build_version(custom_str=None):
 
 def generate_version_header(filename, custom_str=None):
     ver = get_fw_build_version(custom_str)
+    # log_obj(ver)
     with open(filename, 'w') as f:
+        def fwrite(macro, val):
+            s = f'#define FW_BUILD_VERSION_{macro:20s} '
+            v = f'{val}'
+            f.write(s)
+            if len(s) + len(v) > 80:
+                f.write('\\\n\t')
+            f.write(v + '\n')
+            pass
+
         f.write(f'// auto-generated file\n\n\n')
         if not ver:
-            f.write(f'#define FW_BUILD_VERSION_ENABLE     (0)\n')
+            fwrite('ENABLE', 0)
         else:
-            f.write(f'#define FW_BUILD_VERSION_ENABLE     (1)\n\n')
-            f.write(f'#define FW_BUILD_VERSION_GIT_TAG    "{ver["tag-ver"]}"\n')
-            f.write(f'#define FW_BUILD_VERSION_GIT_DELTA  "{ver["delta"]}"\n')
-            f.write(f'#define FW_BUILD_VERSION_GIT_HASH   "{ver["hash"]}"\n')
-            f.write(f'#define FW_BUILD_VERSION_DATE       "{ver["date"]}"\n')
-            f.write(f'#define FW_BUILD_VERSION_CUSTOM     "{ver["custom"]}"\n')
-            f.write(f'\n')
-            f.write(f'#define FW_BUILD_VERSION_STRING     \\\n' + 
-                    f'    "{ver["ver-str"]}"\n')
+            fwrite('ENABLE', 1)
+            f.write(f'\n\n')
+            f.write(f'// -- build version full string \n')
+            fwrite('STRING', f"\"{ver['build-ver-str']}\"")
+            fwrite('CUSTOM_STR', f"\"{ver['custom-str']}\"")
 
+            f.write(f'\n\n')
+            f.write(f'// -- release version info components \n')
+            fwrite('RELEASE_STR', f"\"{ver['rel-ver-str']}\"")
+            fwrite('RELEASE_MAJOR', f"{ver['rel-major']}")
+            fwrite('RELEASE_MINOR', f"{ver['rel-minor']}")
+            fwrite('RELEASE_PATCH', f"{ver['rel-patch']}")
+
+            f.write(f'\n\n')
+            f.write(f'// -- git info components \n')
+            fwrite('GIT_TAG_FULL_STR', f"\"{ver['git-hash-long']}\"")
+            fwrite('GIT_TAG_SHORT_STR', f"\"{ver['git-hash-short']}\"")
+            fwrite('GIT_TAG_SHORT_U32', '0x' + \
+                    binascii.hexlify(
+                        bytes.fromhex(ver['git-hash-short'])[::-1]
+                    ).decode('utf-8'))
+            fwrite('GIT_DELTA', f"{ver['git-delta']}")
+
+            f.write(f'\n\n')
+            f.write(f'// -- date info components \n')
+            fwrite('DATE_STR', f"\"{ver['date_year']}." + \
+                   f"{ver['date_month']:02d}.{ver['date_day']:02d}\"")
+            fwrite('DATE_DAY', f"{ver['date_day']}")
+            fwrite('DATE_MONTH', f"{ver['date_month']}")
+            fwrite('DATE_YEAR', f"{ver['date_year']}")
 
 def main():
     cli = pycli.PyCli('SDK Firmware Version Tool')

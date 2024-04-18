@@ -26,28 +26,96 @@
  */
 
 #include "fw_version.h"
+#include <stdint.h>
+
+/** -------------------------------------------------------------------------- *
+ * defining version constants
+ * --------------------------------------------------------------------------- *
+ */
+static const char s_fw_version_string[] = __fw_version_string();
+static const char s_fw_version_custom_str[] = __fw_version_custom_str();
+static const char s_fw_version_release_str[] = __fw_version_release_str();
+static const uint32_t s_fw_version_release_major = __fw_version_release_major();
+static const uint32_t s_fw_version_release_minor = __fw_version_release_minor();
+static const uint32_t s_fw_version_release_patch = __fw_version_release_patch();
+static const char s_fw_version_git_tag_full_str[] =
+    __fw_version_git_tag_full_str();
+static const char s_fw_version_git_tag_short_str[] =
+    __fw_version_git_tag_short_str();
+static const uint32_t s_fw_version_git_tag_short_u32 =
+    __fw_version_git_tag_short_u32();
+static const uint32_t s_fw_version_git_delta  = __fw_version_git_delta();
+static const char s_fw_version_date_str[]  = __fw_version_date_str();
+static const uint32_t s_fw_version_date_day   = __fw_version_date_day();
+static const uint32_t s_fw_version_date_month = __fw_version_date_month();
+static const uint32_t s_fw_version_date_year  = __fw_version_date_year();
+
+static const char s_fw_version_time_str[]   = __fw_version_time_str();
 
 /** -------------------------------------------------------------------------- *
  * APIs implementation
  * --------------------------------------------------------------------------- *
  */
-const char* fw_version_get_string(void)
-{
-    return FW_VERSION_STRING;
-}
 
-const char* fw_version_get_release_string(void)
+const char* fw_version_string(void)
 {
-    return FW_RELEASE_VERSION_STRING;
+    return s_fw_version_string;
 }
-
-const char* fw_version_get_build_string(void)
+const char* fw_version_custom_str(void)
 {
-    #if defined(FW_BUILD_VERSION_ENABLE) && FW_BUILD_VERSION_ENABLE
-        return FW_BUILD_VERSION_STRING;
-    #else
-        return "not-avail";
-    #endif
+    return s_fw_version_custom_str;
+}
+const char* fw_version_release_str(void)
+{
+    return s_fw_version_release_str;
+}
+uint32_t fw_version_release_major(void)
+{
+    return s_fw_version_release_major;
+}
+uint32_t fw_version_release_minor(void)
+{
+    return s_fw_version_release_minor;
+}
+uint32_t fw_version_release_patch(void)
+{
+    return s_fw_version_release_patch;
+}
+const char* fw_version_git_tag_full_str(void)
+{
+    return s_fw_version_git_tag_full_str;
+}
+const char* fw_version_git_tag_short_str(void)
+{
+    return s_fw_version_git_tag_short_str;
+}
+uint32_t fw_version_git_tag_short_u32(void)
+{
+    return s_fw_version_git_tag_short_u32;
+}
+uint32_t fw_version_git_delta(void)
+{
+    return s_fw_version_git_delta;
+}
+const char* fw_version_date_str(void)
+{
+    return s_fw_version_date_str;
+}
+const char* fw_version_time_str(void)
+{
+    return s_fw_version_time_str;
+}
+uint32_t fw_version_date_day(void)
+{
+    return s_fw_version_date_day;
+}
+uint32_t fw_version_date_month(void)
+{
+    return s_fw_version_date_month;
+}
+uint32_t fw_version_date_year(void)
+{
+    return s_fw_version_date_year;
 }
 
 /* --- end of file ---------------------------------------------------------- */

@@ -84,13 +84,28 @@ void sysinfo_version(void)
     __log_output_header(" firmware version ", __total_w, '=');
 
     __log_output_field(" - firmware version", __name_w, ' ', __left__, false);
-    __log_output(__cyan__"%s"__default__"\n", fw_version_get_string());
+    __log_output(__cyan__"%s"__default__"\n", fw_version_string());
 
-    __log_output_field(" - firmware release", __name_w, ' ', __left__, false);
-    __log_output(__cyan__"%s\n"__default__, fw_version_get_release_string());
+    __log_output_field(" - firmware base release",
+        __name_w, ' ', __left__, false);
+    __log_output(__cyan__"%s\n"__default__, fw_version_release_str());
+    __log_output_field(" - custom version string",
+        __name_w, ' ', __left__, false);
+    __log_output(__cyan__"%s\n"__default__, fw_version_custom_str());
 
-    __log_output_field(" - firmware build", __name_w, ' ', __left__, false);
-    __log_output(__cyan__"%s\n"__default__, fw_version_get_build_string());
+    __log_output("\n");
+    __log_output_field(" - build date and time",
+        __name_w, ' ', __left__, false);
+    __log_output(__cyan__"%s - %s\n"__default__,
+        fw_version_date_str(), fw_version_time_str());
+
+    __log_output("\n");
+    __log_output_field(" - git hash long", __name_w, ' ', __left__, false);
+    __log_output(__cyan__"%s\n"__default__, fw_version_git_tag_full_str());
+    __log_output_field(" - git hash short", __name_w, ' ', __left__, false);
+    __log_output(__cyan__"%s\n"__default__, fw_version_git_tag_short_str());
+    __log_output_field(" - git delta", __name_w, ' ', __left__, false);
+    __log_output(__cyan__"%d\n"__default__, fw_version_git_delta());
 
     #ifdef MICROPYTHON_BUILD
     __log_output("\n");

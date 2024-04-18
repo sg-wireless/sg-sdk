@@ -32,16 +32,24 @@
 #include "freertos/task.h"
 #include "esp_system.h"
 #include "esp_spi_flash.h"
+#include "sysinfo.h"
+#include "log_lib.h"
 
 void app_main(void)
 {
-    printf("default-sdk-main --> Hello world!\n");
+    void init_log_system(void);
+    init_log_system();
+
+    __log_output("default-sdk-main --> Hello world!\n");
+
+    sysinfo_board();
+    sysinfo_version();
 
     for (int i = 10; i >= 0; i--) {
-        printf("Restarting in %d seconds...\n", i);
+        __log_output("Restarting in %d seconds...\n", i);
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
-    printf("Restarting now.\n");
+    __log_output("Restarting now.\n");
     fflush(stdout);
     esp_restart();
 }

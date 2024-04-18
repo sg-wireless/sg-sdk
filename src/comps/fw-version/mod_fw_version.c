@@ -26,6 +26,7 @@
  */
 
 #include "mp_lite_if.h"
+#include "py/objstr.h"
 #include "log_lib.h"
 #include "fw_version.h"
 
@@ -35,19 +36,17 @@
  */
 __mp_mod_fun_0(fw_version, show)(void)
 {
-    __log_output("version: "__yellow__"%s"__default__"\n",
-        fw_version_get_string());
-    __log_output("release: "__yellow__"%s"__default__"\n",
-        fw_version_get_release_string());
-    __log_output("build:   "__yellow__"%s"__default__"\n",
-        fw_version_get_build_string());
+    __log_output("build version: "__yellow__"%s"__default__"\n",
+        fw_version_string());
+    __log_output("base release:  "__yellow__"%s"__default__"\n",
+        fw_version_release_str());
     return mp_const_none;
 }
 
 __mp_mod_fun_0(fw_version, release)(void)
 {
     __log_output("release: "__yellow__"%s"__default__"\n",
-        fw_version_get_release_string());
+        fw_version_release_str());
     return mp_const_none;
 }
 
