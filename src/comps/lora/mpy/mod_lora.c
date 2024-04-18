@@ -989,8 +989,13 @@ __mp_mod_fun_var_between(lora, list_region_params, 0, 1)(
     }
     else
     {
-        void lora_list_mac_channels_status(void);
-        lora_list_mac_channels_status();
+        lora_mode_t mode;
+        lora_get_mode(&mode);
+        if( mode == __LORA_MODE_WAN )
+        {
+            void lora_list_mac_channels_status(void);
+            lora_list_mac_channels_status();
+        }
     }
 
     return mp_const_none;

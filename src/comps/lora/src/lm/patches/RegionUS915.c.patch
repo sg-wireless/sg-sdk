@@ -1,0 +1,38 @@
+--- ../../../../../ext/LoRaMac-node/src/mac/region/RegionUS915.c	2024-04-18 13:15:55
++++ ./modified_sources/RegionUS915.c	2024-04-18 13:18:06
+@@ -67,7 +67,7 @@
+     return txPowerResult;
+ }
+ 
+-static bool VerifyRfFreq( uint32_t freq )
++static bool VerifyRfFreq_Rx( uint32_t freq )
+ {
+     // Check radio driver support
+     if( Radio.CheckRfFrequency( freq ) == false )
+@@ -82,7 +82,17 @@
+     {
+         return false;
+     }
++    return true;
++}
+ 
++static bool VerifyRfFreq( uint32_t freq )
++{
++    // Check radio driver support
++    if( Radio.CheckRfFrequency( freq ) == false )
++    {
++        return false;
++    }
++
+     // Test for frequency range - take RX and TX freqencies into account
+     if( ( freq < 902300000 ) ||  ( freq > 927500000 ) )
+     {
+@@ -732,7 +742,7 @@
+     uint8_t status = 0x07;
+ 
+     // Verify radio frequency
+-    if( VerifyRfFreq( rxParamSetupReq->Frequency ) == false )
++    if( VerifyRfFreq_Rx( rxParamSetupReq->Frequency ) == false )
+     {
+         status &= 0xFE; // Channel frequency KO
+     }
