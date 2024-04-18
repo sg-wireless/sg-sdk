@@ -82,6 +82,7 @@ void  sync_obj_init(void)
         __log_info("init sync objects wheel");
         s_access_mutex = lora_stub_mutex_new();
         memset(s_resources_wheel, 0, sizeof(s_resources_wheel));
+        initialized = true;
     }
 }
 
