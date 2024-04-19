@@ -28,8 +28,8 @@
 # board identification configurations
 # ---------------------------------------------------------------------------- #
 [id]
-    board_name      = "F1-WS"
-    board_number    = "SGW3131"
+    board_name      = "F1-W"
+    board_number    = "SGW3101"
     shield          = "OEM"
 
 # ---------------------------------------------------------------------------- #

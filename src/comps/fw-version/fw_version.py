@@ -74,7 +74,6 @@ def get_fw_build_version(custom_str=None):
     resp = __run_subprocess(['git', 'rev-parse', 'HEAD'])
     git_hash_str_full = ''
     if resp.returncode == 0:
-        log(resp.stdout)
         # git_hash_full = bytes.fromhex(resp.stdout.decode('utf-8'))
         git_hash_str_full = resp.stdout.decode('utf-8').strip()
     resp = __run_subprocess(['git', 'describe', '--tags', '--dirty',
