@@ -1,12 +1,12 @@
 '''
  Copyright (c) 2023 - 2024 SG Wireless Limited - All Rights Reserved
- 
+
  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the “Software”),
- to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, 
+ to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense,
  and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- 
+
  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
- 
+
  THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY
  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
@@ -35,9 +35,6 @@ class LTE():
     in_ppp = None
 
     def __init__(self, carrier='standard', cid=1, mode=None, baudrate=115200, debug=None):
-        # if debug is None:
-        #     import sgw
-        #     debug = sgw.nvs_get('lte_debug', 0) == 1
         self.__ppp_suspended = False
         self.__carrier = carrier
         self.__cid = cid
@@ -290,11 +287,13 @@ class LTE():
             raise OSError('Please use ctrl.disconnect() instead!')
         self.lte_ppp.active(False)
         self.__ppp_suspend()
-        LTE.in_ppp = False
         self.send_at_cmd('ATH', wait_ok_error=True, check_error=True)
 
     def is_connected(self):
-        return LTE.in_ppp
+        if LTE.in_ppp:
+            return self.lte_ppp.isconnected()
+        else:
+            return False
 
     def isconnected(self):
         return self.is_connected()
@@ -376,6 +375,7 @@ class LTE():
             LTE.lte_uart.write('+++')
             utime.sleep(1)
             if self.__wait_at(25, 250):
+                LTE.in_ppp = False
                 return True
         return False
 
