@@ -1,0 +1,63 @@
+/** -------------------------------------------------------------------------- *
+ * @copyright Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files(the “Software”), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use,  copy,  modify,  merge, publish, distribute, sublicense, and/or sell
+ * copies  of  the  Software,  and  to  permit  persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED “AS IS”,  WITHOUT WARRANTY OF ANY KIND,  EXPRESS OR
+ * IMPLIED,  INCLUDING BUT NOT LIMITED TO  THE  WARRANTIES  OF  MERCHANTABILITY
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+ * AUTHORS  OR  COPYRIGHT  HOLDERS  BE  LIABLE FOR ANY CLAIM,  DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN  CONNECTION WITH  THE SOFTWARE OR  THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ *
+ * @author  Ahmed Sabry (SG Wireless)
+ *
+ * @brief   This file is required and its existence is assumed by the driver.
+ * --------------------------------------------------------------------------- *
+ */
+#ifndef __STM32F4XX_HAL_H__
+#define __STM32F4XX_HAL_H__
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include <stdint.h>
+
+#define HAL_OK  0
+
+typedef int HAL_StatusTypeDef;
+
+extern void* hi2c2;
+
+int HAL_I2C_Master_Transmit(
+    void* inst,
+    uint16_t i2c_addr,
+    uint8_t* data,
+    int date_len,
+    uint32_t timeout );
+
+int HAL_I2C_Master_Receive(
+    void* inst,
+    uint16_t i2c_addr,
+    uint8_t* data,
+    int date_len,
+    uint32_t timeout);
+
+
+void HAL_Delay(uint32_t delay);
+
+/* --- end of file ---------------------------------------------------------- */
+#ifdef __cplusplus
+}
+#endif
+#endif /* __STM32F4XX_HAL_H__ */

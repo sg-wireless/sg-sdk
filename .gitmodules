@@ -10,3 +10,6 @@
 [submodule "ext/ESP32-NeoPixel-WS2812-RMT"]
 	path = ext/ESP32-NeoPixel-WS2812-RMT
 	url = https://github.com/JSchaenzle/ESP32-NeoPixel-WS2812-RMT.git
+[submodule "ext/lib-BQ27421"]
+	path = ext/lib-BQ27421
+	url = https://github.com/svcguy/lib-BQ27421.git

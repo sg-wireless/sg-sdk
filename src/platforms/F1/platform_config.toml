@@ -33,6 +33,7 @@
     secure-element = true
     safeboot-switch = false
     rgb-led = false
+    fuel-gauge = false
 
 # ---------------------------------------------------------------------------- #
 # external submodules
@@ -50,6 +51,7 @@
 
         lora = [ "LoRaMac-node" ]
         rgb-led = [ "ESP32-NeoPixel-WS2812-RMT" ]
+        fuel-gauge = [ "lib-BQ27421" ]
 
 # ---------------------------------------------------------------------------- #
 # prerquisite tools to be installed

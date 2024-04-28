@@ -77,6 +77,10 @@ if( __feature_rgb_led )
     __sdk_add_comp_dirs( ${__dir_platform_comps}/rgbled-if)
 endif()
 
+if( __feature_fuel_gauge )
+    __sdk_add_comp_dirs( ${__dir_platform_comps}/fuel-gauge-if)
+endif()
+
 # platform log_lib platform subsystem define
 __sdk_add_logs_defs_files(${CMAKE_CURRENT_LIST_DIR}/logs_defs.h)
 

@@ -1,0 +1,72 @@
+--- ../../../../../ext/lib-BQ27421/bq27421.c	2024-04-28 13:20:07
++++ ./modified_sources/bq27421.c	2024-04-28 19:50:20
+@@ -1,5 +1,5 @@
+ #include "bq27421.h"
+-#include "i2c.h"
++// #include "i2c.h"
+ 
+ bool bq27421_i2c_command_write( uint8_t command, uint16_t data )
+ {
+@@ -168,12 +168,18 @@
+ 
+ bool bq27421_init( uint16_t designCapacity_mAh, uint16_t terminateVoltage_mV, uint16_t taperCurrent_mA )
+ {
++    #if 0
+     uint16_t designEnergy_mWh, taperRate, flags, checksumOld, checksumRead;
++    #else
++    uint16_t designEnergy_mWh, flags, checksumOld, checksumRead;
++    #endif
+     uint8_t checksumNew;
+     
+ 
+     designEnergy_mWh = 3.7 * designCapacity_mAh;
++    #if 0
+     taperRate = designCapacity_mAh / ( 0.1 * taperCurrent_mA );
++    #endif
+ 
+     // Unseal gauge
+     bq27421_i2c_control_write( BQ27421_CONTROL_UNSEAL );
+@@ -183,11 +189,15 @@
+     bq27421_i2c_control_write( BQ27421_CONTROL_SET_CFGUPDATE );
+ 
+     // Poll flags
++    int max_delay = 2000;
+     do
+     {
+         bq27421_i2c_command_read( BQ27421_FLAGS_LOW, &flags );
+         if( !(flags & 0x0010) )
+         {
++            if(max_delay <= 0)
++                return false;
++            max_delay -= 50;
+             HAL_Delay( 50 );
+         }
+     }
+@@ -234,9 +244,11 @@
+     // Update terminate voltage
+     block[16] = (uint8_t)( terminateVoltage_mV >> 8 );
+     block[17] = (uint8_t)( terminateVoltage_mV & 0x00FF );
++    #if 0
+     // Update taper rate
+     block[27] = (uint8_t)( taperRate >> 8 );
+     block[28] = (uint8_t)( taperRate & 0x00FF );
++    #endif
+ 
+     // Calculate new checksum
+     checksumNew = 0x00;
+@@ -359,11 +371,15 @@
+     bq27421_i2c_control_write( BQ27421_CONTROL_SOFT_RESET );
+ 
+     // Poll flags
++    max_delay = 2000;
+     do
+     {
+         bq27421_i2c_command_read( BQ27421_FLAGS_LOW, &flags );
+         if( !(flags & 0x0010) )
+         {
++            if(max_delay <= 0)
++                return false;
++            max_delay -= 50;
+             HAL_Delay( 50 );
+         }
+     }

@@ -21,48 +21,56 @@
 #
 # Author    Ahmed Sabry (SG Wireless)
 #
-# Desc      board configuration file
+# Desc      support the building of the fuel-gauge interface component and its
+#           corresponding driver BQ27421
 # ---------------------------------------------------------------------------- #
 
-# ---------------------------------------------------------------------------- #
-# board identification configurations
-# ---------------------------------------------------------------------------- #
-[id]
-    board_name      = "F1"
-    board_number    = "SGW3501"
-    shield          = "StarterKit"
+__sdk_menu_config_group_add(MAIN.PLATFORM.F1.FUEL_GAUGE "Fuel Gauge")
 
-# ---------------------------------------------------------------------------- #
-# hardware features
-# ---------------------------------------------------------------------------- #
-[features]
-    lora = true
-    lte  = true
-    secure-element = false
+__sdk_add_component( f1_fuel_gauge_if
 
-    safeboot-switch = true
-    fuel-gauge = true
-    rgb-led = true
+    LOGS_DEFS
+        ${CMAKE_CURRENT_LIST_DIR}/src/fuel_gauge.c
 
-# ---------------------------------------------------------------------------- #
-# external submodules
-# ---------------------------------------------------------------------------- #
-[submodules]
+    MPY_MODS
+        ${CMAKE_CURRENT_LIST_DIR}/src/mod_fuel_gauge.c
 
-# ---------------------------------------------------------------------------- #
-# configs
-# ---------------------------------------------------------------------------- #
-[configs]
+    SRCS
+        "${CMAKE_CURRENT_LIST_DIR}/src/*.c"
+        "${CMAKE_CURRENT_LIST_DIR}/src/bq27421_stub/*.c"
 
-    # sdkconfig for esp-idf
-    # it can be an array of sdkconfig files or toml table
-    # the repetition of a config will cause a build system error.
-    sdkconfig-files = [
-        # add here the specific askconfig files for this board
-    ]
+    INCS_PRIV
+        ${CMAKE_CURRENT_LIST_DIR}/src
+        ${CMAKE_CURRENT_LIST_DIR}/src/bq27421_stub
 
-    [configs.sdkconfig]
-        # or add each config indvidually here
+    INCS_IF
+        ${CMAKE_CURRENT_LIST_DIR}/inc
 
+    MENU_CONFIG     ${CMAKE_CURRENT_LIST_DIR}/cfg/fuel_gauge.config
+    MENU_PROMPT     "Fuel Gauge interface component"
+    MENU_GROUP      MAIN.PLATFORM.F1.FUEL_GAUGE
+)
+
+set(__dir_driver_bq27421 ${__dir_ext}/lib-BQ27421)
+
+__sdk_add_component( driver_bq27421
+
+    SRCS
+        ${__dir_driver_bq27421}/bq27421.c
+
+    INCS_IF
+        ${__dir_driver_bq27421}
+
+    INCS_PRIV
+        ${CMAKE_CURRENT_LIST_DIR}/src
+        ${CMAKE_CURRENT_LIST_DIR}/src/bq27421_stub
+)
+
+__sdk_add_patch(
+    ENTITY_NAME     driver_bq27421
+    ORIGINAL_FILE   ${__dir_driver_bq27421}/bq27421.c
+    PATCH_FILE      ${CMAKE_CURRENT_LIST_DIR}/patches/bq27421.c.patch
+    FINAL_DIR       ${CMAKE_CURRENT_LIST_DIR}/modified_sources
+)
 
 # --- end of file ------------------------------------------------------------ #

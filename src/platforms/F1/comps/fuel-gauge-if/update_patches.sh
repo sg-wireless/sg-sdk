@@ -1,3 +1,4 @@
+#!/bin/bash
 # ---------------------------------------------------------------------------- #
 # Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
 #
@@ -21,48 +22,17 @@
 #
 # Author    Ahmed Sabry (SG Wireless)
 #
-# Desc      board configuration file
+# Desc      Updates the patches of the Fuel-Gauge driver
 # ---------------------------------------------------------------------------- #
 
-# ---------------------------------------------------------------------------- #
-# board identification configurations
-# ---------------------------------------------------------------------------- #
-[id]
-    board_name      = "F1"
-    board_number    = "SGW3501"
-    shield          = "StarterKit"
+__root_dir=../../../../..
+__modified_dir=./modified_sources
+__patch_dir=./patches
+__main_update_script=${__root_dir}/tools/builder/cmake/update_patches.sh
 
-# ---------------------------------------------------------------------------- #
-# hardware features
-# ---------------------------------------------------------------------------- #
-[features]
-    lora = true
-    lte  = true
-    secure-element = false
-
-    safeboot-switch = true
-    fuel-gauge = true
-    rgb-led = true
-
-# ---------------------------------------------------------------------------- #
-# external submodules
-# ---------------------------------------------------------------------------- #
-[submodules]
-
-# ---------------------------------------------------------------------------- #
-# configs
-# ---------------------------------------------------------------------------- #
-[configs]
-
-    # sdkconfig for esp-idf
-    # it can be an array of sdkconfig files or toml table
-    # the repetition of a config will cause a build system error.
-    sdkconfig-files = [
-        # add here the specific askconfig files for this board
-    ]
-
-    [configs.sdkconfig]
-        # or add each config indvidually here
-
+__original_dir=${__root_dir}/ext/lib-BQ27421
+__search_path="bq27421.c"
+${__main_update_script} ${__original_dir} ${__modified_dir} ${__patch_dir} \
+    ${__search_path}
 
 # --- end of file ------------------------------------------------------------ #

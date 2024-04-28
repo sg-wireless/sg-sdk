@@ -60,6 +60,7 @@ These are a quick references to contents of the SDK.
         src/platforms/F1/comps/sys-inspect-if/docs/sys_inspect.md)
     * [System Information](src/platforms/F1/comps/sys-info/sysinfo.md)
     * [RGB LED](src/platforms/F1/comps/rgbled-if/rgbled.md)
+    * [Fuel Gauge](src/platforms/F1/comps/fuel-gauge-if/fuel_gauge.md)
 * Tools.
     * [Tester](tools/tester/docs/readme.md)
 
