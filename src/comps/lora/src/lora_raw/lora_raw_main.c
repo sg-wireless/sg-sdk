@@ -94,7 +94,8 @@ static lora_error_t lora_raw_tx(lora_tx_params_t * p_tx_params)
             },
         };
         lora_raw_process_event(__LORA_RAW_PROCESS_TX_REQUEST, &tx_msg,
-            p_tx_params->sync);
+            true);
+            // p_tx_params->sync);
     }
 
     return ret;

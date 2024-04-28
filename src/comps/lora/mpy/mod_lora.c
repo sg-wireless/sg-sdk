@@ -229,6 +229,13 @@ __mp_mod_fun_kw(lora, send, 1)(
 
     mp_get_buffer_raise(__arg_buf_obj, &tx_buf, MP_BUFFER_READ);
 
+    lora_raw_param_t param = {.type = __LORA_RAW_PARAM_PAYLOAD};
+    lora_ioctl(__LORA_IOCTL_GET_PARAM, &param);
+
+    if(param.param.payload < tx_buf.len) {
+        mp_raise_TypeError(MP_ERROR_TEXT("payload exceeds allowed"));
+    }
+
     lora_tx_params_t tx_params = {
         .buf = tx_buf.buf,
         .len = tx_buf.len,
@@ -582,6 +589,7 @@ __mp_mod_fun_kw(lora, radio_params, 0)(
     #define __idx_crc_on        13
     #define __idx_tx_timeout    14
     #define __idx_rx_timeout    15
+    #define __idx_payload       16
 
     static mp_arg_t allowed[] = {
         #define __init(_idx, _kw, _type)    \
@@ -602,6 +610,7 @@ __mp_mod_fun_kw(lora, radio_params, 0)(
             __init(__idx_crc_on,        crc_on,         BOOL ),
             __init(__idx_tx_timeout,    tx_timeout,     INT  ),
             __init(__idx_rx_timeout,    rx_timeout,     INT  ),
+            __init(__idx_payload,       payload,        INT  ),
         #undef __init
     };
 
@@ -623,6 +632,7 @@ __mp_mod_fun_kw(lora, radio_params, 0)(
     #define __def_crc_on_bool       allowed[__idx_crc_on      ].defval.u_bool
     #define __def_tx_timeout_int    allowed[__idx_tx_timeout  ].defval.u_int
     #define __def_rx_timeout_int    allowed[__idx_rx_timeout  ].defval.u_int
+    #define __def_payload_int       allowed[__idx_payload     ].defval.u_int
 
     mp_arg_val_t args[MP_ARRAY_SIZE(allowed)];
     #define __arg_reset_all_bool    args[__idx_reset_all   ].u_bool
@@ -641,6 +651,7 @@ __mp_mod_fun_kw(lora, radio_params, 0)(
     #define __arg_crc_on_bool       args[__idx_crc_on      ].u_bool
     #define __arg_tx_timeout_int    args[__idx_tx_timeout  ].u_int
     #define __arg_rx_timeout_int    args[__idx_rx_timeout  ].u_int
+    #define __arg_payload_int       args[__idx_payload     ].u_int
 
 
     // -- parse the argument for the first time to pick-up the new region if any
@@ -682,6 +693,7 @@ __mp_mod_fun_kw(lora, radio_params, 0)(
     __load_default_value(crc_on,        CRC_ON,         bool  );
     __load_default_value(tx_timeout,    TX_TIMEOUT,     int   );
     __load_default_value(rx_timeout,    RX_TIMEOUT,     int   );
+    __load_default_value(payload,       PAYLOAD,        int   );
 
     // -- second time argument parsing
     mp_arg_parse_all(n_args, pos_args, kw_args,
@@ -767,6 +779,7 @@ __mp_mod_fun_kw(lora, radio_params, 0)(
     __verify_param(crc_on,       CRC_ON,        bool);
     __verify_param(tx_timeout,   TX_TIMEOUT,    int);
     __verify_param(rx_timeout,   RX_TIMEOUT,    int);
+    __verify_param(payload,      PAYLOAD,       int);
 
     if( ! verified )
     {
@@ -806,6 +819,7 @@ __mp_mod_fun_kw(lora, radio_params, 0)(
     __update_param(crc_on,       CRC_ON,        bool);
     __update_param(tx_timeout,   TX_TIMEOUT,    int);
     __update_param(rx_timeout,   RX_TIMEOUT,    int);
+    __update_param(payload,      PAYLOAD,       int);
 
     if(change_detected)
     {
@@ -828,6 +842,7 @@ __mp_mod_fun_kw(lora, radio_params, 0)(
     #undef __idx_crc_on
     #undef __idx_tx_timeout
     #undef __idx_rx_timeout
+    #undef __idx_payload
 
     #undef __def_reset_all_bool
     #undef __def_region_int
@@ -844,6 +859,7 @@ __mp_mod_fun_kw(lora, radio_params, 0)(
     #undef __def_crc_on_bool
     #undef __def_tx_timeout_int
     #undef __def_rx_timeout_int
+    #undef __def_payload_int
 
     #undef __arg_reset_all_bool
     #undef __arg_region_int
@@ -861,6 +877,7 @@ __mp_mod_fun_kw(lora, radio_params, 0)(
     #undef __arg_crc_on_bool
     #undef __arg_tx_timeout_int
     #undef __arg_rx_timeout_int
+    #undef __arg_payload_int
 
     return mp_const_none;
 }
