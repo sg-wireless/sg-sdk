@@ -291,7 +291,7 @@ def main():
         custom_str = opts['custom-string'] if 'custom-string' in opts else None
         ver = get_fw_build_version(custom_str)
         if ver:
-            log(ver['ver-str'])
+            print(ver['ver-str'])
         else:
             exit(1)
     elif opts['command'] == 'generate-header':

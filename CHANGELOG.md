@@ -37,12 +37,33 @@ and this project adheres to
 
 
 <!------------------------------------------------------------------------------
- ! Unreleased
+ ! v0.5.0
  !----------------------------------------------------------------------------->
-## [Unreleased]
+## [0.5.0]
 ### Added
 - Fuel-Gauge Support
-- Import Control Platform Client
+- Import Control Platform Client "ctrl-client"
+- Adding an example to transfer a file over lora
+- Import legacy FUOTA component
+
+## Changes
+- Update boards filenames
+- Updating the micropython main.py and boot.py to by created if they are not
+  present
+- firmware versioning updates and system information to reflect the version
+  for scripting purposes
+- LTE.py Changes
+  - Function is_connected returns ppp stack connection state
+  - in_ppp flag is cleared during ppp_suspend
+  - Fix mode selection when called from ctrl_client
+  - Formatting updates
+  - Check if power is enabled during init
+  - More graceful power_off
+- LoRa changes and fixes
+  - disable lora-raw async message until buffer copying is supported
+  - enable payload change in lora-raw
+  - Fix Region US915 channels frequencies verification
+  - Fix lora sync objects access mutex initialisation
 
 <!------------------------------------------------------------------------------
  ! v0.1.0
