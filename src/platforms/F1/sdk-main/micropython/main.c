@@ -195,6 +195,9 @@ soft_reset:
     {
         __log_output("== micropython "__yellow__"normal"__default__" mode\n");
         pyexec_file_if_exists("boot.py");
+        #ifdef CONFIG_SDK_CTRL_CLIENT_BOOT_ENABLE
+        pyexec_file_if_exists("ctrl_client_start.py");
+        #endif
         if (pyexec_mode_kind == PYEXEC_MODE_FRIENDLY_REPL) {
             int ret = pyexec_file_if_exists("main.py");
             if (ret & PYEXEC_FORCED_EXIT) {

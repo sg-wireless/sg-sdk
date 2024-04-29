@@ -42,6 +42,7 @@ and this project adheres to
 ## [Unreleased]
 ### Added
 - Fuel-Gauge Support
+- Import Control Platform Client
 
 <!------------------------------------------------------------------------------
  ! v0.1.0

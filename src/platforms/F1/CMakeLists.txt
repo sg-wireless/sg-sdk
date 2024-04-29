@@ -60,6 +60,7 @@ __sdk_add_comp_dirs(
     ${__dir_src}/libs/*
 
     ${__dir_sdk_comps}/fw-version
+    ${__dir_sdk_comps}/ctrl-client
 )
 
 if( __feature_lora )
