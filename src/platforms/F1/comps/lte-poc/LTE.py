@@ -1,27 +1,34 @@
-'''
- Copyright (c) 2023 - 2024 SG Wireless Limited - All Rights Reserved
+# ---------------------------------------------------------------------------- #
+# Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files(the “Software”), to deal
+# in the Software without restriction, including without limitation the rights
+# to use,  copy,  modify,  merge, publish, distribute, sublicense, and/or sell
+# copies  of  the  Software,  and  to  permit  persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED “AS IS”,  WITHOUT WARRANTY OF ANY KIND,  EXPRESS OR
+# IMPLIED,  INCLUDING BUT NOT LIMITED TO  THE  WARRANTIES  OF  MERCHANTABILITY
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+# AUTHORS  OR  COPYRIGHT  HOLDERS  BE  LIABLE FOR ANY CLAIM,  DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN  CONNECTION WITH  THE SOFTWARE OR  THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+#
+# Author    Christian Ehlers (SG Wireless)
+#
+# Desc      LTE helper library for ctrl client
+# ---------------------------------------------------------------------------- #
 
- Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the “Software”),
- to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense,
- and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
- The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
- THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY
- FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- THE SOFTWARE.
-
- Author: Christian Ehlers
- Decription: This helper class was developed to test the GM02S module from Sequans on the ESP32S3 port of Micropython in combination with the CTRL client
-'''
-
-import ioexp
-from machine import UART, Pin
-from network import PPP
-import utime
-import os
 import sys
+import utime
+import ioexp
+from machine import UART
+from network import PPP
 
 ctrl_enabled = globals().get('ctrl') is not None
 
@@ -34,22 +41,31 @@ class LTE():
     lte_uart = None
     in_ppp = None
 
-    def __init__(self, carrier='standard', cid=1, mode=None, baudrate=115200, debug=None):
+    def __init__(
+            self, carrier='standard', cid=1, mode=None, baudrate=115200,
+            debug=None):
         self.__ppp_suspended = False
         self.__carrier = carrier
         self.__cid = cid
         self.__debug = debug
-        self.power_on(wait_ok=False)
+        self.__power = ioexp.lte_power()
+
         if LTE.lte_uart is None:
-            LTE.lte_uart = UART(1, baudrate=baudrate, rx=48, tx=47, rts=33, cts=6, flow=(
-                UART.CTS | UART.RTS), timeout=10)
-        self.__power = True
+            LTE.lte_uart = UART(
+                1, baudrate=baudrate, rx=48, tx=47, rts=33, cts=6,
+                flow=(UART.CTS | UART.RTS),
+                timeout=10)
+
+        if not self.__power:
+            if self.__debug: print('LTE power on')
+            self.power_on(wait_ok=True)
+            LTE.in_ppp = False
+
         if LTE.lte_ppp is None:
             LTE.lte_ppp = PPP(LTE.lte_uart)
+
         if LTE.in_ppp is None:
-            if self.__ppp_suspend():
-                LTE.in_ppp = False
-            else:
+            if not self.__ppp_suspend():
                 raise OSError('Modem initialization failed!')
 
     def check_power(self):
@@ -72,7 +88,8 @@ class LTE():
                 ret_str += (line + '\n')
         return ret_str
 
-    def read_rsp(self, size=None, timeout=-1, wait_ok_error=False, check_error=False):
+    def read_rsp(self, size=None, timeout=-1, wait_ok_error=False,
+                 check_error=False):
         self.check_power()
         utime.sleep(.25)
         if timeout < 0:
@@ -132,14 +149,18 @@ class LTE():
         else:
             return b''
 
-    def send_at_cmd(self, cmd='AT', timeout=-1, wait_ok_error=False, check_error=False):
+    def send_at_cmd(self, cmd='AT', timeout=-1, wait_ok_error=False,
+                    check_error=False):
         self.check_power()
         self.check_ppp()
         LTE.lte_uart.flush()
         if self.__debug:
             print('AT: {}'.format(cmd))
         LTE.lte_uart.write(cmd + '\r\n')
-        return self.return_pretty_response(self.read_rsp(timeout=timeout, wait_ok_error=wait_ok_error, check_error=check_error))
+        return self.return_pretty_response(
+            self.read_rsp(
+                timeout=timeout, wait_ok_error=wait_ok_error,
+                check_error=check_error))
 
     def attach(self, apn=None, type='IP', cid=None, band=None, bands=None):
         self.check_power()
@@ -153,7 +174,9 @@ class LTE():
         if band is not None:
             mode = self.__get_mode()
             resp = self.send_at_cmd(
-                'AT+SQNBANDSEL={},"{}","{}"'.format(mode, self.__carrier, band), check_error=True)
+                'AT+SQNBANDSEL={},"{}","{}"'.format(mode,
+                                                    self.__carrier, band),
+                check_error=True)
             if self.__debug:
                 print(resp)
         if bands is not None:
@@ -162,12 +185,14 @@ class LTE():
             for band in bands:
                 band_str += "{},".format(band)
             resp = self.send_at_cmd(
-                'AT+SQNBANDSEL={},"{}","{}"'.format(mode, self.__carrier, band_str), check_error=True)
+                'AT+SQNBANDSEL={},"{}","{}"'.format(mode, self.__carrier,
+                                                    band_str), check_error=True)
             if self.__debug:
                 print(resp)
         if apn is not None:
             resp = self.send_at_cmd(
-                'AT+CGDCONT={},"{}","{}"'.format(self.__cid, type, apn), check_error=True)
+                'AT+CGDCONT={},"{}","{}"'.format(self.__cid, type, apn),
+                check_error=True)
             if self.__debug:
                 print(resp)
         resp = self.send_at_cmd('AT+CFUN=1', check_error=True)
@@ -268,13 +293,16 @@ class LTE():
             return self.__get_mode()
         else:
             current_mode = self.__get_mode()
-            if (new_mode != current_mode):
+            if (int(new_mode) != int(current_mode)):
                 self.send_at_cmd('AT+CFUN=0', check_error=True)
                 try:
                     self.send_at_cmd(
-                        'AT+SQNMODEACTIVE={}'.format(new_mode+1), wait_ok_error=True, check_error=True)
+                        'AT+SQNMODEACTIVE={}'.format(str(int(new_mode) + 1)),
+                        wait_ok_error=True, check_error=True)
                     self.reset()
-                except:
+                except Exception as ex:
+                    if self.__debug:
+                        sys.print_exception(ex)
                     print('Error switching operating mode!')
 
     def ifconfig(self):
@@ -303,9 +331,18 @@ class LTE():
 
     def detach(self):
         self.disconnect()
-        self.send_at_cmd('AT+CFUN=4', wait_ok_error=True, check_error=True)
-        utime.sleep(.5)
-        self.send_at_cmd('AT+CFUN=0', wait_ok_error=True, check_error=True)
+        resp = self.send_at_cmd('AT+CFUN?', wait_ok_error=True, 
+                                check_error=True)
+
+        if "+CFUN: 1" in resp:
+            # According to Sequans, should go to CFUN=4 first before going
+            # to CFUN=0 when disconnecting from the network. This is to ensure
+            # SIM card remains writable during detach 
+            self.send_at_cmd('AT+CFUN=4', wait_ok_error=True, check_error=True)
+            self.send_at_cmd('AT+CFUN=0', wait_ok_error=True, check_error=True)
+        if "+CFUN: 4" in resp:
+            self.send_at_cmd('AT+CFUN=0', wait_ok_error=True, check_error=True)
+
 
     def deinit(self, reset=False):
         self.disconnect()
@@ -332,24 +369,15 @@ class LTE():
 
     def power_off(self, force=False):
         self.check_power()
+
+        if self.lte_ppp.active():
+            self.lte_ppp.active(False)
+
         if not force:
-            if self.lte_ppp.active():
-                self.lte_ppp.active(False)
             if LTE.in_ppp:
                 if not self.__ppp_suspend():
                     raise OSError('communication error! Use force=True')
-            resp = self.send_at_cmd(
-                'AT+CFUN?', wait_ok_error=True, check_error=True)
-            if "+CFUN: 1" in resp:
-                self.send_at_cmd(
-                    'AT+CFUN=4', wait_ok_error=True, check_error=True)
-                utime.sleep(.25)
-                self.send_at_cmd(
-                    'AT+CFUN=0', wait_ok_error=True, check_error=True)
-            if "+CFUN: 4" in resp:
-                self.send_at_cmd(
-                    'AT+CFUN=0', wait_ok_error=True, check_error=True)
-            utime.sleep(.25)
+            self.detach()
         ioexp.lte_power_off()
         self.__power = False
 
@@ -394,7 +422,8 @@ class LTE():
     def resume_ppp(self):
         self.check_power()
         if self.__ppp_suspended:
-            if self.send_at_cmd('ATO', timeout=9500, wait_ok_error=True, check_error=True):
+            if self.send_at_cmd(
+                    'ATO', timeout=9500, wait_ok_error=True, check_error=True):
                 self.__ppp.active(True)
                 self.__ppp.connect()
         else:
