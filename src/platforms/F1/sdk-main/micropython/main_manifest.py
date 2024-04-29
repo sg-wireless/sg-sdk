@@ -1,6 +1,7 @@
 freeze("$(PORT_DIR)/modules", "flashbdev.py")
 include("$(MPY_DIR)/extmod/uasyncio")
 freeze(".", "_boot.py")
+freeze(".", "_inisetup.py")
 
 # Require some micropython-lib modules.
 require("dht")
