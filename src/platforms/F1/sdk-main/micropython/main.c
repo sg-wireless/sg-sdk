@@ -88,6 +88,18 @@ int vprintf_null(const char *format, va_list ap) {
     return 0;
 }
 
+void set_custom_mac(void)
+{
+    uint8_t base_mac_addr[6] = { 0 };
+    esp_err_t ret = ESP_OK;
+    ret = esp_efuse_mac_get_custom(base_mac_addr);
+    ESP_ERROR_CHECK_WITHOUT_ABORT(ret);
+    if (ret == ESP_OK) {
+        ret = esp_base_mac_addr_set(base_mac_addr);
+        ESP_ERROR_CHECK_WITHOUT_ABORT(ret);
+    }
+}
+
 void mp_task(void *pvParameter) {
     volatile uint32_t sp = (uint32_t)esp_cpu_get_sp();
     #if MICROPY_PY_THREAD
@@ -101,6 +113,7 @@ void mp_task(void *pvParameter) {
     #if MICROPY_HW_ENABLE_UART_REPL
     uart_stdout_init();
     #endif
+    set_custom_mac();
     machine_init();
 
     size_t mp_task_heap_size;
@@ -182,6 +195,9 @@ soft_reset:
     {
         __log_output("== micropython "__yellow__"normal"__default__" mode\n");
         pyexec_file_if_exists("boot.py");
+        #ifdef CONFIG_SDK_CTRL_CLIENT_BOOT_ENABLE
+        pyexec_file_if_exists("ctrl_client_start.py");
+        #endif
         if (pyexec_mode_kind == PYEXEC_MODE_FRIENDLY_REPL) {
             int ret = pyexec_file_if_exists("main.py");
             if (ret & PYEXEC_FORCED_EXIT) {

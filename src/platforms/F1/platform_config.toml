@@ -77,14 +77,12 @@
 
     partition-table = [
         # Name,     Type,   SubType,    Offset,     Size
-        ["nvs"    , "data"  , "nvs",    "0x11000",    "0xB000", ""          ],
-        ["otadata", "data"  , "ota",    "0x1C000",    "0x2000", ""          ],
-        ["config" , "data"  , "6",      "0x1E000",    "0x1000", ""          ],
-        ["rfu1"   , "data"  , "6",      "0x1F000",    "0x1000", ""          ],
+        ["nvs"    , "data"  , "nvs",    "0x11000",    "0xA000", ""          ],
+        ["otadata", "data"  , "ota",    "0x1B000",    "0x2000", "encrypted" ],
+        ["nvs_cfg", "data"  , "nvs",    "0x1D000",    "0x3000", ""          ],
         ["factory", "app"   , "factory","0x20000",    "2560k",  "encrypted" ],
         ["ota_0"  , "app"   , "ota_0",  "0x2A0000",   "2560k",  "encrypted" ],
         ["ota_1"  , "app"   , "ota_1",  "0x520000",   "2560k",  "encrypted" ],
-        ["rfu2"   , "data"  , "6",      "0x7A0000",   "384",    ""          ],
         ["vfs"    , "data"  , "6",      "0x800000",   "8192k",  "encrypted" ]
     ]
 
