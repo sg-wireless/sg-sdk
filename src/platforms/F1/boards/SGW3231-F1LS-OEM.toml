@@ -28,15 +28,15 @@
 # board identification configurations
 # ---------------------------------------------------------------------------- #
 [id]
-    board_name      = "F1-WS"
-    board_number    = "SGW3131"
+    board_name      = "F1LS"
+    board_number    = "SGW3231"
     shield          = "OEM"
 
 # ---------------------------------------------------------------------------- #
 # hardware features
 # ---------------------------------------------------------------------------- #
 [features]
-    lora = false
+    lora = true
     lte  = false
     secure-element = true
 

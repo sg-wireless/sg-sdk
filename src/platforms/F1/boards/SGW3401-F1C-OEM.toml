@@ -28,16 +28,16 @@
 # board identification configurations
 # ---------------------------------------------------------------------------- #
 [id]
-    board_name      = "F1-L"
-    board_number    = "SGW3201"
+    board_name      = "F1C"
+    board_number    = "SGW3401"
     shield          = "OEM"
 
 # ---------------------------------------------------------------------------- #
 # hardware features
 # ---------------------------------------------------------------------------- #
 [features]
-    lora = true
-    lte  = false
+    lora = false
+    lte  = true
     secure-element = false
 
 # ---------------------------------------------------------------------------- #
