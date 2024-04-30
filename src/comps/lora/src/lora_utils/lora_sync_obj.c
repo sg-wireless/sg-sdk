@@ -43,11 +43,12 @@
  * internal data structure
  * --------------------------------------------------------------------------- *
  */
-#define __max_num_of_objects        (10)
+#define __max_num_of_objects        (20)
 
 static struct {
     const char * name;
     void*       obj;
+    int         counter;
     bool        in_use;
     bool        has_waiting;
     bool        initialized;
@@ -111,6 +112,7 @@ sync_obj_t sync_obj_acquire(const char* name)
             s_resources_wheel[i].in_use = true;
             s_resources_wheel[i].has_waiting = false;
             s_resources_wheel[i].name = name;
+            s_resources_wheel[i].counter = 0;
             __log_sync_obj(acquire, i, name);
             __sync_obj_wheel_access_unlock();
             return i;
@@ -154,19 +156,32 @@ void  sync_obj_wait(sync_obj_t obj)
     __pre_check();
 
     int i = obj;
-
-    __sync_obj_wheel_access_lock();
+    bool do_wait;
 
     __log_assert( i < __max_num_of_objects && s_resources_wheel[i].in_use &&
         s_resources_wheel[i].initialized, "non valid sync wheel object" );
 
+    __sync_obj_wheel_access_lock();
+
     __log_sync_obj(wait, i, s_resources_wheel[i].name);
 
-    s_resources_wheel[i].has_waiting = true;
+    if(s_resources_wheel[i].counter > 0)
+    {
+        -- s_resources_wheel[i].counter;
+        do_wait = false;
+    }
+    else
+    {
+        s_resources_wheel[i].has_waiting = true;
+        do_wait = true;
+    }
 
     __sync_obj_wheel_access_unlock();
 
-    lora_stub_sem_wait(s_resources_wheel[i].obj);
+    if(do_wait)
+    {
+        lora_stub_sem_wait(s_resources_wheel[i].obj);
+    }
 }
 
 void  sync_obj_signal(sync_obj_t obj)
@@ -175,19 +190,24 @@ void  sync_obj_signal(sync_obj_t obj)
 
     int i = obj;
 
-    __sync_obj_wheel_access_lock();
-
     __log_assert( i < __max_num_of_objects && s_resources_wheel[i].in_use &&
         s_resources_wheel[i].initialized, "non valid sync wheel object" );
 
-    lora_stub_sem_signal(s_resources_wheel[i].obj);
+    __sync_obj_wheel_access_lock();
+
+    if(s_resources_wheel[i].has_waiting == false)
+    {
+        s_resources_wheel[i].counter ++;
+    }
+    else
+    {
+        lora_stub_sem_signal(s_resources_wheel[i].obj);
+        s_resources_wheel[i].has_waiting = false;
+    }
 
     __log_sync_obj(signal, i, s_resources_wheel[i].name);
 
-    s_resources_wheel[i].has_waiting = false;
-    
     __sync_obj_wheel_access_unlock();
-
 }
 
 /* --- end of file ---------------------------------------------------------- */

@@ -714,7 +714,7 @@ static void lora_wan_process_handler(void* data)
     {
         lora_wan_join_status_req_t* status_req = req->trigger_data;
         status_req->is_joined = lm_is_joined();
-        __log_enforce("-- is_joined : %d", status_req->is_joined);
+        __log_info("-- is_joined : %d", status_req->is_joined);
         sync_obj_signal(status_req->sync_obj);
     }
     else
