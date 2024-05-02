@@ -32,20 +32,20 @@ by firmware programming).
 
 def setup():
     check_bootsec()
-    print("Performing initial setup, creating an Lfs2 file system on /flash")
+    print("Performing initial setup, creating an Lfs2 file system on /")
     uos.VfsLfs2.mkfs(bdev)
     vfs = uos.VfsLfs2(bdev)
-    # Mount to /flash
-    uos.mount(vfs, "/flash")
+    # Mount to /
+    uos.mount(vfs, "/")
     # Create the default folders
     vfs.mkdir("cert")
     #vfs.mkdir("sys")
     vfs.mkdir("lib")
-    with open("/flash/boot.py", "w") as f:
+    with open("/boot.py", "w") as f:
         f.write(
             "# This file is executed on every boot (including wake-boot from deepsleep)"
         )
-    with open("/flash/main.py", "w") as f:
+    with open("/main.py", "w") as f:
         f.write(
             "# This file is executed on every boot (including wake-boot from deepsleep)"
         )
