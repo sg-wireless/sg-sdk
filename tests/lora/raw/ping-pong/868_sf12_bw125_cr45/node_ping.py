@@ -1,5 +1,4 @@
 
-
 import lora
 import time
 
@@ -12,7 +11,7 @@ lora.radio_params(reset_all=True)
 lora.radio_params(
     region=lora._region.REGION_EU868,
     tx_power = 10,
-    sf = 7,
+    sf = 12,
     bandwidth = lora._bw.BW_125KHZ,
     coding_rate = lora._cr.CODING_4_5,
     preamble = 8,
@@ -48,4 +47,5 @@ while pong_received == False:
     time.sleep(1)
 
 lora.recv_cont_stop()
+
 lora.deinit()

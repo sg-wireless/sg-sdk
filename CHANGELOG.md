@@ -42,8 +42,11 @@ and this project adheres to
 ## [Unreleased]
 ### Added
 
-### Fixed
-- LoRa: Fixed the sync-obj racing between wait and signal requests
+### Changes
+- LoRa Changes and Fixes
+  - Support RSSI and SNR info feeds with RX event data
+  - Fixed LoRa-WAN payload size pre-check
+  - Fixed the sync-obj racing between wait and signal requests
 
 <!------------------------------------------------------------------------------
  ! v0.5.0

@@ -8,7 +8,7 @@ lora.initialize()
 # switch to lora raw if not there
 lora.mode(lora._mode.RAW)
 
-# lora.radio_params(region=lora._region.REGION_EU868)
+lora.radio_params(reset_all=True)
 lora.radio_params(
     region=lora._region.REGION_EU868,
     tx_power = 10,
@@ -28,12 +28,12 @@ ping_received = False
 def lora_callback(event, bytes):
     global ping_received
     if event == lora._event.EVENT_RX_DONE:
-        print(bytes)
-        msg = bytes.decode("utf-8")
+        print(bytes['data'])
+        msg = bytes['data'].decode("utf-8")
         if msg == 'PING':
             print(msg)
-            ping_received = True
             lora.send('PONG')
+            ping_received = True
     pass
 
 lora.callback(handler=lora_callback)

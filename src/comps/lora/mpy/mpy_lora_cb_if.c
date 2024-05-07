@@ -228,6 +228,8 @@ static uint8_t s_rx_len;
 
 static const mp_obj_fun_builtin_fixed_t mpy_callback_exec_obj;
 
+static mp_obj_t lora_raw_new_rx_tuple(lora_raw_rx_event_data_t* rx_info);
+
 static void lora_stack_callback(lora_event_t event, void* event_data)
 {
     __log_info("callback:: event: "__yellow__"%s"__default__,
@@ -241,20 +243,76 @@ static void lora_stack_callback(lora_event_t event, void* event_data)
      */
     if(event == __LORA_EVENT_RX_DONE) {
         __log_assert(event_data, "invalid received data");
-        lora_raw_rx_event_data_t* p_rx_data = event_data;
-        memcpy(s_rx_buffer, p_rx_data->buf, p_rx_data->len);
-        s_rx_len = p_rx_data->len;
+        lora_raw_rx_event_data_t* rx_info = event_data;
+        /**
+         * the free operation must be done after handling this event
+         * in the scheduled callback executing function mpy_callback_exec()
+         */
+        lora_raw_rx_event_data_t* saved = 
+            malloc(sizeof(lora_raw_rx_event_data_t) + rx_info->len);
+        *saved = *rx_info;
+        saved->buf = (uint8_t*)(saved + 1);
+        memcpy(saved->buf, rx_info->buf, rx_info->len);
+
         __log_dump(s_rx_buffer, s_rx_len, 8, __log_dump_flag_hide_address |
             __log_dump_flag_disp_char_on_rhs | __log_dump_flag_disp_char,
             __word_len_8);
+
+        /**
+         * the allocation must be aligned to word not byte, so the first least
+         * significant bit (LSB) must be zero.
+         * micropython use the LSB to descriminate the integer objects.
+         */
+        __log_assert(((uint32_t)saved & 1u) == 0,
+            "non-aligned allocation, can not continue .. panic");
+
+        mp_sched_schedule(
+            MP_OBJ_FROM_PTR(&mpy_callback_exec_obj),
+            MP_OBJ_FROM_PTR(saved));
+        return;
     }
 
     /**
      * This step will cause the uPython to schedule calling the user callback
      * function in the mp_task which is the main uPython thread of execution
      */
-    mp_sched_schedule(MP_OBJ_FROM_PTR(&mpy_callback_exec_obj),
+    mp_sched_schedule(
+        MP_OBJ_FROM_PTR(&mpy_callback_exec_obj),
         MP_OBJ_NEW_SMALL_INT(event));
+}
+
+static mp_obj_t lora_raw_new_rx_tuple(lora_raw_rx_event_data_t* rx_info)
+{
+    mp_obj_t dict = mp_obj_new_dict(3);
+
+    mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_data),
+        mp_obj_new_bytearray(rx_info->len, rx_info->buf));
+    mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_RSSI),
+        MP_OBJ_NEW_SMALL_INT(rx_info->rssi));
+    mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_SNR),
+        MP_OBJ_NEW_SMALL_INT(rx_info->snr));
+
+    return dict;
+}
+
+static mp_obj_t lora_wan_new_rx_tuple(lora_wan_ind_params_t* ind_info)
+{
+    mp_obj_t dict = mp_obj_new_dict(6);
+
+    mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_data),
+        mp_obj_new_bytearray(ind_info->len, ind_info->buf));
+    mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_RSSI),
+        MP_OBJ_NEW_SMALL_INT(ind_info->rx.rssi));
+    mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_SNR),
+        MP_OBJ_NEW_SMALL_INT(ind_info->rx.snr));
+    mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_port),
+        MP_OBJ_NEW_SMALL_INT(ind_info->port_num));
+    mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_DR),
+        MP_OBJ_NEW_SMALL_INT(ind_info->rx.data_rate));
+    mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_dl_frame_counter),
+        MP_OBJ_NEW_SMALL_INT(ind_info->rx.dl_frame_counter));
+
+    return dict;
 }
 
 /** -------------------------------------------------------------------------- *
@@ -318,6 +376,16 @@ extern void lora_unittest_stub_get_indication(lora_wan_ind_params_t* ind_params)
 #endif
 static mp_obj_t mpy_callback_exec(mp_obj_t arg)
 {
+    if( ! MP_OBJ_IS_INT(arg) )
+    {
+        // -- occurs only in the lora-raw rx event callback
+        void* ptr = MP_OBJ_TO_PTR(arg);
+        mpy_callback_caller(__port_any, __MPY_LORA_CB_ON_RX_DONE,
+            lora_raw_new_rx_tuple(ptr));
+        free(ptr);
+        return mp_const_none;
+    }
+
     lora_event_t event =  MP_OBJ_SMALL_INT_VALUE(arg);
     mpy_lora_callback_type_t cb_type;
     mp_obj_t event_data_obj;
@@ -371,8 +439,7 @@ static mp_obj_t mpy_callback_exec(mp_obj_t arg)
             case __LORA_EVENT_RX_DONE:
                 __log_info("-- rx data indication -> len:%d", ind_params.len);
                 cb_type = __MPY_LORA_CB_ON_RX_DONE;
-                event_data_obj = mp_obj_new_bytearray(
-                    ind_params.len, ind_params.buf );
+                event_data_obj = lora_wan_new_rx_tuple(&ind_params);
                 break;
             case __LORA_EVENT_RX_TIMEOUT:
                 __log_info("-- rx timeout indication");
@@ -403,9 +470,8 @@ static mp_obj_t mpy_callback_exec(mp_obj_t arg)
 
         if( event == __LORA_EVENT_RX_DONE )
         {
-            __log_debug("rx event , len: %d, buf = %s", s_rx_len, s_rx_buffer);
-            event_data_obj = mp_obj_new_bytearray( s_rx_len, s_rx_buffer );
-            cb_type = __MPY_LORA_CB_ON_RX_DONE;
+            __log_error("unexpected event, rx event should be handled earlier");
+            return mp_const_none;
         }
         else if(event == __LORA_EVENT_TX_DONE )
         {

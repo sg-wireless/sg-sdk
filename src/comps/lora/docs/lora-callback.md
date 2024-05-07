@@ -82,8 +82,14 @@ This event occurs when the lora stack received something from the air.
 - **In LoRa-RAW mode**
 
     It is generated if the device is set to receive something from the air and
-    successfully received new data. or the device is set in continuout receiving
+    successfully received new data. or the device is set in continuous receiving
     mode and new data received and present to be delivered to the user.
+
+    The event data attached to this event in the callback is a tuble that carry
+    the following key information:
+    - `data` a byte array object containing the actual received data.
+    - `RSSI` an integer value represnting the RSSI of the received signal.
+    - `SNR` an integer value represnting the SNR of the received signal.
 
 - **In LoRa-WAN mode**
 
@@ -96,6 +102,15 @@ This event occurs when the lora stack received something from the air.
     In LoRa-WAN, only data dedicated for this device identity (DevEUI, AppEUI)
     will be received and the user will be notified by the received data by this
     event.
+
+    The event data attached to this event in the callback is a tuble that carry
+    the following key information:
+    - `data` a byte array object containing the actual received data.
+    - `RSSI` an integer value represnting the RSSI of the received signal.
+    - `SNR` an integer value represnting the SNR of the received signal.
+    - `port` the port number on which this data is received.
+    - `DR` the data rate of the received data.
+    - `dl_frame_counter` The LoRa-WAN parameter (Downlink Frame Counter).
 
 <div id="evt-rx-fail"></div>
 

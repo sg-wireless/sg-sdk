@@ -236,7 +236,6 @@ __mp_mod_fun_kw(lora, send, 1)(
         lora_raw_param_t param = {.type = __LORA_RAW_PARAM_PAYLOAD};
         lora_ioctl(__LORA_IOCTL_GET_PARAM, &param);
 
-        __log_output("max payload: %d\n", param.param.payload);
         if(param.param.payload < tx_buf.len)
         {
             mp_raise_TypeError(MP_ERROR_TEXT("payload exceeds allowed"));

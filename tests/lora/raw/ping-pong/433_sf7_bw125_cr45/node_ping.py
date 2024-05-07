@@ -8,6 +8,7 @@ lora.initialize()
 # switch to lora raw if not there
 lora.mode(lora._mode.RAW)
 
+lora.radio_params(reset_all=True)
 lora.radio_params(
     region=lora._region.REGION_EU433,
     tx_power = 10,
@@ -27,8 +28,8 @@ pong_received = False
 def lora_callback(event, bytes):
     global pong_received
     if event == lora._event.EVENT_RX_DONE:
-        print(bytes)
-        msg = bytes.decode("utf-8")
+        print(bytes['data'])
+        msg = bytes['data'].decode("utf-8")
         if msg == 'PONG':
             print(msg)
             pong_received = True

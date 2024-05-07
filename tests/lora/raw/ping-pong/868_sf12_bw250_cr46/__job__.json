@@ -1,0 +1,22 @@
+{
+    "job-tests" : [
+        {
+            "protocol" : "micropython-repl-raw",
+            "tst-proc" : [
+                "node_ping.py"
+            ],
+            "exp-file" : "node_ping.py.exp",
+            "timeout" : 20,
+            "regex" : false
+        },
+        {
+            "protocol" : "micropython-repl-raw",
+            "tst-proc" : [
+                "node_pong.py"
+            ],
+            "exp-file" : "node_pong.py.exp",
+            "timeout" : 20,
+            "regex" : false
+        }
+    ]
+}
