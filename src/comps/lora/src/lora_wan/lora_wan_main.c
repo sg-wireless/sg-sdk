@@ -370,6 +370,8 @@ static lora_error_t lora_wan_ioctl(uint32_t ioctl, void* arg)
             p_param->param.region = lmh_get_region();
         } else if (p_param->type == __LORA_WAN_PARAM_CLASS) {
             p_param->param.class = lmh_get_class();
+        } else if (p_param->type == __LORA_WAN_PARAM_PAYLOAD) {
+            p_param->param.payload = lmh_get_tx_payload_size();
         } else {
             __log_error("unknown lorawan parameter : %d", p_param->type);
         }

@@ -350,6 +350,21 @@ lora_error_t lmh_send(uint8_t * buf, uint8_t len, uint8_t port, bool confirm)
     return __LORA_ERROR;
 }
 
+uint8_t lmh_get_tx_payload_size(void)
+{
+    LoRaMacTxInfo_t tx_info;
+    LoRaMacStatus_t status;
+
+    status = LoRaMacQueryTxPossible( 0, &tx_info );
+
+    if(LORAMAC_STATUS_OK != status)
+    {
+        return 0;
+    }
+
+    return tx_info.MaxPossibleApplicationDataSize;
+}
+
 /** -------------------------------------------------------------------------- *
  * loramac handler callbacks
  * --------------------------------------------------------------------------- *

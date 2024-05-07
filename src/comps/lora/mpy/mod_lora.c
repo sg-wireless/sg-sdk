@@ -229,11 +229,32 @@ __mp_mod_fun_kw(lora, send, 1)(
 
     mp_get_buffer_raise(__arg_buf_obj, &tx_buf, MP_BUFFER_READ);
 
-    lora_raw_param_t param = {.type = __LORA_RAW_PARAM_PAYLOAD};
-    lora_ioctl(__LORA_IOCTL_GET_PARAM, &param);
+    lora_mode_t mode;
+    lora_get_mode(&mode);
+    if(mode == __LORA_MODE_RAW)
+    {
+        lora_raw_param_t param = {.type = __LORA_RAW_PARAM_PAYLOAD};
+        lora_ioctl(__LORA_IOCTL_GET_PARAM, &param);
 
-    if(param.param.payload < tx_buf.len) {
-        mp_raise_TypeError(MP_ERROR_TEXT("payload exceeds allowed"));
+        __log_output("max payload: %d\n", param.param.payload);
+        if(param.param.payload < tx_buf.len)
+        {
+            mp_raise_TypeError(MP_ERROR_TEXT("payload exceeds allowed"));
+        }
+    }
+    else if(mode == __LORA_MODE_WAN)
+    {
+        lora_wan_param_t param = {.type = __LORA_WAN_PARAM_PAYLOAD};
+        lora_ioctl(__LORA_IOCTL_GET_PARAM, &param);
+
+        if(param.param.payload < tx_buf.len)
+        {
+            mp_raise_TypeError(MP_ERROR_TEXT("payload exceeds allowed"));
+        }
+    }
+    else
+    {
+        mp_raise_TypeError(MP_ERROR_TEXT("unknown lora mode detected"));
     }
 
     lora_tx_params_t tx_params = {

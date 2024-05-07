@@ -88,6 +88,8 @@ bool lmh_is_busy(void);
 
 lora_error_t lmh_send(uint8_t * buf, uint8_t len, uint8_t port, bool confirm);
 
+uint8_t lmh_get_tx_payload_size(void);
+
 void lmh_callbacks(lmh_callbacks_t * p_callbacks);
 
 void lmh_set_region(lora_region_t region);

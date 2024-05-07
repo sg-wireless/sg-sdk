@@ -240,7 +240,8 @@ typedef enum {
  */
 typedef enum {
     __LORA_WAN_PARAM_REGION,    /**< to configure region parameter */
-    __LORA_WAN_PARAM_CLASS      /**< to configure class type parameter */
+    __LORA_WAN_PARAM_CLASS,     /**< to configure class type parameter */
+    __LORA_WAN_PARAM_PAYLOAD    /**< to get current available payload size */
 } lora_wan_param_type_t;
 
 /**
@@ -252,6 +253,7 @@ typedef struct {
     union {
         lora_region_t       region; /**< value of the new region */
         lora_wan_class_t    class;  /**< value of the new required class type */
+        uint8_t             payload; /**< value of the payload size */
     } param;
 } lora_wan_param_t;
 
