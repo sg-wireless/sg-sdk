@@ -59,9 +59,16 @@ which can be found at this git repository
 
 ## Fuel-Gauge Functions
 
-* `initialization`: the module will be initialized once it is imported.
-  after its initialization, it could be deinitialized by calling
-  `fuel_gauge.deinit()` and to initialize it again use `fuel_gauge.initialize()`
+* `init`: to initialize the module with given battery parameters:
+  - `designCapacity_mAh` the design capacity of the battery in mAh. Default
+    value is 1200 mAh.
+  - `minSysVoltage_mV` an optional system minimum operating voltage in mV.
+  - `taperCurrent_mA` an optional taper current detection threshold of the
+     charger (including charger tolerances). The charger will stop charging
+     below this value.
+
+* `deinit`: to deinitialize the module. Before using the module again, it has
+  to be initialized again using `fuel_gauge.init()`
 
 * `fuel_gauge.info()` it returns a tuple with all read information from the
   driver.
@@ -78,11 +85,14 @@ which can be found at this git repository
 ```python
 >>> import fuel_gauge
 
+# initialize the module using the user provided value for design capacity 1500
+>>> fuel_gauge.init(designCapacity_mAh = 1500)
+
 # deinit
 >>> fuel_gauge.deinit()
 
-# init again
->>> fuel_gauge.initialize()
+# initialize the module using the default designCapacity_mAh value 1200 mAh
+>>> fuel_gauge.init()
 
 # printing the info
 >>> fuel_gauge.print()

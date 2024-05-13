@@ -40,21 +40,49 @@
 #include "fuel_gauge.h"
 
 /* --------------------------------------------------------------------------- *
+ * defines
+ * --------------------------------------------------------------------------- *
+ */
+#define __default_design_capacity_mAh   (1200)
+
+/* --------------------------------------------------------------------------- *
+ * constants
+ * --------------------------------------------------------------------------- *
+ */
+static const char* s_error_not_init =
+    "Fuel Gauge is not initialized or battary is not present";
+
+/* --------------------------------------------------------------------------- *
  * mod functions
  * --------------------------------------------------------------------------- *
  */
 
-__mp_mod_init(fuel_gauge)(void)
+__mp_mod_fun_kw(fuel_gauge, init, 0) (
+    size_t n_args, const mp_obj_t *pos_args, mp_map_t* kw_args)
 {
-    fuel_gauge_init();
-    return mp_const_none;
-}
+    static const mp_arg_t allowed_args[] = {
+        { MP_QSTR_designCapacity_mAh, MP_ARG_KW_ONLY | MP_ARG_INT,
+            {.u_int = __default_design_capacity_mAh}},
+        { MP_QSTR_minSysVoltage_mV, MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = 0}},
+        { MP_QSTR_taperCurrent_mA, MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = 0}}
+    };
 
-__mp_mod_fun_0(fuel_gauge, initialize)(void)
-{
-    if(!fuel_gauge_init())
+    mp_arg_val_t args[MP_ARRAY_SIZE(allowed_args)];
+    mp_arg_parse_all(n_args, pos_args, kw_args, MP_ARRAY_SIZE(allowed_args),
+        allowed_args, args);
+    #define __arg_design_capacity_mAh_int   args[0].u_int
+    #define __arg_min_sys_voltage_mV_int    args[1].u_int
+    #define __arg_taper_current_int         args[2].u_int
+
+    if(!fuel_gauge_init(__arg_design_capacity_mAh_int,
+                        __arg_min_sys_voltage_mV_int,
+                        __arg_taper_current_int))
         mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("init error"));
+
     return mp_const_none;
+    #undef __arg_design_capacity_mAh_int
+    #undef __arg_min_sys_voltage_mV_int
+    #undef __arg_taper_current_int
 }
 
 __mp_mod_fun_0(fuel_gauge, deinit)(void)
@@ -68,7 +96,7 @@ __mp_mod_fun_0(fuel_gauge, info)(void)
     fuel_gauge_info_t info;
     if( !fuel_gauge_read_info(&info) )
     {
-        mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("read error"));
+        mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT(s_error_not_init));
     }
 
     static const qstr info_dict_keys[] = {
@@ -116,8 +144,7 @@ __mp_mod_fun_0(fuel_gauge, print)(void)
     fuel_gauge_info_t info;
     if( !fuel_gauge_read_info(&info) )
     {
-        __log_output(__red__"Fuel Gauge may be not initialized"
-            " or battary not present\n"__default__);
+        __log_output(__red__"%s\n"__default__, s_error_not_init);
         return mp_const_none;
     }
 

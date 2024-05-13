@@ -47,12 +47,22 @@ typedef bq27421_info fuel_gauge_info_t;
  */
 
 /**
- * @brief   init Fuel Gauge
+ * @brief   initialize the Fuel Gauge.
+ * 
+ * @param   design_capacity_mAh the capacity of the battary in mAh
+ * @param   terminate_voltage_mV an optional system minimum operating voltage in
+ *              mV. Provide zero if not specified.
+ * @param   taper_current_mA the taper current detection threshold of the
+ *              charger (including charger tolerances). The charger will stop
+ *              charging below this value. Provide zero, if not specified.
  * 
  * @return  true if init successfully
  *          false if not initiliazed successfully
  */
-bool fuel_gauge_init(void);
+bool fuel_gauge_init(
+    uint16_t design_capacity_mAh,
+    uint16_t terminate_voltage_mV,
+    uint16_t taper_current_mA);
 
 /**
  * @brief   deinit Fuel-Gauge

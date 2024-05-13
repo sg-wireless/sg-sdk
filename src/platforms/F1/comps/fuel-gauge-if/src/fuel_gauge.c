@@ -143,20 +143,33 @@ static void esp32_fuel_gauge_i2c_dtor(void)
  */
 static bool s_initialized = false;
 
-bool fuel_gauge_init(void)
+bool fuel_gauge_init(
+    uint16_t design_capacity_mAh,
+    uint16_t terminate_voltage_mV,
+    uint16_t taper_current_mA)
 {
-    if(s_initialized)
-        return true;
+    if(s_initialized) {
+        __log_output(
+            __red__"fuel-gauge is already initialized,"
+            __cyan__" deinit() first, and init() again\n"
+            __default__);
+        return false;
+    }
 
     esp32_fuel_gauge_i2c_ctor();
 
     bq27421_stub_init(bq27421_i2c_read_port, bq27421_i2c_write_port);
 
-    s_initialized = bq27421_init(1200, 3700, 0);
+    s_initialized = bq27421_init(
+        design_capacity_mAh,
+        terminate_voltage_mV,
+        taper_current_mA);
 
     if(!s_initialized) {
         __log_output(__red__"Fuel-Gauge init error\n"__default__);
-        fuel_gauge_deinit();
+        esp32_fuel_gauge_i2c_dtor();
+        bq27421_stub_init(NULL, NULL);
+        s_initialized = false;
     }
 
     return s_initialized;
@@ -164,9 +177,15 @@ bool fuel_gauge_init(void)
 
 void fuel_gauge_deinit(void)
 {
+    if(!s_initialized) {
+        return;
+    }
+
     esp32_fuel_gauge_i2c_dtor();
 
     bq27421_stub_init(NULL, NULL);
+
+    s_initialized = false;
 }
 
 bool fuel_gauge_read_info(fuel_gauge_info_t * info)
