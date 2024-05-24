@@ -25,7 +25,7 @@
 # ---------------------------------------------------------------------------- #
 
 import sys
-import utime
+import time
 import ioexp
 from machine import UART
 from network import PPP
@@ -68,6 +68,10 @@ class LTE():
             if not self.__ppp_suspend():
                 raise OSError('Modem initialization failed!')
 
+    def init(self, carrier='standard', cid=1, mode=None, baudrate=115200,
+                debug=None):
+        self.__init__(carrier, cid, mode, baudrate, debug)
+
     def check_power(self):
         if not self.__power:
             raise OSError('Modem is not powered on!')
@@ -91,7 +95,7 @@ class LTE():
     def read_rsp(self, size=None, timeout=-1, wait_ok_error=False,
                  check_error=False):
         self.check_power()
-        utime.sleep(.25)
+        time.sleep(.25)
         if timeout < 0:
             timeout = sys.maxsize
         elif timeout is None:
@@ -100,7 +104,7 @@ class LTE():
         if wait_ok_error:
             while ('OK' not in rsp and 'ERROR' not in rsp):
                 while not LTE.lte_uart.any() and timeout > 0:
-                    utime.sleep_ms(1)
+                    time.sleep_ms(1)
                     timeout -= 1
                 if self.__debug:
                     print('rsp before: {}'.format(rsp))
@@ -121,7 +125,7 @@ class LTE():
         else:
             while LTE.lte_uart.any():
                 while not LTE.lte_uart.any() and timeout > 0:
-                    utime.sleep_ms(1)
+                    time.sleep_ms(1)
                     timeout -= 1
                 if self.__debug:
                     print('rsp before: {}'.format(rsp))
@@ -139,7 +143,7 @@ class LTE():
                         rsp = new
                 if self.__debug:
                     print('rsp after: {}'.format(rsp))
-                utime.sleep_ms(5)
+                time.sleep_ms(5)
         if rsp is not None:
             if self.__debug:
                 print('rsp return: {}'.format(rsp))
@@ -156,6 +160,7 @@ class LTE():
         LTE.lte_uart.flush()
         if self.__debug:
             print('AT: {}'.format(cmd))
+        LTE.lte_uart.flush()
         LTE.lte_uart.write(cmd + '\r\n')
         return self.return_pretty_response(
             self.read_rsp(
@@ -165,6 +170,8 @@ class LTE():
     def attach(self, apn=None, type='IP', cid=None, band=None, bands=None):
         self.check_power()
         self.check_ppp()
+        # Check if we are in CFUN=1 then return because we're already
+        # attaching or attached.
         if cid is not None:
             self.__cid = cid
         if band is not None and bands is not None:
@@ -199,7 +206,7 @@ class LTE():
         if self.__debug:
             print(resp)
 
-    def is_attached(self):
+    def isattached(self):
         self.check_power()
         if LTE.in_ppp:
             return True
@@ -211,6 +218,9 @@ class LTE():
             return True
         if '+CEREG: 2,1' in resp or '+CEREG: 2,5' in resp:
             return True
+        resp = self.send_at_cmd('AT+CFUN?', check_error=True)
+        if "+CFUN: 1" not in resp:
+            self.send_at_cmd('AT+CFUN=1', check_error=True)
         return False
 
     def reset(self):
@@ -224,7 +234,7 @@ class LTE():
                 print('reset_resp look_for +SHUTDOWN: {}'.format(resp))
             if b'+SHUTDOWN' in resp:
                 break
-            utime.sleep(.25)
+            time.sleep(.25)
         resp = b''
         for _ in range(20):
             resp = self.read_rsp()
@@ -232,17 +242,16 @@ class LTE():
                 print('reset_resp wait_for +SYSSTART: {}'.format(resp))
             if b'+SYSSTART' in resp:
                 break
-            utime.sleep(.25)
+            time.sleep(.25)
         for _ in range(25):
             if self.__debug:
                 print('reset_resp wait_for AT/OK {}'.format(resp))
             LTE.lte_uart.write('AT\r\n')
-            utime.sleep(.1)
+            time.sleep(.1)
             resp = self.read_rsp()
             if b'OK' in resp:
                 break
-            utime.sleep(.25)
-
+            time.sleep(.25)
         else:
             raise OSError('The modem did not respond with +SHUTDOWN')
 
@@ -253,11 +262,16 @@ class LTE():
             self.__cid = cid
         if not self.is_attached():
             raise OSError('Modem is not attached to a network!')
-        resp = self.send_at_cmd('ATO'.format(self.__cid))
-        if self.__debug:
-            print(resp)
-        if not 'CONNECT' in resp:
-            utime.sleep(.1)
+
+        # Due to possible issues with the ATO command in LR8.2.0.2-59200
+        # this is currently disabled
+
+        # resp = self.send_at_cmd('ATO'.format(self.__cid))
+        # if self.__debug:
+        #     print(resp)
+        # if not 'CONNECT' in resp:
+        if True:
+            time.sleep(.1)
             resp = self.send_at_cmd('AT+CGDATA="PPP",{}'.format(self.__cid))
             for _ in range(25):
                 if self.__debug:
@@ -265,13 +279,16 @@ class LTE():
                 if 'CONNECT' in resp:
                     break
                 elif 'ERROR' in resp:
-                    utime.sleep(1)
+                    time.sleep(1)
                     resp = self.send_at_cmd(
                         'AT+CGDATA="PPP",{}'.format(self.__cid))
                 else:
                     resp = self.return_pretty_response(self.read_rsp())
-                    utime.sleep(.25)
-            utime.sleep(.1)
+                    time.sleep(.25)
+            time.sleep(.1)
+        # LTE.lte_ppp.active(True) hangs when switching from False to
+        # True unless LTE.lte_ppp = PPP(LTE.lte_uart) is used first
+        LTE.lte_ppp = PPP(LTE.lte_uart)
         LTE.lte_ppp.active(True)
         LTE.lte_ppp.connect()
         LTE.in_ppp = True
@@ -313,31 +330,32 @@ class LTE():
         self.check_power()
         if ctrl_enabled:
             raise OSError('Please use ctrl.disconnect() instead!')
-        self.lte_ppp.active(False)
-        self.__ppp_suspend()
-        self.send_at_cmd('ATH', wait_ok_error=True, check_error=True)
+        if LTE.in_ppp:
+            LTE.lte_ppp.active(False)
+            self.__ppp_suspend()
+            self.send_at_cmd('ATH', wait_ok_error=True, check_error=True)
 
-    def is_connected(self):
+    def isconnected(self):
         if LTE.in_ppp:
             return self.lte_ppp.isconnected()
         else:
             return False
 
-    def isconnected(self):
-        return self.is_connected()
+    def is_connected(self):
+        return self.isconnected()
 
-    def isattached(self):
-        return self.is_attached()
+    def is_attached(self):
+        return self.isattached()
 
     def detach(self):
         self.disconnect()
-        resp = self.send_at_cmd('AT+CFUN?', wait_ok_error=True, 
+        resp = self.send_at_cmd('AT+CFUN?', wait_ok_error=True,
                                 check_error=True)
 
         if "+CFUN: 1" in resp:
             # According to Sequans, should go to CFUN=4 first before going
             # to CFUN=0 when disconnecting from the network. This is to ensure
-            # SIM card remains writable during detach 
+            # SIM card remains writable during detach
             self.send_at_cmd('AT+CFUN=4', wait_ok_error=True, check_error=True)
             self.send_at_cmd('AT+CFUN=0', wait_ok_error=True, check_error=True)
         if "+CFUN: 4" in resp:
@@ -345,40 +363,45 @@ class LTE():
 
 
     def deinit(self, reset=False):
-        self.disconnect()
+        if LTE.in_ppp:
+            self.disconnect()
         self.detach()
         self.power_off()
 
     def check_sim_present(self):
         self.check_ppp()
-        resp = self.send_at_cmd(
-            'AT+CFUN=4', wait_ok_error=True, check_error=True)
+        # Check first if we're in CFUN=1, then we don't need to switch
+        # to CFUN=4 to read the SIM card
+        resp = self.send_at_cmd('AT+CFUN?', check_error=True)
+        if "+CFUN: 1" not in resp:
+            resp = self.send_at_cmd(
+                'AT+CFUN=4', wait_ok_error=True, check_error=True)
         for _ in range(5):
-            utime.sleep(.25)
+            time.sleep(.25)
             resp = self.send_at_cmd('AT+CPIN?', wait_ok_error=True)
             if ("+CPIN: READY" in resp):
                 return True
         return False
 
     def power_on(self, wait_ok=True):
-        ioexp.lte_power_on()
+        ioexp.lte_power(True)
         self.__power = True
         if wait_ok:
-            utime.sleep(1)
+            time.sleep(1)
             self.send_at_cmd(wait_ok_error=True)
 
     def power_off(self, force=False):
         self.check_power()
 
-        if self.lte_ppp.active():
-            self.lte_ppp.active(False)
+        if LTE.lte_ppp.active():
+            LTE.lte_ppp.active(False)
 
         if not force:
             if LTE.in_ppp:
                 if not self.__ppp_suspend():
                     raise OSError('communication error! Use force=True')
             self.detach()
-        ioexp.lte_power_off()
+        ioexp.lte_power(False)
         self.__power = False
 
     def pause_ppp(self):
@@ -388,22 +411,24 @@ class LTE():
         self.check_power()
         if ctrl_enabled:
             raise OSError('Command not available when CTRL is enabled!')
-        self.lte_ppp.active(False)
+        LTE.lte_ppp.active(False)
         if self.__ppp_suspend():
             self.__ppp_suspended = True
         else:
             raise OSError('LTE modem communication failed!')
 
-    def __ppp_suspend(self):
+    def __ppp_suspend(self, wait_at=True):
         resp = b''
         for _ in range(5):
             LTE.lte_uart.flush()
             if self.__debug:
                 print('Writing +++')
             LTE.lte_uart.write('+++')
-            utime.sleep(1)
-            if self.__wait_at(25, 250):
+            time.sleep(1)
+            if wait_at and self.__wait_at(25, 250):
                 LTE.in_ppp = False
+                return True
+            else:
                 return True
         return False
 
@@ -411,7 +436,7 @@ class LTE():
         for counter in range(attempts):
             # LTE.lte_uart.flush()
             LTE.lte_uart.write('AT\r\n')
-            utime.sleep_ms(sleep_ms)
+            time.sleep_ms(sleep_ms)
             resp = self.read_rsp()
             if self.__debug:
                 print("AT#{}: {}".format(counter, resp))
@@ -422,13 +447,40 @@ class LTE():
     def resume_ppp(self):
         self.check_power()
         if self.__ppp_suspended:
-            if self.send_at_cmd(
-                    'ATO', timeout=9500, wait_ok_error=True, check_error=True):
-                self.__ppp.active(True)
-                self.__ppp.connect()
-        else:
-            raise OSError("PPP session not in suspend state!")
+            resp = self.send_at_cmd(
+                    'ATO0',
+                    timeout=9500,
+                    wait_ok_error=True,
+                    check_error=False)
+            if 'CONNECT' in resp:
+                self.__ppp_suspended = False
+                # LTE.lte_ppp.active(True) hangs when switching from False to
+                # True unless LTE.lte_ppp = PPP(LTE.lte_uart) is used first
+                LTE.lte_ppp = PPP(LTE.lte_uart)
+                LTE.lte_ppp.active(True)
+                LTE.lte_ppp.connect()
+                return
+        self.__ppp_suspended = False
+        raise OSError("PPP session not in suspend state or resume failed!")
 
     def check_ppp(self):
         if LTE.in_ppp and not self.__ppp_suspended:
             raise OSError("Operation not possible while in PPP mode!")
+
+    def imei(self):
+        resp = self.send_at_cmd('AT+CGSN=1')
+        if "CGSN:" in resp:
+            try:
+                return(resp.split('\"')[1])
+            except:
+                raise OSError('Unable to parse IMEI command response!')
+
+    def iccid(self):
+        if not self.check_sim_present():
+            raise OSError('SIM card not present or PIN protected!')
+        resp = self.send_at_cmd('AT+SQNCCID?')
+        if "+SQNCCID:" in resp:
+            try:
+                return(resp.split('\"')[1])
+            except:
+                raise OSError('Unable to parse ICCID command response!')
