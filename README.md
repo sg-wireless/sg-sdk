@@ -53,6 +53,8 @@ These are a quick references to contents of the SDK.
 * Connectivity Features
     * [LTE-M](src/platforms/F1/comps/lte-poc/lte_main.md)
     * [LoRa](src/comps/lora/docs/lora-main.md)
+* Services
+    * [Ctrl Platform Client](src/comps/ctrl-client/docs/user-api.md)
 * F1 Platform Specific Services.
     * [Safeboot](
         src/platforms/F1/bootloader_components/boot-if/docs/safeboot.md)
