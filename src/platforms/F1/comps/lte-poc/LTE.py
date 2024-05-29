@@ -170,14 +170,16 @@ class LTE():
     def attach(self, apn=None, type='IP', cid=None, band=None, bands=None):
         self.check_power()
         self.check_ppp()
-        # Check if we are in CFUN=1 then return because we're already
-        # attaching or attached.
         if cid is not None:
             self.__cid = cid
         if band is not None and bands is not None:
             raise ValueError("Cannot specify both band and bands")
         if not self.check_sim_present():
             raise OSError('SIM card not present or PIN protected!')
+        radio_enabled = False
+        resp = self.send_at_cmd('AT+CFUN?', check_error=True)
+        if "+CFUN: 1" in resp:
+            radio_enabled = True
         if band is not None:
             mode = self.__get_mode()
             resp = self.send_at_cmd(
@@ -197,9 +199,14 @@ class LTE():
             if self.__debug:
                 print(resp)
         if apn is not None:
-            resp = self.send_at_cmd(
-                'AT+CGDCONT={},"{}","{}"'.format(self.__cid, type, apn),
-                check_error=True)
+            resp = self.send_at_cmd('AT+CGDCONT?', check_error=True)
+            if apn not in resp.split(',')[2]:
+                if radio_enabled:
+                    self.send_at_cmd('AT+CFUN=4', wait_ok_error=True,
+                        check_error=True)
+                resp = self.send_at_cmd(
+                    'AT+CGDCONT={},"{}","{}"'.format(self.__cid, type, apn),
+                    check_error=True)
             if self.__debug:
                 print(resp)
         resp = self.send_at_cmd('AT+CFUN=1', check_error=True)
@@ -218,9 +225,6 @@ class LTE():
             return True
         if '+CEREG: 2,1' in resp or '+CEREG: 2,5' in resp:
             return True
-        resp = self.send_at_cmd('AT+CFUN?', check_error=True)
-        if "+CFUN: 1" not in resp:
-            self.send_at_cmd('AT+CFUN=1', check_error=True)
         return False
 
     def reset(self):
