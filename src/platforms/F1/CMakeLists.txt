@@ -21,11 +21,11 @@
 #
 # Author    Ahmed Sabry (SGWireless)
 #
-# Desc      Including the build files of the SGW3501 board dir.
+# Desc      Starting cmake file for F1 platform building.
 # ---------------------------------------------------------------------------- #
 
 # environment
-cmake_minimum_required(VERSION 3.21)
+cmake_minimum_required(VERSION 3.25)
 include($ENV{__tree_dir_builder}/cmake/env.cmake)
 
 # target
