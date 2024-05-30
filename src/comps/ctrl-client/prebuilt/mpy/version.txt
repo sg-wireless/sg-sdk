@@ -1,1 +1,1 @@
-sg-ctrl-client commit d6f6e521280f24cc2dae6fa6a21467b3d3059002
+sg-ctrl-client commit 34c7db866a91b173469d6b617e36ca549cfa168a
