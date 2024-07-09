@@ -94,7 +94,9 @@
         "configs/sdkconfig.usb",
         "configs/sdkconfig.ble",
         "configs/sdkconfig.spiram_sx",
-        "configs/sdkconfig.board"
+        "configs/sdkconfig.board",
+	"configs/sdkconfig.wifi",
+	"configs/sdkconfig.network"
     ]
 
     [configs.sdkconfig]
