@@ -80,6 +80,33 @@ extern void hook_mpy_machine_hw_i2c_init(int port, int scl, int sda,
 #endif /* CONFIG_SDK_MPY_HOOK_MACHINE_I2C_INIT_ENABLE */
 #endif /* CONFIG_IOEXP_ENABLED */
 
+/** -------------------------------------------------------------------------- *
+ * Machine virtual timers hooks
+ * --------------------------------------------------------------------------- *
+ */
+#ifdef CONFIG_SDK_MPY_HOOK_MACHINE_VIRTUAL_TIMERS_ENABLE
+
+extern mp_obj_t hook_mpy_machine_timer_virtual_new(
+    const mp_obj_type_t *type,
+    size_t n_args,
+    size_t n_kw,
+    const mp_obj_t *args);
+
+extern void hook_mpy_machine_timer_virtual_print(
+    const void *print,
+    void* obj);
+
+extern uint32_t hook_mpy_machine_timer_virtual_value(void* obj);
+
+extern void hook_mpy_machine_timer_virtual_deinit(void* obj);
+
+extern mp_obj_t hook_mpy_machine_timer_virtual_init(
+    size_t n_args,
+    const mp_obj_t *args,
+    mp_map_t *kw_args);
+
+#endif /* CONFIG_SDK_MPY_HOOK_MACHINE_VIRTUAL_TIMERS_ENABLE */
+
 /* -- end of file ----------------------------------------------------------- */
 #ifdef __cplusplus
 }

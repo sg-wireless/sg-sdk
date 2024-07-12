@@ -57,6 +57,13 @@ __sdk_add_patch(
 
 __sdk_add_patch(
     ENTITY_NAME     micropython
+    ORIGINAL_FILE   ${__dir_micropython}/ports/esp32/machine_timer.c
+    PATCH_FILE      ${CMAKE_CURRENT_LIST_DIR}/patches/machine_timer.c.patch
+    FINAL_DIR       ${CMAKE_CURRENT_LIST_DIR}/modified_sources
+)
+
+__sdk_add_patch(
+    ENTITY_NAME     micropython
     ORIGINAL_FILE   ${__dir_micropython}/shared/runtime/pyexec.c
     PATCH_FILE      ${CMAKE_CURRENT_LIST_DIR}/patches/pyexec.c.patch
     FINAL_DIR       ${CMAKE_CURRENT_LIST_DIR}/modified_sources

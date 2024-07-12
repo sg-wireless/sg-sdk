@@ -1,0 +1,126 @@
+--- ../../../../ext/micropython/ports/esp32/machine_timer.c	2024-04-30 18:28:08
++++ ./modified_sources/machine_timer.c	2024-07-12 17:45:07
+@@ -34,6 +34,7 @@
+ #include "py/runtime.h"
+ #include "modmachine.h"
+ #include "mphalport.h"
++#include "board_hooks.h"
+ 
+ #include "driver/timer.h"
+ #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 1, 1)
+@@ -51,6 +52,9 @@
+ 
+ typedef struct _machine_timer_obj_t {
+     mp_obj_base_t base;
++    #ifdef CONFIG_SDK_MPY_HOOK_MACHINE_VIRTUAL_TIMERS_ENABLE
++    bool is_virtual;
++    #endif
+     mp_uint_t group;
+     mp_uint_t index;
+ 
+@@ -84,6 +88,14 @@
+ STATIC void machine_timer_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t kind) {
+     machine_timer_obj_t *self = self_in;
+ 
++    #ifdef CONFIG_SDK_MPY_HOOK_MACHINE_VIRTUAL_TIMERS_ENABLE
++    if(self->is_virtual)
++    {
++        hook_mpy_machine_timer_virtual_print(print, self_in);
++        return;
++    }
++    #endif
++
+     timer_config_t config;
+     mp_printf(print, "Timer(%p; ", self);
+ 
+@@ -96,6 +108,14 @@
+ 
+ STATIC mp_obj_t machine_timer_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *args) {
+     mp_arg_check_num(n_args, n_kw, 1, MP_OBJ_FUN_ARGS_MAX, true);
++
++    #ifdef CONFIG_SDK_MPY_HOOK_MACHINE_VIRTUAL_TIMERS_ENABLE
++    if(mp_obj_get_int(args[0]) == -1)
++    {
++        return hook_mpy_machine_timer_virtual_new(type, n_args, n_kw, args);
++    }
++    #endif
++
+     mp_uint_t group = (mp_obj_get_int(args[0]) >> 1) & 1;
+     mp_uint_t index = mp_obj_get_int(args[0]) & 1;
+ 
+@@ -104,15 +124,20 @@
+     // Check whether the timer is already initialized, if so use it
+     for (machine_timer_obj_t *t = MP_STATE_PORT(machine_timer_obj_head); t; t = t->next) {
+         if (t->group == group && t->index == index) {
++            __log_enforce("timer: %d -- %Crinitialized before%Cd", mp_obj_get_int(args[0]));
+             self = t;
+             break;
+         }
+     }
+     // The timer does not exist, create it.
+     if (self == NULL) {
++        __log_enforce("timer: %d -- %Cginit new%Cd", mp_obj_get_int(args[0]));
+         self = mp_obj_malloc(machine_timer_obj_t, &machine_timer_type);
+         self->group = group;
+         self->index = index;
++        #ifdef __hook_mpy_machine_timer_virtual
++        self->is_virtual = false;
++        #endif
+ 
+         // Add the timer to the linked-list of timers
+         self->next = MP_STATE_PORT(machine_timer_obj_head);
+@@ -130,6 +155,7 @@
+ 
+ STATIC void machine_timer_disable(machine_timer_obj_t *self) {
+     if (self->handle) {
++        __log_enforce("timer: %d -- %Cydisable()%Cd", (self->group<<1) | self->index);
+         timer_pause(self->group, self->index);
+         esp_intr_free(self->handle);
+         self->handle = NULL;
+@@ -249,6 +275,15 @@
+ }
+ 
+ STATIC mp_obj_t machine_timer_deinit(mp_obj_t self_in) {
++
++    #ifdef CONFIG_SDK_MPY_HOOK_MACHINE_VIRTUAL_TIMERS_ENABLE
++    if(((machine_timer_obj_t*)self_in)->is_virtual)
++    {
++        hook_mpy_machine_timer_virtual_deinit(self_in);
++        return mp_const_none;
++    }
++    #endif
++
+     machine_timer_disable(self_in);
+ 
+     return mp_const_none;
+@@ -256,12 +291,30 @@
+ STATIC MP_DEFINE_CONST_FUN_OBJ_1(machine_timer_deinit_obj, machine_timer_deinit);
+ 
+ STATIC mp_obj_t machine_timer_init(size_t n_args, const mp_obj_t *args, mp_map_t *kw_args) {
++
++    #ifdef CONFIG_SDK_MPY_HOOK_MACHINE_VIRTUAL_TIMERS_ENABLE
++    if(((machine_timer_obj_t*)args[0])->is_virtual)
++    {
++        hook_mpy_machine_timer_virtual_init(n_args, args, kw_args);
++        return mp_const_none;
++    }
++    #endif
++
+     return machine_timer_init_helper(args[0], n_args - 1, args + 1, kw_args);
+ }
+ STATIC MP_DEFINE_CONST_FUN_OBJ_KW(machine_timer_init_obj, 1, machine_timer_init);
+ 
+ STATIC mp_obj_t machine_timer_value(mp_obj_t self_in) {
+     machine_timer_obj_t *self = self_in;
++
++    #ifdef CONFIG_SDK_MPY_HOOK_MACHINE_VIRTUAL_TIMERS_ENABLE
++    if(self->is_virtual)
++    {
++        uint32_t v = hook_mpy_machine_timer_virtual_value(self_in);
++        return MP_OBJ_NEW_SMALL_INT( v );
++    }
++    #endif
++
+     double result;
+ 
+     timer_get_counter_time_sec(self->group, self->index, &result);

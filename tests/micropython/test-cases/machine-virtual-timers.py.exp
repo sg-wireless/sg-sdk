@@ -1,0 +1,52 @@
+-- init t1
+-- init t2
+-- init t3
+-- init t4
+== current initialized virtual timers
+[\[[0-9a-f]+\] repeat:1 enabled:1 period:3000 name: t1-periodic
+[\[[0-9a-f]+\] repeat:1 enabled:1 period:2000 name: t2-periodic
+[\[[0-9a-f]+\] repeat:0 enabled:1 period:1000 name: t3-one-shot
+[\[[0-9a-f]+\] repeat:1 enabled:1 period:2000 name: t4-periodic
+-- sleep 3 seconds
+T3-Expire
+T2-Expire
+T4-Expire
+T1-Expire
+3000
+2000
+1000
+2000
+-- re-init t1
+-- sleep 3 seconds
+T2-Expire
+T4-Expire
+T1-NEW-Expire
+T2-Expire
+T4-Expire
+T1-NEW-Expire
+-- deinit t2
+== current initialized virtual timers
+[\[[0-9a-f]+\] repeat:1 enabled:1 period:1500 name: t1-NEW
+[\[[0-9a-f]+\] repeat:0 enabled:0 period:1000 name: t3-one-shot
+[\[[0-9a-f]+\] repeat:1 enabled:1 period:2000 name: t4-periodic
+-- sleep 5 seconds
+T1-NEW-Expire
+T4-Expire
+T1-NEW-Expire
+T4-Expire
+T1-NEW-Expire
+-- deinit t1
+== current initialized virtual timers
+[\[[0-9a-f]+\] repeat:0 enabled:0 period:1000 name: t3-one-shot
+[\[[0-9a-f]+\] repeat:1 enabled:1 period:2000 name: t4-periodic
+-- deinit t3
+== current initialized virtual timers
+[\[[0-9a-f]+\] repeat:1 enabled:1 period:2000 name: t4-periodic
+-- deinit t4
+== no initialized virtual timers
+-- deinit t1
+== no initialized virtual timers
+Virtual-Timer\( name='t1-NEW', init=0, period=1500 ms, repeat=1, enabled=0 \)
+Virtual-Timer\( name='t2-periodic', init=0, period=2000 ms, repeat=1, enabled=0 \)
+Virtual-Timer\( name='t3-one-shot', init=0, period=1000 ms, repeat=0, enabled=0 \)
+Virtual-Timer\( name='t4-periodic', init=0, period=2000 ms, repeat=1, enabled=0 \)
