@@ -36,10 +36,15 @@
 
 #include "lora_wan_process.h"
 #include "stub_timers.h"
+#include "lora_proto_compliance.h"
 
 /* --- macros --------------------------------------------------------------- */
 
-#define __config_lora_wan_duty_cycle_default        10000
+#define __config_lora_wan_duty_cycle_default    \
+    CONFIG_LORA_DUTY_CYCLE_APP_DEFAULT_DURATION_MS
+
+#define __config_lora_wan_duty_cycle_test_default \
+    CONFIG_LORA_DUTY_CYCLE_APP_DEFAULT_DURATION_MS
 
 /** -------------------------------------------------------------------------- *
  * duty-cycle control
@@ -50,8 +55,10 @@ static void* s_duty_cycle_timer;
 
 static bool s_is_running = false;
 
-static uint32_t s_app_duty_cycle_period = __config_lora_wan_duty_cycle_default;
-static uint32_t s_duty_cycle_period = __config_lora_wan_duty_cycle_default;
+static uint32_t  s_app_duty_cycle_period;
+static uint32_t  s_tst_duty_cycle_period;
+static uint32_t* s_p_duty_cycle_period;
+static bool s_is_tst_enabled;
 
 static const char* s_timer_name = "duty-cycle timer";
 
@@ -70,8 +77,8 @@ static void duty_cycle_timer_dtor(void)
 }
 static void duty_cycle_timer_start(void)
 {
-    __log_timer_start(s_timer_name, s_duty_cycle_period);
-    lora_stub_timer_start(s_duty_cycle_timer, s_duty_cycle_period);
+    __log_timer_start(s_timer_name, *s_p_duty_cycle_period);
+    lora_stub_timer_start(s_duty_cycle_timer, *s_p_duty_cycle_period);
 }
 static void duty_cycle_timer_stop(void)
 {
@@ -91,15 +98,31 @@ static void duty_cycle_timer_callback(void* arg)
  * --------------------------------------------------------------------------- *
  */
 
+void lora_wan_duty_compliance_switch(bool is_on)
+{
+    __log_info("duty-cycle compliance switch %s", g_on_off[is_on]);
+    s_is_tst_enabled = is_on;
+
+    s_p_duty_cycle_period = is_on 
+        ? &s_tst_duty_cycle_period
+        : &s_app_duty_cycle_period;
+}
+
 void lora_wan_duty_ctor(void)
 {
-    s_duty_cycle_period = __config_lora_wan_duty_cycle_default;
+    s_tst_duty_cycle_period = __config_lora_wan_duty_cycle_test_default;
     s_app_duty_cycle_period = __config_lora_wan_duty_cycle_default;
+
+    lora_wan_duty_compliance_switch( lora_proto_compliance_get_state() );
+
+    s_is_running = false;
+
     duty_cycle_timer_ctor();
 }
 
 void lora_wan_duty_dtor(void)
 {
+    s_p_duty_cycle_period = NULL;
     s_is_running = false;
     duty_cycle_timer_stop();
     duty_cycle_timer_dtor();
@@ -107,10 +130,13 @@ void lora_wan_duty_dtor(void)
 
 void lora_wan_duty_set(uint32_t period)
 {
-    duty_cycle_timer_stop();
-    s_app_duty_cycle_period = s_duty_cycle_period = period;
-    if(s_is_running)
+    s_app_duty_cycle_period = period;
+
+    if( s_is_running && !s_is_tst_enabled )
+    {
+        duty_cycle_timer_stop();
         duty_cycle_timer_start();
+    }
 }
 
 uint32_t lora_wan_duty_get(void)
@@ -121,30 +147,49 @@ uint32_t lora_wan_duty_get(void)
 void lora_wan_duty_start(void)
 {
     s_is_running = true;
-    duty_cycle_timer_start();
+
+    if( !s_is_tst_enabled )
+    {
+        duty_cycle_timer_start();
+    }
 }
 
 void lora_wan_duty_stop(void)
 {
     s_is_running = false;
-    duty_cycle_timer_stop();
+
+    if( !s_is_tst_enabled )
+    {
+        duty_cycle_timer_stop();
+    }
+}
+
+void lora_wan_duty_suspend(void)
+{
+    if(s_is_running)
+    {
+        duty_cycle_timer_stop();
+    }
 }
 
 void lora_wan_duty_resume(void)
 {
-    if( s_is_running )
+    if( s_is_running && !s_is_tst_enabled )
+    {
         duty_cycle_timer_start();
+    }
 }
 
-void lora_wan_duty_conformance_tx_periodicity(uint32_t periodicity)
+void lora_wan_duty_compliance_tx_periodicity(uint32_t periodicity)
 {
     if(periodicity)
     {
-        s_duty_cycle_period = periodicity;
+        s_tst_duty_cycle_period = periodicity;
+        s_p_duty_cycle_period = &s_tst_duty_cycle_period;
     }
     else
     {
-        s_duty_cycle_period = s_app_duty_cycle_period;
+        s_p_duty_cycle_period = &s_app_duty_cycle_period;
     }
 
     duty_cycle_timer_stop();

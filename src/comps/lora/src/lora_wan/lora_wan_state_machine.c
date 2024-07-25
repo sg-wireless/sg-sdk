@@ -16,10 +16,13 @@ static input_table_t sm_lora_wan_inputs_table[] = {
     [__sm_input_id(lora_wan, join_done)] = { "join_done" },
     [__sm_input_id(lora_wan, join_fail)] = { "join_fail" },
     [__sm_input_id(lora_wan, commission)] = { "commission" },
+    [__sm_input_id(lora_wan, lct_on)] = { "lct_on" },
     [__sm_input_id(lora_wan, duty_cycle)] = { "duty_cycle" },
     [__sm_input_id(lora_wan, req_class)] = { "req_class" },
     [__sm_input_id(lora_wan, timeout)] = { "timeout" },
     [__sm_input_id(lora_wan, class_chg)] = { "class_chg" },
+    [__sm_input_id(lora_wan, lct_off)] = { "lct_off" },
+    [__sm_input_id(lora_wan, rejoin_req)] = { "rejoin_req" },
 };
 #define sm_lora_wan_inputs_table_size \
     (sizeof(sm_lora_wan_inputs_table)/sizeof(input_table_t))
@@ -44,6 +47,9 @@ static action_table_t sm_lora_wan_actions_table[] = {
     [__sm_action_id(lora_wan, commission)] = {
         "commission",
         __sm_action_fun(lora_wan, commission)},
+    [__sm_action_id(lora_wan, lct_enter)] = {
+        "lct_enter",
+        __sm_action_fun(lora_wan, lct_enter)},
     [__sm_action_id(lora_wan, start_trx)] = {
         "start_trx",
         __sm_action_fun(lora_wan, start_trx)},
@@ -56,6 +62,21 @@ static action_table_t sm_lora_wan_actions_table[] = {
     [__sm_action_id(lora_wan, do_nothing)] = {
         "do_nothing",
         0},
+    [__sm_action_id(lora_wan, lct_commission)] = {
+        "lct_commission",
+        __sm_action_fun(lora_wan, lct_commission)},
+    [__sm_action_id(lora_wan, lct_join)] = {
+        "lct_join",
+        __sm_action_fun(lora_wan, lct_join)},
+    [__sm_action_id(lora_wan, lct_exit)] = {
+        "lct_exit",
+        __sm_action_fun(lora_wan, lct_exit)},
+    [__sm_action_id(lora_wan, lct_handle)] = {
+        "lct_handle",
+        __sm_action_fun(lora_wan, lct_handle)},
+    [__sm_action_id(lora_wan, lct_joined)] = {
+        "lct_joined",
+        __sm_action_fun(lora_wan, lct_joined)},
 };
 #define sm_lora_wan_actions_table_size \
     (sizeof(sm_lora_wan_actions_table)/sizeof(action_table_t))
@@ -92,6 +113,11 @@ static state_trans_table_t sm_lora_wan_not_joined_trans_table [] = {
         .input_id = __sm_input_id(lora_wan, commission),
         .action_id = __sm_action_id(lora_wan, commission),
         .next_state_id = __sm_state_id(lora_wan, not_joined),
+    },
+    {
+        .input_id = __sm_input_id(lora_wan, lct_on),
+        .action_id = __sm_action_id(lora_wan, lct_enter),
+        .next_state_id = __sm_state_id(lora_wan, lct),
     },
 };
 #define sm_lora_wan_not_joined_trans_table_size \
@@ -139,9 +165,50 @@ static state_trans_table_t sm_lora_wan_chg_class_trans_table [] = {
         .action_id = __sm_action_id(lora_wan, trx_timeout),
         .next_state_id = __sm_state_id(lora_wan, chg_class),
     },
+    {
+        .input_id = __sm_input_id(lora_wan, lct_on),
+        .action_id = __sm_action_id(lora_wan, lct_enter),
+        .next_state_id = __sm_state_id(lora_wan, lct),
+    },
 };
 #define sm_lora_wan_chg_class_trans_table_size \
     (sizeof(sm_lora_wan_chg_class_trans_table)/sizeof(state_trans_table_t))
+
+/* --- state -> lct --------------------------------------------------------- */
+static state_trans_table_t sm_lora_wan_lct_trans_table [] = {
+    {
+        .input_id = __sm_input_id(lora_wan, radio_evt),
+        .action_id = __sm_action_id(lora_wan, process_radio),
+        .next_state_id = __sm_state_id(lora_wan, lct),
+    },
+    {
+        .input_id = __sm_input_id(lora_wan, duty_cycle),
+        .action_id = __sm_action_id(lora_wan, lct_handle),
+        .next_state_id = __sm_state_id(lora_wan, lct),
+    },
+    {
+        .input_id = __sm_input_id(lora_wan, mac_req),
+        .action_id = __sm_action_id(lora_wan, process_mac),
+        .next_state_id = __sm_state_id(lora_wan, lct),
+    },
+    {
+        .input_id = __sm_input_id(lora_wan, join_req),
+        .action_id = __sm_action_id(lora_wan, lct_join),
+        .next_state_id = __sm_state_id(lora_wan, lct_join),
+    },
+    {
+        .input_id = __sm_input_id(lora_wan, rejoin_req),
+        .action_id = __sm_action_id(lora_wan, lct_join),
+        .next_state_id = __sm_state_id(lora_wan, lct_join),
+    },
+    {
+        .input_id = __sm_input_id(lora_wan, lct_off),
+        .action_id = __sm_action_id(lora_wan, lct_exit),
+        .next_state_id = __sm_state_id(lora_wan, not_joined),
+    },
+};
+#define sm_lora_wan_lct_trans_table_size \
+    (sizeof(sm_lora_wan_lct_trans_table)/sizeof(state_trans_table_t))
 
 /* --- state -> joined ------------------------------------------------------ */
 static state_trans_table_t sm_lora_wan_joined_trans_table [] = {
@@ -174,6 +241,11 @@ static state_trans_table_t sm_lora_wan_joined_trans_table [] = {
         .input_id = __sm_input_id(lora_wan, req_class),
         .action_id = __sm_action_id(lora_wan, switch_slass),
         .next_state_id = __sm_state_id(lora_wan, chg_class),
+    },
+    {
+        .input_id = __sm_input_id(lora_wan, lct_on),
+        .action_id = __sm_action_id(lora_wan, lct_enter),
+        .next_state_id = __sm_state_id(lora_wan, lct),
     },
 };
 #define sm_lora_wan_joined_trans_table_size \
@@ -216,9 +288,66 @@ static state_trans_table_t sm_lora_wan_trx_trans_table [] = {
         .action_id = __sm_action_id(lora_wan, switch_slass),
         .next_state_id = __sm_state_id(lora_wan, trx),
     },
+    {
+        .input_id = __sm_input_id(lora_wan, lct_on),
+        .action_id = __sm_action_id(lora_wan, lct_enter),
+        .next_state_id = __sm_state_id(lora_wan, lct),
+    },
 };
 #define sm_lora_wan_trx_trans_table_size \
     (sizeof(sm_lora_wan_trx_trans_table)/sizeof(state_trans_table_t))
+
+/* --- state -> lct_idle ---------------------------------------------------- */
+static state_trans_table_t sm_lora_wan_lct_idle_trans_table [] = {
+    {
+        .input_id = __sm_input_id(lora_wan, commission),
+        .action_id = __sm_action_id(lora_wan, lct_commission),
+        .next_state_id = __sm_state_id(lora_wan, lct_idle),
+    },
+    {
+        .input_id = __sm_input_id(lora_wan, join_req),
+        .action_id = __sm_action_id(lora_wan, lct_join),
+        .next_state_id = __sm_state_id(lora_wan, lct_join),
+    },
+    {
+        .input_id = __sm_input_id(lora_wan, lct_off),
+        .action_id = __sm_action_id(lora_wan, lct_exit),
+        .next_state_id = __sm_state_id(lora_wan, not_joined),
+    },
+};
+#define sm_lora_wan_lct_idle_trans_table_size \
+    (sizeof(sm_lora_wan_lct_idle_trans_table)/sizeof(state_trans_table_t))
+
+/* --- state -> lct_join ---------------------------------------------------- */
+static state_trans_table_t sm_lora_wan_lct_join_trans_table [] = {
+    {
+        .input_id = __sm_input_id(lora_wan, mac_req),
+        .action_id = __sm_action_id(lora_wan, process_mac),
+        .next_state_id = __sm_state_id(lora_wan, lct_join),
+    },
+    {
+        .input_id = __sm_input_id(lora_wan, radio_evt),
+        .action_id = __sm_action_id(lora_wan, process_radio),
+        .next_state_id = __sm_state_id(lora_wan, lct_join),
+    },
+    {
+        .input_id = __sm_input_id(lora_wan, join_done),
+        .action_id = __sm_action_id(lora_wan, lct_joined),
+        .next_state_id = __sm_state_id(lora_wan, lct),
+    },
+    {
+        .input_id = __sm_input_id(lora_wan, join_fail),
+        .action_id = __sm_action_id(lora_wan, lct_join),
+        .next_state_id = __sm_state_id(lora_wan, lct_join),
+    },
+    {
+        .input_id = __sm_input_id(lora_wan, lct_off),
+        .action_id = __sm_action_id(lora_wan, lct_exit),
+        .next_state_id = __sm_state_id(lora_wan, not_joined),
+    },
+};
+#define sm_lora_wan_lct_join_trans_table_size \
+    (sizeof(sm_lora_wan_lct_join_trans_table)/sizeof(state_trans_table_t))
 
 /* --- states-table --------------------------------------------------------- */
 static state_table_t sm_lora_wan_states_table [] = {
@@ -232,6 +361,11 @@ static state_table_t sm_lora_wan_states_table [] = {
         .trans_table = sm_lora_wan_chg_class_trans_table,
         .trans_table_size = sm_lora_wan_chg_class_trans_table_size,
     },
+    [__sm_state_id(lora_wan, lct)] = {
+        .name = "lct",
+        .trans_table = sm_lora_wan_lct_trans_table,
+        .trans_table_size = sm_lora_wan_lct_trans_table_size,
+    },
     [__sm_state_id(lora_wan, joined)] = {
         .name = "joined",
         .trans_table = sm_lora_wan_joined_trans_table,
@@ -242,6 +376,16 @@ static state_table_t sm_lora_wan_states_table [] = {
         .name = "trx",
         .trans_table = sm_lora_wan_trx_trans_table,
         .trans_table_size = sm_lora_wan_trx_trans_table_size,
+    },
+    [__sm_state_id(lora_wan, lct_idle)] = {
+        .name = "lct_idle",
+        .trans_table = sm_lora_wan_lct_idle_trans_table,
+        .trans_table_size = sm_lora_wan_lct_idle_trans_table_size,
+    },
+    [__sm_state_id(lora_wan, lct_join)] = {
+        .name = "lct_join",
+        .trans_table = sm_lora_wan_lct_join_trans_table,
+        .trans_table_size = sm_lora_wan_lct_join_trans_table_size,
     },
 };
 #define sm_lora_wan_states_table_size \

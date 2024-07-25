@@ -32,6 +32,10 @@
 #define __log_subsystem  lora
 #define __log_component  stub_board
 #include "log_lib.h"
+#include "esp_system.h"
+#include "sysinfo.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 /* --- LoRaMac board stubs -------------------------------------------------- */
 
@@ -43,7 +47,10 @@ uint8_t BoardGetBatteryLevel( void )
 
 void BoardResetMcu( void )
 {
-    __log_info("reset MCU -- not implemented --");
+    __log_info("reset MCU now ..");
+
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    esp_restart();
 }
 
 

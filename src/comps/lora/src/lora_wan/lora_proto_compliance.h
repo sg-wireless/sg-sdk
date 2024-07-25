@@ -21,74 +21,73 @@
  * 
  * @author  Ahmed Sabry (SG Wireless)
  * 
- * @brief   lora-wan processing sub-component header
+ * @brief   interfacing header to the Semtech compliance protocol component.
  * --------------------------------------------------------------------------- *
  */
-#ifndef __LORA_WAN_PROCESS_H__
-#define __LORA_WAN_PROCESS_H__
+
+#ifndef __LORA_PROTO_COMPLIANCE_H__
+#define __LORA_PROTO_COMPLIANCE_H__
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-/** -------------------------------------------------------------------------- *
- * includes
- * --------------------------------------------------------------------------- *
- */
-#include <stdbool.h>
-#include <stdint.h>
-#include "lora_sync_obj.h"
-
-/** -------------------------------------------------------------------------- *
- * typedefs
- * --------------------------------------------------------------------------- *
- */
-typedef enum {
-    __LORA_WAN_PROCESS_COMMISSION,
-    __LORA_WAN_PROCESS_JOIN_REQUEST,
-    __LORA_WAN_PROCESS_REJOIN_REQUEST,
-    __LORA_WAN_PROCESS_JOIN_DONE,
-    __LORA_WAN_PROCESS_JOIN_FAIL,
-    __LORA_WAN_PROCESS_JOIN_STATUS_REQ,
-
-    __LORA_WAN_PROCESS_PROCESS_MAC,
-    __LORA_WAN_PROCESS_RADIO_EVENT,
-
-    __LORA_WAN_PROCESS_TRX_DUTY_CYCLE,
-    __LORA_WAN_PROCESS_MSG_TIMEOUT,
-
-    __LORA_WAN_PROCESS_REQ_CLASS,
-    __LORA_WAN_PROCESS_CLASS_CHANGED,
-
-    __LORA_WAN_PROCESS_LCT_MODE_ENTER,
-    __LORA_WAN_PROCESS_LCT_MODE_EXIT,
-} lora_wan_process_request_t;
-
-typedef struct {
-    bool  is_joined;
-    sync_obj_t sync_obj;
-} lora_wan_join_status_req_t;
 
 /** -------------------------------------------------------------------------- *
  * APIs
  * --------------------------------------------------------------------------- *
  */
 
-void lora_wan_process_ctor(void);
+#include <stdbool.h>
 
-void lora_wan_process_dtor(void);
+/** -------------------------------------------------------------------------- *
+ * APIs
+ * --------------------------------------------------------------------------- *
+ */
 
-void lora_wan_process_request(
-    lora_wan_process_request_t request_type,
-    void* trigger_data);
+/**
+ * @brief   initialize the lora compliance package component
+ */
+void lora_proto_compliance_init(void);
 
-bool lora_wan_process_busy(void);
+/**
+ * @brief   to obtain the current state of the compliance test whether it is
+ *          active or not for the lora certification test support
+ */
+bool lora_proto_compliance_get_state(void);
 
-void lora_wan_enable_rx_listening(void);
+/**
+ * @brief   to set the desired state of the lora compliance test. it implicitly
+ *          open or close the lora test port 224
+ * 
+ * @return  true    if succedded to set the required state
+ *          fasle   if failed to set the required state
+ */
+bool lora_proto_compliance_set_state(bool state);
 
-void lora_wan_disable_rx_listening(void);
+/**
+ * @brief   to perform DUT reset request
+ */
+void lora_compliance_reset_dut(void);
+
+/**
+ * @brief   to check if DUT reset requested before this power-cycle or not
+ */
+bool lora_compliance_reset_state(void);
+
+/**
+ * @brief   to be called to process the duty cycle during the compliance test.
+ */
+void lora_proto_compliance_process_duty_cycle(void);
+
+/**
+ * @brief   a notification callback to be triggered from the Semtech LoRa MAC
+ *          upon reception of the port 224 disable from the TCL (Test Control
+ *          Layer).
+ */
+void lora_proto_compliance_notify_fport_224_disable(void);
 
 /* --- end of file ---------------------------------------------------------- */
 #ifdef __cplusplus
 }
 #endif
-#endif /* __LORA_WAN_PROCESS_H__ */
+#endif /* __LORA_PROTO_COMPLIANCE_H__ */

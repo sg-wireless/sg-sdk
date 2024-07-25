@@ -71,6 +71,9 @@
 #include "boot_if.h"
 #endif
 #include "log_lib.h"
+#ifdef CONFIG_LORA_LCT_OPERATE_AFTER_RESET
+#include "lora.h"
+#endif
 
 // MicroPython runs as a task under FreeRTOS
 #define MP_TASK_PRIORITY        (ESP_TASK_PRIO_MIN + 1)
@@ -98,6 +101,31 @@ void set_custom_mac(void)
         ret = esp_base_mac_addr_set(base_mac_addr);
         ESP_ERROR_CHECK_WITHOUT_ABORT(ret);
     }
+}
+
+static void handle_lora_lct_mode(void)
+{
+    #ifdef CONFIG_LORA_LCT_OPERATE_AFTER_RESET
+
+    lora_ctor();
+    lora_mode_t mode;
+    bool lct_state = false;
+    lora_get_mode(&mode);
+    if(mode == __LORA_MODE_WAN)
+    {
+        lora_ioctl(__LORA_IOCTL_LCT_MODE_GET, &lct_state);
+    }
+
+    if( lct_state )
+    {
+        __log_output("== lora lct mode started\n");
+    }
+    else
+    {
+        lora_dtor();
+    }
+
+    #endif /* CONFIG_LORA_LCT_OPERATE_AFTER_RESET */
 }
 
 void mp_task(void *pvParameter) {
@@ -206,6 +234,8 @@ soft_reset:
             }
         }
     }
+
+    handle_lora_lct_mode();
 
     for (;;) {
         if (pyexec_mode_kind == PYEXEC_MODE_RAW_REPL) {

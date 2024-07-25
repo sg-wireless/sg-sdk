@@ -47,6 +47,8 @@
 #include "lora_wan_port.h"
 #include "lora_wan_duty.h"
 #include "lora_wan_state_machine.h"
+#include "lora_proto_compliance.h"
+#include "lora_commission.h"
 
 /** -------------------------------------------------------------------------- *
  * all declarations
@@ -83,6 +85,7 @@ __sm_trans(lora_wan, not_joined,    radio_evt,  process_radio,  not_joined  )
 __sm_trans(lora_wan, not_joined,    join_done,  switch_slass,   chg_class   )
 __sm_trans(lora_wan, not_joined,    join_fail,  restart_join,   not_joined  )
 __sm_trans(lora_wan, not_joined,    commission, commission,     not_joined  )
+__sm_trans(lora_wan, not_joined,    lct_on,     lct_enter,      lct         )
 
 /* ############################## Joined State ############################## */
 __sm_trans(lora_wan, joined,        duty_cycle, start_trx,      trx         )
@@ -91,6 +94,7 @@ __sm_trans(lora_wan, joined,        radio_evt,  process_radio,  joined      )
 __sm_trans(lora_wan, joined,        join_req,   start_join,     not_joined  )
 __sm_trans(lora_wan, joined,        commission, commission,     not_joined  )
 __sm_trans(lora_wan, joined,        req_class,  switch_slass,   chg_class   )
+__sm_trans(lora_wan, joined,        lct_on,     lct_enter,      lct         )
 
 /* ################################ TRX State ############################### */
 __sm_trans(lora_wan, trx,           duty_cycle, start_trx,      trx         )
@@ -100,6 +104,7 @@ __sm_trans(lora_wan, trx,           join_req,   start_join,     not_joined  )
 __sm_trans(lora_wan, trx,           commission, commission,     not_joined  )
 __sm_trans(lora_wan, trx,           timeout,    trx_timeout,    joined      )
 __sm_trans(lora_wan, trx,           req_class,  switch_slass,   trx         )
+__sm_trans(lora_wan, trx,           lct_on,     lct_enter,      lct         )
 
 /* ################################ CLASS CHG ############################### */
 __sm_trans(lora_wan, chg_class,     req_class,  switch_slass,   chg_class   )
@@ -110,6 +115,27 @@ __sm_trans(lora_wan, chg_class,     radio_evt,  process_radio,  chg_class   )
 __sm_trans(lora_wan, chg_class,     join_req,   start_join,     not_joined  )
 __sm_trans(lora_wan, chg_class,     commission, commission,     not_joined  )
 __sm_trans(lora_wan, chg_class,     timeout,    trx_timeout,    chg_class   )
+__sm_trans(lora_wan, chg_class,     lct_on,     lct_enter,      lct         )
+
+/* ############################# LCT-IDLE State ############################# */
+__sm_trans(lora_wan, lct_idle,      commission, lct_commission, lct_idle    )
+__sm_trans(lora_wan, lct_idle,      join_req,   lct_join,       lct_join    )
+__sm_trans(lora_wan, lct_idle,      lct_off,    lct_exit,       not_joined  )
+
+/* ############################### LCT State ################################ */
+__sm_trans(lora_wan, lct,           radio_evt,  process_radio,  lct         )
+__sm_trans(lora_wan, lct,           duty_cycle, lct_handle,     lct         )
+__sm_trans(lora_wan, lct,           mac_req,    process_mac,    lct         )
+__sm_trans(lora_wan, lct,           join_req,   lct_join,       lct_join    )
+__sm_trans(lora_wan, lct,           rejoin_req, lct_join,       lct_join    )
+__sm_trans(lora_wan, lct,           lct_off,    lct_exit,       not_joined  )
+
+/* ############################## LCT Joining ############################### */
+__sm_trans(lora_wan, lct_join,      mac_req,    process_mac,    lct_join    )
+__sm_trans(lora_wan, lct_join,      radio_evt,  process_radio,  lct_join    )
+__sm_trans(lora_wan, lct_join,      join_done,  lct_joined,     lct         )
+__sm_trans(lora_wan, lct_join,      join_fail,  lct_join,       lct_join    )
+__sm_trans(lora_wan, lct_join,      lct_off,    lct_exit,       not_joined  )
 
 /** -------------------------------------------------------------------------- *
  * state-machine actions
@@ -118,7 +144,76 @@ __sm_trans(lora_wan, chg_class,     timeout,    trx_timeout,    chg_class   )
 void lora_wan_state_machine_ctor(void)
 {
     __log_info("ctor() -> lora wan state-machine");
-    if( lm_is_joined() )
+    if( lora_proto_compliance_get_state() )
+    {
+        /**
+         * if the compliance state is on, then initiate the state machine
+         * to serve the compliance test
+         * according to the activation type, perform the following
+         * => OTAA -> request join every time the lora stack is initialized
+         *            this is a needed behaviour after each system reset during
+         *            LCTT session.
+         * => ABP  -> just initiate the normal duty cycle
+         * 
+         * in all cases the duty cycle handling shall be configured to serve
+         * the compliance test instead of the normal application.
+         */
+
+        lora_wan_duty_compliance_switch(true);
+
+        commission_type_t act = lora_commission_get_type();
+        if( act == __LORA_COMMISSION_OTAA )
+        {
+            /**
+             * the join request after system power-up will follow the following:
+             *  - If the system is manually reset/powered-on, then the user
+             *    has to initiate the join request manually. This is to give
+             *    the user a chance to change the system commissioning params.
+             *  - If the system resets upon the TCL command DutResetReq, then
+             *    the join request will be done automatically here.
+             */
+            __log_info("OTAA => reset state-machine state to "
+                __green__"lct-idle (not-joined)");
+
+            /**
+             * the system will reside normally in 'lct-idle' until further
+             * manual or automatic action to cause its transition to a new state
+             */
+            __sm_ch_state(lora_wan, lct_idle);
+
+            if( lora_compliance_reset_state() )
+            {
+                /**
+                 * after processing the following request, the system will go to
+                 * the 'lct-join' state until it gets joined successfully.
+                 */
+                __log_info("-> request-join"__cyan__" auto");
+                lora_wan_process_request(__LORA_WAN_PROCESS_JOIN_REQUEST, NULL);
+            }
+            else
+            {
+                /**
+                 * The system will remain in 'lct-idle' until the user may
+                 * change the commissioning parameters and start join proc
+                 * manually.
+                 */
+                __log_info("-> request-join"__red__" manually");
+            }
+        }
+        else if( act == __LORA_COMMISSION_ABP )
+        {
+            __log_info("ABP => reset state-machine state to "
+                __green__"lct (joined)");
+            __sm_ch_state(lora_wan, lct);
+            lora_wan_duty_compliance_tx_periodicity(0);
+        }
+        else
+        {
+            __sm_ch_state(lora_wan, lct_idle);
+            __log_error("UNKNOEN activation type");
+        }
+    }
+    else if( lm_is_joined() )
     {
         __log_info("reset state-machine state to "__green__"joined");
         __sm_ch_state(lora_wan, joined);
@@ -138,6 +233,223 @@ void lora_wan_state_machine_dtor(void)
 __sm_state_enter(lora_wan, joined)(void* data)
 {
     lora_wan_duty_resume();
+}
+
+__sm_action(lora_wan, lct_joined)(void* data)
+{
+    /**
+     * after join-success, start the duty cycle handler
+     */
+    lora_wan_duty_compliance_tx_periodicity(0);
+}
+
+__sm_action(lora_wan, lct_commission)(void* data)
+{
+    /**
+     * Commissioning order:
+     * 
+     * - The Mac Layer shall be reset to purge all previous MAC session data.
+     *   The device become not joined if it is commissioned as OTAA or joined
+     *   if it is commissioned as ABP.
+     * 
+     * - In case of ABP, transit to the normal lct serving state "lct" and
+     *   activate the duty cycle handler.
+     * 
+     * - In case of OTAA, stay in "lct-idle" state until the user manually
+     *   request joining.
+     */
+
+    lmh_reset(true);
+
+    if( lm_get_active_status() == __lm_status_active_abp )
+    {
+        __sm_ch_state(lora_wan, lct);
+        lora_wan_duty_compliance_tx_periodicity(0);
+    }
+}
+
+__sm_action(lora_wan, lct_enter)(void* data)
+{
+    /**
+     * This method serves the transition action from any of the normal
+     * application mode to the compliance test serving mode.
+     * 
+     * actions taken in this transition:
+     * 
+     *      - stop the duty cycle handler of the application
+     *      - any ongoing trx will be cancelled
+     *      - lora mac layer session parameters will be purged
+     *      - configure the duty cycle handler to serve the compliance test
+     *      - configure the mac layer to serve the compliance test session
+     */
+
+    lora_wan_duty_suspend();
+    trx_cancel_ongoing_processing();
+    lmh_reset(true);
+    lora_wan_duty_compliance_switch(true);
+
+    if( ! lora_proto_compliance_set_state(true) )
+    {
+        /**
+         * IMPORTANT: after purging the Mac layer parameters, coming into this
+         *  condition is almost impossible because the Mac will not be busy at
+         *  all if it is purged and reinitialized.
+         *  the following handling was carried on if the Mac layer was not
+         *  purged.
+         * 
+         * Although this will not happen, but it will be left here for
+         * completeness.
+         * 
+         * In case the Mac layer is not purged and the compliance test state
+         * failed to be set due to the business of the Mac Layer, the following
+         * proc will be done:
+         *  - keep asserting on changing the mode to certification mode by
+         *    resending the lct-enter command again
+         *  - don't start the dury cycle handler
+         */
+        #if 0
+        lora_wan_process_request(__LORA_WAN_PROCESS_LCT_MODE_ENTER, NULL);
+        lora_stub_delay_msec(1000);
+        #endif
+        __log_error("xxxxx failed to set the compliance test state");
+    }
+    else
+    {
+        /* the compliance state is properly set, hence */
+
+        /**
+         * ensure Mac layer state saving, by triggering mac processing request
+         */
+        lora_wan_process_request(__LORA_WAN_PROCESS_PROCESS_MAC, NULL);
+
+        if( lm_get_active_status() == __lm_status_active_abp )
+        {
+            /**
+             * - if the current commissioning is ABP, the state will switch
+             *   directly to the normal compliance serving state "lct"
+             * - the duty cycle shall start as well
+             */
+            __log_info("lct ABP commissioned device");
+            lora_wan_duty_compliance_tx_periodicity(0);
+        }
+        else
+        {
+            /**
+             * - if the current commissioning is OTAA, then the joind proc shall
+             *   start by triggerring a join-req.
+             */
+            __log_info("lct OTAA commissioned device -> start joinning");
+            lora_wan_process_request(__LORA_WAN_PROCESS_JOIN_REQUEST, NULL);
+        }
+    }
+}
+
+__sm_action(lora_wan, lct_exit)(void* data)
+{
+    /**
+     * switch the duty cycle timer to operate the normal application
+     * after switch, it will be started and stopped again, hence after
+     * joining in normal mode again, it will get resumed and cause the normal
+     * mode to perform class-A cycle, so that the TCL can check if it is
+     * responsive again to TCL after closing the port 224 or not.
+     * The user after that can switch-off the duty-cycle timer manually if
+     * desired.
+     */
+    lora_wan_duty_compliance_switch(false);
+    lora_wan_duty_stop();
+
+    /**
+     * set the compliance test state to false, hence the system will get out of
+     * the LCT mode and will not respond to any TCL command anymore
+     * the system may take some time until the state is switched successfully,
+     * hence the system will stay in "lct state" until the state gets updated.
+     * 
+     * The Mac layer will not be purged here because the TCL is still need to
+     * receive from the DUT afterwards. So the assertion mechanism will be used
+     * while exiting from lct-mode until the compliance state gets updated.
+     */
+    if( !lora_proto_compliance_set_state(false) )
+    {
+        /**
+         * Sometimes, Semteck LoRa-MAC is busy and the state change is rejected,
+         * hence the system will reside in the 'lct' state until the state gets
+         * changed successfully and send the same 'lct-exit' command to  try
+         * state change again but after some delay, so that the Semteck-LoRa
+         * stack can get a chance to finish its current job and become available
+         */
+        __sm_ch_state(lora_wan, lct);
+        lora_wan_process_request(__LORA_WAN_PROCESS_LCT_MODE_EXIT, NULL);
+        lora_stub_delay_msec(1000);
+    }
+    else
+    {
+        /* The system state gets switched successfully */
+
+        /* very-IMPORTANT:: request Mac processing to ensure state saving  */
+        lora_wan_process_request(__LORA_WAN_PROCESS_PROCESS_MAC, NULL);
+
+        /**
+         * enable the rx listening, so that the system can perform a normal
+         * class-A cycle and the TCL can still test whether the system is still
+         * responsive to its testing commands or not.
+         */
+        lora_wan_enable_rx_listening();
+
+        /**
+         * put the system into correct joining state
+         */
+        bool is_lct_idle = __sm_present_state_id(lora_wan) ==
+                            __sm_state_id(lora_wan, lct_idle);
+        if( lm_get_active_status() == __lm_status_active_abp )
+        {
+            /**
+             * in ABP the system will get into join state directly
+             * and the duty cycle timer will resume from now on
+             */
+            __sm_ch_state(lora_wan, joined);
+            if(is_lct_idle)
+                lora_wan_duty_resume();
+            else
+                lora_wan_duty_start();
+        }
+        else
+        {
+            /**
+             * request joining agin, and the duty-cycle timer will resume
+             * working after join success.
+             */
+            if(!is_lct_idle)
+            {
+                lora_wan_duty_start();
+                lora_wan_duty_suspend();
+                lora_wan_process_request(__LORA_WAN_PROCESS_JOIN_REQUEST, NULL);
+            }
+        }
+    }
+}
+
+__sm_action(lora_wan, lct_join)(void* data)
+{
+    lmh_join();
+}
+
+__sm_action(lora_wan, lct_handle)(void* data)
+{
+    if( lmh_is_busy() )
+    {
+        __log_info("-- process mac");
+        lmh_process();
+    }
+    else if(lm_get_active_status() == __lm_status_active_none)
+    {
+        __log_info("-- initiate join");
+        lmh_join();
+    }
+    else
+    {
+        __log_info("-- process certification test duty cycle");
+        lora_proto_compliance_process_duty_cycle();
+    }
 }
 
 __sm_action(lora_wan, start_join)(void* data)
@@ -274,6 +586,8 @@ static input_id_t get_state_machine_input(lora_wan_process_request_t req)
         return __sm_input_id(lora_wan, commission);
     if( req == __LORA_WAN_PROCESS_JOIN_REQUEST )
         return __sm_input_id(lora_wan, join_req);
+    if( req == __LORA_WAN_PROCESS_REJOIN_REQUEST )
+        return __sm_input_id(lora_wan, rejoin_req);
     if( req == __LORA_WAN_PROCESS_JOIN_DONE )
         return __sm_input_id(lora_wan, join_done);
     if( req == __LORA_WAN_PROCESS_JOIN_FAIL )
@@ -290,6 +604,10 @@ static input_id_t get_state_machine_input(lora_wan_process_request_t req)
         return __sm_input_id(lora_wan, req_class);
     if( req == __LORA_WAN_PROCESS_CLASS_CHANGED )
         return __sm_input_id(lora_wan, class_chg);
+    if( req == __LORA_WAN_PROCESS_LCT_MODE_ENTER )
+        return __sm_input_id(lora_wan, lct_on);
+    if( req == __LORA_WAN_PROCESS_LCT_MODE_EXIT )
+        return __sm_input_id(lora_wan, lct_off);
     
     __log_error("-- unknown lora wan input for process req: %d --", req);
     return 0xFF;
@@ -461,6 +779,7 @@ static void trx_cancel_ongoing_processing(void)
         __log_info("-- cancel ongoing message processing");
         is_msg_processing = false;
         is_msg_retry = false;
+        msg_timeout_timer_stop();
         trx_post_msg_ind(__IND_TX_FAIL);
     }
 }
@@ -515,6 +834,15 @@ static void trx_retry_handler(lmh_tx_status_params_t* p_tx_info)
 
 static void lmh_cb_on_mac_tx(lmh_tx_status_params_t* p_tx_info)
 {
+    if( __sm_present_state_id(lora_wan) == __sm_state_id(lora_wan, lct) )
+    {
+        /**
+         * In lct mode no user level messages processing. The system is
+         * interacting only with the TCL/MAC commands.
+         */
+        return;
+    }
+
     msg_timeout_timer_stop();
 
     __log_info("callback() -> mac-tx-event:"__cyan__"%s"__default__,
@@ -586,6 +914,15 @@ static void lmh_cb_on_mac_tx(lmh_tx_status_params_t* p_tx_info)
 }
 static void lmh_cb_on_mac_rx(lmh_rx_status_params_t* p_rx_info)
 {
+    if( __sm_present_state_id(lora_wan) == __sm_state_id(lora_wan, lct) )
+    {
+        /**
+         * In lct mode no user level messages processing. The system is
+         * interacting only with the TCL/MAC commands.
+         */
+        return;
+    }
+
     __log_info("callback() -> mac-rx-event:"__cyan__"%s"__default__,
         lora_utils_get_mac_event_info_status_str(p_rx_info->status));
     if(p_rx_info->port)
@@ -689,6 +1026,7 @@ static const char* lora_wan_get_req_str(lora_wan_process_request_t req)
     switch(req) {
     case __LORA_WAN_PROCESS_COMMISSION:     return "commission";
     case __LORA_WAN_PROCESS_JOIN_REQUEST:   return "join-request";
+    case __LORA_WAN_PROCESS_REJOIN_REQUEST: return "re-join-request";
     case __LORA_WAN_PROCESS_JOIN_DONE:      return "join-done";
     case __LORA_WAN_PROCESS_JOIN_FAIL:      return "join-fail";
     case __LORA_WAN_PROCESS_JOIN_STATUS_REQ:return "join-status-req";
@@ -698,6 +1036,8 @@ static const char* lora_wan_get_req_str(lora_wan_process_request_t req)
     case __LORA_WAN_PROCESS_MSG_TIMEOUT:    return "msg-timeout";
     case __LORA_WAN_PROCESS_REQ_CLASS:      return "req-class";
     case __LORA_WAN_PROCESS_CLASS_CHANGED:  return "ind-class";
+    case __LORA_WAN_PROCESS_LCT_MODE_ENTER: return "lct-on";
+    case __LORA_WAN_PROCESS_LCT_MODE_EXIT:  return "lct-off";
     }
     return __red__"unknown-process-request"__default__;
 }

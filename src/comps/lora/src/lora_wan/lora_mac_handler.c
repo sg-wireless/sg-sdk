@@ -460,6 +460,11 @@ static void cb_OnMacMlmeRequest(
         lora_utils_get_mac_return_status_str(status));
     lora_utils_log_mlme_req(mlmeReq);
     __log_info("next-tx-delay: "__yellow__"%d"__default__" ms", nextTxDelay);
+
+    if(mlmeReq->Type == MLME_JOIN)
+    {
+        lora_wan_process_request(__LORA_WAN_PROCESS_REJOIN_REQUEST, NULL);
+    }
 }
 
 static void cb_OnJoinRequest( LmHandlerJoinParams_t *params )

@@ -59,7 +59,7 @@ if [[ ! -d ${__patch_dir} ]];then
     mkdir -p ${__patch_dir}
 fi
 
-__modified_files=($(find ${__modified_dir} -name ${__search_mask}))
+__modified_files=($(find ${__modified_dir} -name "${__search_mask}"))
 
 for i in ${!__modified_files[@]}; do
     __modified_file=${__modified_files[$i]}

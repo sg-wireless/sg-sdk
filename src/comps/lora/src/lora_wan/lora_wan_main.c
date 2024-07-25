@@ -49,8 +49,10 @@
 #include "lora_wan_process.h"
 #include "lora_wan_duty.h"
 #include "lora_wan_port.h"
+#include "lora_nvm.h"
 #include "lora_mode.h"
 #include "utils_bitarray.h"
+#include "lora_proto_compliance.h"
 
 /** -------------------------------------------------------------------------- *
  * applications ports alloc/free
@@ -114,6 +116,40 @@ static void port_set_common_callback(void* arg)
         }
     }
 }
+
+/** -------------------------------------------------------------------------- *
+ * LCT ( LoRa Certification Test ) mode management for end-devices that are
+ * targeted to be sent to the ATH (Authorization House).
+ * Those devices shall be in the production mode with test port opened
+ * by default and the system in the LCT mode of interaction.
+ * Once the port is closed, the system will operate in the normal application
+ * mode forever and the test port can not be opened again.
+ * --------------------------------------------------------------------------- *
+ */
+#ifdef CONFIG_LORA_LCT_INIT_DEVICE_INTO_CERTIFICATION_MODE_ONCE
+static struct {
+    bool lct_state;
+    lora_nvm_record_tail_t record_tail; // -- needed by the lora_nvm.h
+} s_lct_ath_settings;
+
+static const char* s_lct_ath_nvm_key = "lct-ath";
+
+static void lct_ath_nvm_load_defaults_callback(void* ptr, uint32_t size)
+{
+    (void) ptr; (void) size;
+    s_lct_ath_settings.lct_state = true;
+}
+static void lct_ath_nvm_handle_nvm(void)
+{
+    lora_nvm_handle_change(
+        s_lct_ath_nvm_key,
+        &s_lct_ath_settings,
+        sizeof(s_lct_ath_settings),
+        lct_ath_nvm_load_defaults_callback
+        );
+}
+#endif /* CONFIG_LORA_LCT_INIT_DEVICE_INTO_CERTIFICATION_MODE_ONCE */
+
 /** -------------------------------------------------------------------------- *
  * LoRa APIs Definition
  * --------------------------------------------------------------------------- *
@@ -130,8 +166,61 @@ static lora_error_t lora_wan_ctor(void)
     extern void lmh_init(void);
     lmh_init();
 
-    lora_wan_process_ctor();
+    #ifdef CONFIG_LORA_LCT_MODE
+
+    #ifdef CONFIG_LORA_LCT_INIT_DEVICE_INTO_CERTIFICATION_MODE_ONCE
+
+    /**
+     * By calling the ath_nvm handler, the ath:lct-state will become true for
+     * the first time only. and the LoRaMAC compliance state will be activated
+     * and the system will become ready for LCT testing.
+     * The ath:lct-state will be stored as false directly after setting the
+     * LCT testing mode. hence after exiting from the LCT testing mode by the
+     * TCL itself, the system will not come back to this mode again.
+     * 
+     * Note, if the NVM flash is erased, the system will enter it again.
+     */
+    lct_ath_nvm_handle_nvm();
+    if( s_lct_ath_settings.lct_state )
+    {
+        /**
+         * init the certification mode only once for the ATH.
+         */
+        __log_info("open the certification mode for the device");
+        lora_proto_compliance_set_state(true);
+        s_lct_ath_settings.lct_state = false;
+        lct_ath_nvm_handle_nvm();
+    } else {
+        /**
+         * nothing to do, if the certification mode state should remain the
+         * same until the TCL (Test Control Layer) orders to close it, then
+         * it will not be opened again for this device.
+         */
+    }
+
+    #else /* CONFIG_LORA_LCT_INIT_DEVICE_INTO_CERTIFICATION_MODE_ONCE */
+
+        /**
+         * The certification mode enable/disable will be done using the control
+         * APIs.
+         * The state here after initialization will be kept as in the previous
+         * working state before device reset or stack re-initialization.
+         */
+
+    #endif /* CONFIG_LORA_LCT_INIT_DEVICE_INTO_CERTIFICATION_MODE_ONCE */
+
+    #else /* CONFIG_LORA_LCT_MODE */
+
+    /*
+     * default certification mode for mass production devices are disables
+     */
+    __log_info("close certification mode for ever");
+    lora_proto_compliance_set_state(false);
+
+    #endif /* CONFIG_LORA_LCT_MODE */
+
     lora_wan_duty_ctor();
+    lora_wan_process_ctor();
 
     return ret;
 }
@@ -376,7 +465,6 @@ static lora_error_t lora_wan_ioctl(uint32_t ioctl, void* arg)
             __log_error("unknown lorawan parameter : %d", p_param->type);
         }
     }
-
     else if( ioctl == __LORA_IOCTL_SET_PARAM )
     {
         __log_info("ioctl -> set lorawan param");
@@ -395,6 +483,26 @@ static lora_error_t lora_wan_ioctl(uint32_t ioctl, void* arg)
             __log_error("unknown lorawan parameter : %d", p_param->type);
         }
     }
+    #ifdef CONFIG_LORA_LCT_CONTROL_API
+    else if( ioctl == __LORA_IOCTL_LCT_MODE_GET )
+    {
+        __log_info("ioctl -> get lorawan lct mode");
+        bool * p_lct_state = (bool*)arg;
+        *p_lct_state = lora_proto_compliance_get_state();
+    }
+    else if( ioctl == __LORA_IOCTL_LCT_MODE_SET )
+    {
+        bool lct_state = *(bool*)arg;
+        bool curr_state = lora_proto_compliance_get_state();
+        __log_info("ioctl -> lorawan lct mode %s ( %s )",
+                lct_state != curr_state ? "changes to" : "no change",
+                g_on_off[ lct_state == true]);
+        lora_wan_process_request(lct_state
+            ? __LORA_WAN_PROCESS_LCT_MODE_ENTER
+            : __LORA_WAN_PROCESS_LCT_MODE_EXIT,
+            NULL);
+    }
+    #endif /* CONFIG_LORA_LCT_CONTROL_API */
     else
     {
         __log_info("ioctl -> "__red__"unknown lora wan ioctl"__default__);

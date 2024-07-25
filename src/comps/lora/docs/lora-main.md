@@ -37,6 +37,7 @@
 * [LoRa Events and Callback](#lora-callback)
 * [LoRa RAW APIs](#lora-raw)
 * [LoRa WAN APIs](#lora-wan)
+* [LoRa Certification Mode](#cert-mode)
 
 <!------------------------------------------------------------------------------
  ! Initialization
@@ -112,5 +113,14 @@ Lora RAW mode API documentation can be found [here](lora-raw.md)
 ### LoRa WAN APIs
 
 Lora RAW mode API documentation can be found [here](lora-wan.md)
+
+<!------------------------------------------------------------------------------
+ ! LoRa Certification Mode
+ !----------------------------------------------------------------------------->
+<div id="cert-mode"></div>
+
+### LoRa Certification Mode
+
+LoRa Certification Mode documentation can be found [here](lora-lctt.md)
 
 <!--- end of file ------------------------------------------------------------->

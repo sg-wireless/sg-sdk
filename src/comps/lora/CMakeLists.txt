@@ -129,6 +129,10 @@ __sdk_add_component( lora_stack
         state_machine_lib
         log_lib
         lora_if
+
+        MENU_CONFIG     ${CMAKE_CURRENT_LIST_DIR}/cfg/lora.config
+        MENU_PROMPT     "LoRa Stack Configurations"
+        MENU_GROUP      MAIN.SDK.NETWORK
 )
 
 # --- end of file ------------------------------------------------------------ #

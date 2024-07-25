@@ -1045,4 +1045,40 @@ __mp_mod_fun_0(lora, dr_stats)(void)
     return mp_const_none;
 }
 
+__mp_mod_fun_ifdef(lora, certification_mode, CONFIG_LORA_LCT_CONTROL_API)
+__mp_mod_fun_var_between(lora, certification_mode, 0, 1)(
+    size_t __arg_n, const mp_obj_t * __arg_v)
+{
+    lora_mode_t mode;
+    lora_get_mode(&mode);
+    if( mode != __LORA_MODE_WAN )
+    {
+        __log_output("This command is available only for lora-wan mode");
+        return mp_const_none;
+    }
+
+    bool lct_state = false;
+    if(__arg_n == 0)
+    {
+        lora_ioctl(__LORA_IOCTL_LCT_MODE_GET, &lct_state);
+
+        __log_output("LCT mode is %s\n", g_on_off[lct_state == true]);
+        return lct_state ? mp_const_true : mp_const_false;
+    }
+    else
+    {
+        if( ! mp_obj_is_bool(__arg_v[0]) )
+        {
+            mp_raise_msg(&mp_type_OSError,
+                MP_ERROR_TEXT("passing non bool object"));
+        }
+        else
+        {
+            lct_state = __arg_v[0] == mp_const_true;
+            lora_ioctl(__LORA_IOCTL_LCT_MODE_SET, &lct_state);
+        }
+    }
+    return mp_const_none;
+}
+
 /* --- end of file ---------------------------------------------------------- */

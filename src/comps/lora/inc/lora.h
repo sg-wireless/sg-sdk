@@ -51,7 +51,9 @@ typedef enum {
     __LORA_ERROR,               /**< API operation failed */
     __LORA_TIMEOUT,             /**< API operation timed-out */
     __LORA_TX_NOT_CONFIRMED,    /**< TX confirmation not received */
-    __LORA_POWERED_OFF
+    __LORA_POWERED_OFF,
+    __LORA_LCT_MODE_ENABLED,    /**< when un-accepted command during LCT mode
+                                 *   is received */
 } lora_error_t;
 
 /**
@@ -130,10 +132,12 @@ typedef enum {
     __LORA_IOCTL_ENABLE_RX_LISTENING,/**< to enable listening to the network for
                 downlink frames by sending empty message to trigger class-A
                 cycle to be able to fetch queued message at the network side */
-    __LORA_IOCTL_DISABLE_RX_LISTENING /**< to disable listening to the network
+    __LORA_IOCTL_DISABLE_RX_LISTENING, /**< to disable listening to the network
                 and the network queued messages will not be received until a
                 real tx message is placed. by default the lora stack is not
                 in listening mode */
+    __LORA_IOCTL_LCT_MODE_SET,  /**< to set the LCT mode on/off */
+    __LORA_IOCTL_LCT_MODE_GET,  /**< to get the LCT mode status */
 } lora_ioctl_t;
 
 /**

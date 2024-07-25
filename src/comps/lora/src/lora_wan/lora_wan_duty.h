@@ -52,9 +52,13 @@ void lora_wan_duty_start(void);
 
 void lora_wan_duty_stop(void);
 
+void lora_wan_duty_suspend(void);
+
 void lora_wan_duty_resume(void);
 
-void lora_wan_duty_conformance_tx_periodicity(uint32_t periodicity);
+void lora_wan_duty_compliance_switch(bool is_on);
+
+void lora_wan_duty_compliance_tx_periodicity(uint32_t periodicity);
 
 /* --- end of file ---------------------------------------------------------- */
 #ifdef __cplusplus

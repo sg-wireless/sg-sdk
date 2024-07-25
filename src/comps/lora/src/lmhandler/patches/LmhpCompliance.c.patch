@@ -1,5 +1,5 @@
---- ../../../../../ext/LoRaMac-node/src/apps/LoRaMac/common/LmHandler/packages/LmhpCompliance.c	2023-09-20 15:47:11
-+++ ./modified_sources/LmhpCompliance.c	2023-09-20 16:52:27
+--- ../../../../../ext/LoRaMac-node/src/apps/LoRaMac/common/LmHandler/packages/LmhpCompliance.c	2024-04-04 13:28:15
++++ ./modified_sources/LmhpCompliance.c	2024-07-23 10:07:57
 @@ -27,6 +27,9 @@
  #include "LmHandler.h"
  #include "LmhpCompliance.h"
@@ -26,15 +26,253 @@
      if( ComplianceTestState.IsTxPending == true )
      {
          TimerTime_t now = TimerGetCurrentTime( );
-@@ -300,6 +305,7 @@
+@@ -287,6 +292,8 @@
+         ComplianceTestState.IsResetCmdPending = false;
+ 
+         // Call platform MCU reset API
++        void lora_compliance_reset_dut(void);
++        lora_compliance_reset_dut();
+         BoardResetMcu( );
+     }
+ }
+@@ -294,10 +301,13 @@
+ static void LmhpComplianceOnMcpsIndication( McpsIndication_t* mcpsIndication )
+ {
+     uint8_t cmdIndex        = 0;
+-    MibRequestConfirm_t mibReq;
++    // MibRequestConfirm_t mibReq;
+ 
++    __log_info(__yellow__ "MCPS indication compliance");
++
+     if( ComplianceTestState.Initialized == false )
      {
++        __log_info(__red__ "-- (A) not init");
          return;
      }
-+    __log_info(__yellow__ "MCPS indication compliance");
  
-     // Increment the compliance certification protocol downlink counter
-     // Not counting downlinks on FPort 0
-@@ -526,6 +532,7 @@
+@@ -310,11 +320,13 @@
+ 
+     if( mcpsIndication->RxData == false )
+     {
++        __log_info(__red__ "-- (B) no-rx-data");
+         return;
+     }
+ 
+     if( mcpsIndication->Port != COMPLIANCE_PORT )
+     {
++        __log_info(__red__ "-- (C) wrong port");
+         return;
+     }
+ 
+@@ -324,23 +336,31 @@
+     {
+     case COMPLIANCE_PKG_VERSION_REQ:
+     {
++        __log_info(__green__" -> PackageVersionReq()");
+         ComplianceTestState.DataBuffer[ComplianceTestState.DataBufferSize++] = COMPLIANCE_PKG_VERSION_ANS;
+         ComplianceTestState.DataBuffer[ComplianceTestState.DataBufferSize++] = COMPLIANCE_ID;
+         ComplianceTestState.DataBuffer[ComplianceTestState.DataBufferSize++] = COMPLIANCE_VERSION;
++        __log_info(__cyan__" <- PackageVersionAns( "__yellow__"Identifier:%d , Version:%d"__cyan__" )",
++            COMPLIANCE_ID, COMPLIANCE_VERSION);
+         break;
+     }
+     case COMPLIANCE_DUT_RESET_REQ:
+     {
++        __log_info(__green__" -> DutResetReq()");
+         ComplianceTestState.IsResetCmdPending = true;
+         break;
+     }
+     case COMPLIANCE_DUT_JOIN_REQ:
+     {
++        __log_info(__green__" -> DutJoinReq()");
+         CompliancePackage.OnJoinRequest( true );
+         break;
+     }
+     case COMPLIANCE_SWITCH_CLASS_REQ:
+     {
++        int class = mcpsIndication->Buffer[cmdIndex];
++        __log_info(__green__" -> SwitchClassReq( "__yellow__"Class: %d "__purple__"%c"__green__" )",
++            class, class == 0 ? 'A' : class == 1 ? 'B' : class == 2 ? 'C' : 'X');
+         // CLASS_A = 0, CLASS_B = 1, CLASS_C = 2
+         ComplianceTestState.NewClass = ( DeviceClass_t ) mcpsIndication->Buffer[cmdIndex++];
+         ComplianceTestState.IsClassReqCmdPending = true;
+@@ -352,11 +372,16 @@
+         mibReq.Type            = MIB_ADR;
+         mibReq.Param.AdrEnable = mcpsIndication->Buffer[cmdIndex++];
+ 
++        __log_info(__green__" -> AdrBitChangeReq( "__yellow__"ADR: %d -- %s"__green__" )",
++            mibReq.Param.AdrEnable, g_yes_no[mibReq.Param.AdrEnable != 0]);
++
+         LoRaMacMibSetRequestConfirm( &mibReq );
+         break;
+     }
+     case COMPLIANCE_REGIONAL_DUTY_CYCLE_CTRL_REQ:
+     {
++        __log_info(__green__" -> RegionalDutyCycleCtrlReq( "__yellow__"DutyCycle: %d -- %s"__green__" )",
++            mcpsIndication->Buffer[cmdIndex], g_yes_no[mcpsIndication->Buffer[cmdIndex] != 0]);
+         LoRaMacTestSetDutyCycleOn( mcpsIndication->Buffer[cmdIndex++] );
+         break;
+     }
+@@ -366,6 +391,9 @@
+         uint32_t periodicity[] = { 0, 5000, 10000, 20000, 30000, 40000, 50000, 60000, 120000, 240000, 480000 };
+         uint8_t  index         = mcpsIndication->Buffer[cmdIndex++];
+ 
++        __log_info(__green__" -> TxPeriodicityChangeReq( "__yellow__"Periodicity: %d -- %d sec"__green__" )",
++            index, index < 11 ? periodicity[index]/1000 : 0);
++
+         if( index < ( sizeof( periodicity ) / sizeof( uint32_t ) ) )
+         {
+             if( ComplianceParams->OnTxPeriodicityChanged != NULL )
+@@ -378,6 +406,8 @@
+     case COMPLIANCE_TX_FRAMES_CTRL_REQ:
+     {
+         uint8_t frameType = mcpsIndication->Buffer[cmdIndex++];
++        __log_info(__green__" -> TxFramesCtrlReq( "__yellow__"FrameType: %d -- %s"__green__" )",
++            frameType, frameType == 0 ? "no-change" : frameType == 1 ? "unconfirmed" : frameType == 2 ? "confirmed" : "unknown");
+ 
+         if( ( frameType == 1 ) || ( frameType == 2 ) )
+         {
+@@ -391,22 +421,35 @@
+     {
+         ComplianceTestState.DataBuffer[ComplianceTestState.DataBufferSize++] = COMPLIANCE_ECHO_PAYLOAD_ANS;
+ 
++        __log_printf(__green__" -> EchoPayloadReq( "__yellow__"Payload: ");
++        __log_printf_hex_lower(&mcpsIndication->Buffer[cmdIndex], mcpsIndication->BufferSize - 1);
++        __log_printf(__green__")\n");
++
++        uint8_t* ans_buf = &ComplianceTestState.DataBuffer[ComplianceTestState.DataBufferSize];
++        int ans_len = MIN( mcpsIndication->BufferSize, ComplianceTestState.DataBufferMaxSize ) - 1;
++
+         for( uint8_t i = 1; i < MIN( mcpsIndication->BufferSize, ComplianceTestState.DataBufferMaxSize );
+              i++ )
+         {
+             ComplianceTestState.DataBuffer[ComplianceTestState.DataBufferSize++] = mcpsIndication->Buffer[cmdIndex++] + 1;
+         }
++        __log_printf(__cyan__" <- EchoPayloadAns( "__yellow__"Payload: ");
++        __log_printf_hex_lower(ans_buf, ans_len);
++        __log_printf(__cyan__")\n");
+         break;
+     }
+     case COMPLIANCE_RX_APP_CNT_REQ:
+     {
++        __log_info(__green__" -> RxAppCntReq()");
+         ComplianceTestState.DataBuffer[ComplianceTestState.DataBufferSize++] = COMPLIANCE_RX_APP_CNT_ANS;
+         ComplianceTestState.DataBuffer[ComplianceTestState.DataBufferSize++] = ComplianceTestState.RxAppCnt;
+         ComplianceTestState.DataBuffer[ComplianceTestState.DataBufferSize++] = ComplianceTestState.RxAppCnt >> 8;
++        __log_info(__cyan__" <- RxAppCntAns( "__yellow__"RxAppCnt: %d "__green__")", ComplianceTestState.RxAppCnt);
+         break;
+     }
+     case COMPLIANCE_RX_APP_CNT_RESET_REQ:
+     {
++        __log_info(__green__" -> RxAppCntRstReq()");
+         ComplianceTestState.RxAppCnt = 0;
+         break;
+     }
+@@ -415,6 +458,8 @@
+         MlmeReq_t mlmeReq;
+         mlmeReq.Type = MLME_LINK_CHECK;
+ 
++        __log_info(__green__" -> LinkCheckReq()");
++
+         LoRaMacStatus_t status = LoRaMacMlmeRequest( &mlmeReq );
+         if( CompliancePackage.OnMacMlmeRequest != NULL )
+         {
+@@ -424,22 +469,26 @@
+     }
+     case COMPLIANCE_DEVICE_TIME_REQ:
+     {
++        __log_info(__green__" -> DeviceTimeReq()");
+         CompliancePackage.OnDeviceTimeRequest( );
+         break;
+     }
+     case COMPLIANCE_PING_SLOT_INFO_REQ:
+     {
++        __log_info(__green__" -> PingSlotInfoReq( "__yellow__"Periodicity: %d "__green__")", mcpsIndication->Buffer[cmdIndex]);
+         ComplianceTestState.ClassBStatus.PingSlotPeriodicity = mcpsIndication->Buffer[cmdIndex++];
+         ComplianceParams->OnPingSlotPeriodicityChanged( ComplianceTestState.ClassBStatus.PingSlotPeriodicity );
+         break;
+     }
+     case COMPLIANCE_BEACON_RX_STATUS_IND_CTRL:
+     {
++        __log_info(__green__" -> BeaconRxStatusIndCtrl( "__yellow__"CTRL: %d "__green__")", mcpsIndication->Buffer[cmdIndex]);
+         ComplianceTestState.IsBeaconRxStatusIndOn = ( bool ) mcpsIndication->Buffer[cmdIndex++];
+         break;
+     }
+     case COMPLIANCE_BEACON_CNT_REQ:
+     {
++        __log_info(__green__" -> BeaconCntReq()");
+         ComplianceTestState.DataBuffer[ComplianceTestState.DataBufferSize++] = COMPLIANCE_BEACON_CNT_ANS;
+         ComplianceTestState.DataBuffer[ComplianceTestState.DataBufferSize++] = ComplianceTestState.ClassBStatus.BeaconCnt;
+         ComplianceTestState.DataBuffer[ComplianceTestState.DataBufferSize++] = ComplianceTestState.ClassBStatus.BeaconCnt >> 8;
+@@ -447,6 +496,7 @@
+     }
+     case COMPLIANCE_BEACON_CNT_RESET_REQ:
+     {
++        __log_info(__green__" -> BeaconCntRstReq()");
+         ComplianceTestState.ClassBStatus.BeaconCnt = 0;
+         break;
+     }
+@@ -466,6 +516,8 @@
+             cmdIndex += 3;
+             mlmeReq.Req.TxCw.Power = mcpsIndication->Buffer[cmdIndex++];
+ 
++            __log_info(__green__" -> TxCwReq( "__yellow__"Timeout: %d, Frequency: %d, TxPower:%d "__green__")",
++                mlmeReq.Req.TxCw.Timeout, mlmeReq.Req.TxCw.Frequency, mlmeReq.Req.TxCw.Power);
+             CompliancePackage.OnMacMlmeRequest( LoRaMacMlmeRequest( &mlmeReq ), &mlmeReq,
+                                                 mlmeReq.ReqReturn.DutyCycleWaitTime );
+         }
+@@ -473,11 +525,15 @@
+     }
+     case COMPLIANCE_DUT_FPORT_224_DISABLE_REQ:
+     {
+-        mibReq.Type = MIB_IS_CERT_FPORT_ON;
+-        mibReq.Param.IsCertPortOn = false;
+-        LoRaMacMibSetRequestConfirm( &mibReq );
++        __log_info(__green__" -> DutFPort224DisableReq()");
++        // mibReq.Type = MIB_IS_CERT_FPORT_ON;
++        // mibReq.Param.IsCertPortOn = false;
++        // LoRaMacMibSetRequestConfirm( &mibReq );
+ 
+-        ComplianceTestState.IsResetCmdPending = true;
++        // ComplianceTestState.IsResetCmdPending = true;
++
++        void lora_proto_compliance_notify_fport_224_disable(void);
++        lora_proto_compliance_notify_fport_224_disable();
+         break;
+     }
+     case COMPLIANCE_DUT_VERSION_REQ:
+@@ -486,6 +542,8 @@
+         Version_t           lrwanRpVersion;
+         MibRequestConfirm_t mibReq;
+ 
++        __log_info(__green__" -> DutVersionsReq()");
++
+         mibReq.Type = MIB_LORAWAN_VERSION;
+ 
+         LoRaMacMibGetRequestConfirm( &mibReq );
+@@ -505,6 +563,21 @@
+         ComplianceTestState.DataBuffer[ComplianceTestState.DataBufferSize++] = lrwanRpVersion.Fields.Minor;
+         ComplianceTestState.DataBuffer[ComplianceTestState.DataBufferSize++] = lrwanRpVersion.Fields.Patch;
+         ComplianceTestState.DataBuffer[ComplianceTestState.DataBufferSize++] = lrwanRpVersion.Fields.Revision;
++        __log_info(__cyan__" <- DutVersionsAns( "__yellow__"FwVersion:%d.%d.%d.%d, LrwanVersion:%d.%d.%d.%d, "
++            "LrwanRpVersion:%d.%d.%d.%d"__green__" )",
++            ComplianceParams->FwVersion.Fields.Major,
++            ComplianceParams->FwVersion.Fields.Minor,
++            ComplianceParams->FwVersion.Fields.Patch,
++            ComplianceParams->FwVersion.Fields.Revision,
++            lrwanVersion.Fields.Major,
++            lrwanVersion.Fields.Minor,
++            lrwanVersion.Fields.Patch,
++            lrwanVersion.Fields.Revision,
++            lrwanRpVersion.Fields.Major,
++            lrwanRpVersion.Fields.Minor,
++            lrwanRpVersion.Fields.Patch,
++            lrwanRpVersion.Fields.Revision
++            );
+         break;
+     }
+     default:
+@@ -526,6 +599,7 @@
  
  static void LmhpComplianceOnMlmeConfirm( MlmeConfirm_t *mlmeConfirm )
  {
@@ -42,7 +280,7 @@
      switch( mlmeConfirm->MlmeRequest )
      {
      case MLME_BEACON_ACQUISITION:
-@@ -552,6 +559,7 @@
+@@ -552,6 +626,7 @@
      {
          return;
      }
