@@ -191,7 +191,7 @@ static int sx1262_spi_trx( sx126x_spi_trx_t* p_trx )
     uint8_t *tx_buf = p_trx->tx_buffer;
     uint8_t *rx_buf = p_trx->rx_buffer;
 
-    __log_assert( (tx_buf == NULL) ^ (rx_buf == NULL),
+    __log_assert( !(tx_buf && rx_buf),
         "sx1262 spi transaction should be half duplex");
 
     __log_printf("spi trx "
