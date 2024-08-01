@@ -102,6 +102,47 @@ def process_config_generation(ctx: BuilderContext) -> tuple:
     
     pass
 
+# ---------------------------------------------------------------------------- #
+# specific tools patching
+# ---------------------------------------------------------------------------- #
+def process_esptool_patching(ctx: BuilderContext):
+
+    # There is a problem for flashing from macOS and it has been resolved on
+    # this specific commit '7e207d821919982df1ac1a1a5cf9f6e701f36ea1':
+    #  https://github.com/espressif/esptool/pull/718/commits
+
+    log('-- patching esptool.py')
+
+    espidf_path = ctx.tree.get_submodule_path('esp-idf')
+    tgt_submodule = f'{espidf_path}/components/esptool_py/esptool'
+    tgt_file = f'{tgt_submodule}/esptool.py'
+    patch_file = ctx.tree.get_platform_dir(
+        ctx.tree.get_platform_name(ctx.cli.get_board())
+        ) + '/esp-idf-patches/esptool/esptool.py.patch'
+
+    try:
+        cmd = f'cd {espidf_path} &&' + \
+              f' git submodule update {tgt_submodule} && cd -'
+        subprocess.run(cmd, shell=True, check=True)
+    except Exception as e:
+        log(f'failed to init submodule -> {e}', RED)
+        exit(1)
+
+    try:
+        cmd = f'patch --ignore-whitespace {tgt_file}' + \
+            f' -R -p0 -s -f --dry-run < {patch_file}'
+        subprocess.run(cmd, shell=True, check=True)
+        log('-- patching esptool.py maybe done already', CYAN)
+    except:
+        subprocess.run(f'patch {tgt_file} -p0 < {patch_file}',
+                        shell=True, check=True)
+        log('-- patching esptool.py passed!', GREEN)
+
+    pass
+
+# ---------------------------------------------------------------------------- #
+# target command processing
+# ---------------------------------------------------------------------------- #
 def process_command(ctx: BuilderContext):
     command = ctx.cli.get_build_command()
     board = ctx.cli.get_board()
@@ -263,6 +304,9 @@ def process_command(ctx: BuilderContext):
 # ---------------------------------------------------------------------------- #
 def run(ctx: BuilderContext) -> None:
     log('-- F1 platform build handler started!')
+
+    process_esptool_patching(ctx)
+
     process_config_generation(ctx)
 
     process_command(ctx)
