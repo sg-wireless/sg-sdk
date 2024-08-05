@@ -26,6 +26,7 @@
 # ---------------------------------------------------------------------------- #
 
 import sys
+import os
 import subprocess
 from pylog import *
 from builder import BuilderContext
@@ -132,12 +133,34 @@ def process_esptool_patching(ctx: BuilderContext):
         cmd = f'patch --ignore-whitespace {tgt_file}' + \
             f' -R -p0 -s -f --dry-run < {patch_file}'
         subprocess.run(cmd, shell=True, check=True)
-        log('-- patching esptool.py maybe done already', CYAN)
+        log('-- patching esptool.py maybe already done', CYAN)
     except:
         subprocess.run(f'patch {tgt_file} -p0 < {patch_file}',
                         shell=True, check=True)
         log('-- patching esptool.py passed!', GREEN)
 
+    pass
+
+def process_esptool_reverse_patching(ctx: BuilderContext):
+    log('-- reverse patching esptool.py')
+
+    espidf_path = ctx.tree.get_submodule_path('esp-idf')
+    tgt_submodule = f'{espidf_path}/components/esptool_py/esptool'
+    tgt_file = f'{tgt_submodule}/esptool.py'
+    patch_file = ctx.tree.get_platform_dir(
+        ctx.tree.get_platform_name(ctx.cli.get_board())
+        ) + '/esp-idf-patches/esptool/esptool.py.patch'
+
+    if os.path.isfile(tgt_file):
+        try:
+            cmd = f'patch --ignore-whitespace {tgt_file}' + \
+                f' -R -p0 -s -f --dry-run < {patch_file}'
+            subprocess.run(cmd, shell=True, check=True)
+            log('-- reverse patching esptool.py', CYAN)
+            subprocess.run(f'patch {tgt_file} -R -p0 -s -f < {patch_file}',
+                            shell=True, check=True)
+        except:
+            log('-- reverse patching esptool.py maybe already done!', RED)
     pass
 
 # ---------------------------------------------------------------------------- #
@@ -255,6 +278,7 @@ def process_command(ctx: BuilderContext):
             f'idf.py -C {platform_dir} -B {build_dir} {opts} menuconfig'
         ])
     elif command == 'erase':
+        process_esptool_patching(ctx)
         for p in ports:
             cmd_seq.extend([f'esptool.py -p {p} erase_flash'])
     elif command == 'clean':
@@ -269,10 +293,15 @@ def process_command(ctx: BuilderContext):
             counter += 1
             subprocess.run(cmd, shell=True, check=True)
     except:
+        if command == 'erase':
+            process_esptool_reverse_patching(ctx)
         log(command + ' failed!', RED)
         exit(1)
 
     if command == 'flash':
+
+        process_esptool_patching(ctx)
+
         flash_cmd_args = '-b 460800 --before=default_reset ' + \
             '--after=hard_reset write_flash'
         with open(f'{build_dir}/flash_args', 'r') as f:
@@ -296,7 +325,12 @@ def process_command(ctx: BuilderContext):
                 subprocess.run(cmd, shell=True, check=True)
         except:
             log(command + ' failed!', RED)
+            process_esptool_reverse_patching(ctx)
             exit(1)
+
+    if command in ['erase', 'flash']:
+        process_esptool_reverse_patching(ctx)
+
     pass
 
 # ---------------------------------------------------------------------------- #
@@ -304,8 +338,6 @@ def process_command(ctx: BuilderContext):
 # ---------------------------------------------------------------------------- #
 def run(ctx: BuilderContext) -> None:
     log('-- F1 platform build handler started!')
-
-    process_esptool_patching(ctx)
 
     process_config_generation(ctx)
 
