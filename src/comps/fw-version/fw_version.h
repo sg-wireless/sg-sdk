@@ -49,9 +49,9 @@ extern "C" {
 #endif
 
 // major: for Incompatible Changes - New features
-#define FW_RELEASE_VERSION_MAJOR            0
+#define FW_RELEASE_VERSION_MAJOR            1
 // minor: for Backward compatible new feature
-#define FW_RELEASE_VERSION_MINOR            5
+#define FW_RELEASE_VERSION_MINOR            0
 // patch: Backward compatible bug fix
 #define FW_RELEASE_VERSION_PATCH            0
 

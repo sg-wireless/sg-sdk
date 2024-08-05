@@ -37,16 +37,45 @@ and this project adheres to
 
 
 <!------------------------------------------------------------------------------
- ! Unreleased
+ ! v1.0.0
  !----------------------------------------------------------------------------->
-## [Unreleased]
+## [1.0.0] - 2024-08-05
 ### Added
+- SG Wireless Control Platform Client Feature supported:
+  - FUOTA Feature support
+  - OTA Network Pereferneces Support
 
-### Changes
+### Changes and Fixes
+
+- WiFi Speed Enhancement
+  - Tuning the WiFi Driver and Memory configuration to improve the Wifi
+    performance and speed.
+
+- Micropython
+  - Fix the micropython virtual timers byt redirecting it to the RTOS timers.
+
+- Fuel-Guage
+  - Support of battery parmeters (designCapacity, minSysVoltage, taperCurrent)
+    in the API.
+
 - LoRa Changes and Fixes
+  - LoRa-WAN LCTT mode support
   - Support RSSI and SNR info feeds with RX event data
   - Fixed LoRa-WAN payload size pre-check
   - Fixed the sync-obj racing between wait and signal requests
+
+- LTE Changes and Fixes
+  - Use time instead of utime as umodules will be deprecated in future uPython
+  - Fix hang issue when switching PPP from active(False) to active(True)
+  - Fix inconsistent use of ppp variables
+  - Remove ATO command during connect as investigation of its use is ongoing
+  - Add IMEI and ICCID functions for convenience
+  - update LTE API documentation.
+  - other LTE.py fixes.
+
+- Tools
+  - Fix flashing over USB-C from MacOS by inhertiting the ESP Fix from this PR:
+    espressif/esptool/pull/718
 
 <!------------------------------------------------------------------------------
  ! v0.5.0
