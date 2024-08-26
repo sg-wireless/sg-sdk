@@ -35,6 +35,7 @@
  * module function
  * --------------------------------------------------------------------------- *
  */
+__mp_mod_include(efuse_if, "efuse_if.h")
 __mp_mod_init(efuse_if)(void)
 {
     efuse_if_init();
@@ -48,12 +49,72 @@ __mp_mod_fun_0(efuse_if, layout_version)(void)
     return mp_obj_new_bytearray(sizeof(ver), &ver);
 }
 
+#ifdef __feature_lora
+__mp_mod_fun_ifdef(efuse_if, lora_mac, __feature_lora)
 __mp_mod_fun_0(efuse_if, lora_mac)(void)
 {
     efuse_lora_mac_t lora_mac;
     efuse_if_read_lora_mac(&lora_mac);
     return mp_obj_new_bytearray(sizeof(lora_mac), &lora_mac);
 }
+#endif /* __feature_lora */
+
+#ifdef __efuse_lora_keys_enable
+__mp_mod_fun_ifdef(efuse_if, lora_app_key, __efuse_lora_keys_enable)
+__mp_mod_fun_0(efuse_if, lora_app_key)(void)
+{
+    efuse_lora_app_key_t lora_app_key;
+    efuse_if_read_lora_app_key(&lora_app_key);
+    return mp_obj_new_bytearray(sizeof(lora_app_key), &lora_app_key);
+}
+
+__mp_mod_fun_ifdef(efuse_if, lora_nwk_key, __efuse_lora_keys_enable)
+__mp_mod_fun_0(efuse_if, lora_nwk_key)(void)
+{
+    efuse_lora_nwk_key_t lora_nwk_key;
+    efuse_if_read_lora_nwk_key(&lora_nwk_key);
+    return mp_obj_new_bytearray(sizeof(lora_nwk_key), &lora_nwk_key);
+}
+
+#ifdef CONFIG_EFUSE_VIRTUAL
+__mp_mod_fun_ifdef(efuse_if, write_test_lora_keys, CONFIG_EFUSE_VIRTUAL)
+__mp_mod_fun_kw(efuse_if, write_test_lora_keys, 0)(
+    size_t n_args, const mp_obj_t *pos_args, mp_map_t* kw_args)
+{
+    static const mp_arg_t allowed_args[] = {
+        #define __init_allowed_obj_kw(kw) \
+            { MP_QSTR_##kw, MP_ARG_KW_ONLY|MP_ARG_OBJ, {.u_obj = mp_const_none}}
+        __init_allowed_obj_kw(AppKey),
+        __init_allowed_obj_kw(NwkKey),
+    };
+
+    mp_arg_val_t args[MP_ARRAY_SIZE(allowed_args)];
+    mp_arg_parse_all(n_args, pos_args, kw_args,
+                    MP_ARRAY_SIZE(allowed_args), allowed_args, args);
+    #define __arg_app_key_obj           args[0].u_obj
+    #define __arg_nwk_key_obj           args[1].u_obj
+
+
+
+    mp_buffer_info_t app_key;
+    mp_buffer_info_t nwk_key;
+    mp_get_buffer_raise(__arg_app_key_obj, &app_key, MP_BUFFER_READ);
+    mp_get_buffer_raise(__arg_nwk_key_obj, &nwk_key, MP_BUFFER_READ);
+
+    if(app_key.len != __efuse_lora_app_key_size ||
+        nwk_key.len != __efuse_lora_nwk_key_size)
+    {
+        __log_output("error: passing wrong key length\n");
+        return mp_const_none;
+    }
+
+    efuse_if_write_test_lora_keys(app_key.buf, nwk_key.buf);
+
+    return mp_const_none;
+}
+#endif /* CONFIG_EFUSE_VIRTUAL */
+
+#endif /* __efuse_lora_keys_enable */
 
 __mp_mod_fun_0(efuse_if, serial_number)(void)
 {

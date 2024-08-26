@@ -35,17 +35,35 @@ extern "C" {
 #include <stdbool.h>
 
 /** -------------------------------------------------------------------------- *
+ * configs
+ * --------------------------------------------------------------------------- *
+ */
+#ifdef __feature_lora
+    #if defined(CONFIG_SDK_BOARD_LORA_WAN_KEYS_ON_EFUSES)
+        #define __efuse_lora_keys_enable
+    #endif
+#endif
+
+/** -------------------------------------------------------------------------- *
  * typedes
  * --------------------------------------------------------------------------- *
  */
 #define __efuse_lora_mac_size           8
+#define __efuse_lora_app_key_size      16
+#define __efuse_lora_nwk_key_size      16
 #define __efuse_serial_number_size      6
 #define __efuse_hw_id_size              3
 #define __efuse_project_id_size         3
 #define __efuse_wifi_mac_size           6
 
 typedef uint8_t efuse_layout_version_t;
+#ifdef __feature_lora
 typedef uint8_t efuse_lora_mac_t[__efuse_lora_mac_size];
+#endif /* __feature_lora */
+#ifdef __efuse_lora_keys_enable
+typedef uint8_t efuse_lora_app_key_t[__efuse_lora_app_key_size];
+typedef uint8_t efuse_lora_nwk_key_t[__efuse_lora_nwk_key_size];
+#endif /* __efuse_lora_keys_enable */
 typedef uint8_t efuse_serial_number_t[__efuse_serial_number_size];
 typedef uint8_t efuse_hw_id_t[__efuse_hw_id_size];
 typedef uint8_t efuse_project_id_t[__efuse_project_id_size];
@@ -70,6 +88,7 @@ void efuse_if_init(void);
  */
 bool efuse_if_read_layout_version(efuse_layout_version_t * layout_ver);
 
+#ifdef __feature_lora
 /**
  * @brief   reads the lora mac (DevEUI) from efuses
  * 
@@ -78,6 +97,33 @@ bool efuse_if_read_layout_version(efuse_layout_version_t * layout_ver);
  *          false if read failed
  */
 bool efuse_if_read_lora_mac(efuse_lora_mac_t * lora_mac);
+#endif /* __feature_lora */
+
+#ifdef __efuse_lora_keys_enable
+/**
+ * @brief   reads the lora OTAA activation AppKey from efuses
+ * 
+ * @param   app_key a pointer at which the read value will be written
+ * @return  true if read succeeded
+ *          false if read failed
+ */
+
+bool efuse_if_read_lora_app_key(efuse_lora_app_key_t* app_key);
+/**
+ * @brief   reads the lora OTAA activation NwkKey from efuses
+ * 
+ * @param   nwk_key a pointer at which the read value will be written
+ * @return  true if read succeeded
+ *          false if read failed
+ */
+bool efuse_if_read_lora_nwk_key(efuse_lora_nwk_key_t* nwk_key);
+
+#ifdef CONFIG_EFUSE_VIRTUAL
+bool efuse_if_write_test_lora_keys(
+    efuse_lora_app_key_t* app_key,
+    efuse_lora_nwk_key_t* nwk_key);
+#endif
+#endif /* __efuse_lora_enable */
 
 /**
  * @brief   reads the board serial number from efuses

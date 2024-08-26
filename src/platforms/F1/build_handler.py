@@ -97,6 +97,17 @@ def process_config_generation(ctx: BuilderContext) -> tuple:
                 w.write(f'{config}={sdkconfig_lines[config]}\n')
         sdkconfigs_files += [gen_file]
 
+    features = ctx.cfg.get_config('features', True)
+    for feat in features:
+        sdkconfig_lines = ctx.cfg.get_config(
+            f"configs.feature.{feat}.sdkconfig", merge=True)
+        if len(sdkconfig_lines) > 0:
+            gen_file = f'{gen_dir}/sdkconfig.{feat}.generated'
+            with open(gen_file, 'w') as w:
+                for config in sdkconfig_lines:
+                    w.write(f'{config}={sdkconfig_lines[config]}\n')
+            sdkconfigs_files += [gen_file]
+
     # log_obj(sdkconfigs_files)
     if len(sdkconfigs_files) > 0:
         __sdkconfigs_files = sdkconfigs_files

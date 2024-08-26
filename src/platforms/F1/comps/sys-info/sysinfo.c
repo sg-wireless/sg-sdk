@@ -255,41 +255,72 @@ void sysinfo_efuses(void)
 {
     __log_output_header(" efuses for user data ", __total_w, '=');
 
-    efuse_layout_version_t ver;
-    efuse_if_read_layout_version(&ver);
-    __log_output_field(" - Layout Version", __name_w, ' ', __left__, false);
-    __log_output_hex_lower(&ver, sizeof(ver));
-    __log_output("\n");
+    {
+        efuse_layout_version_t ver;
+        efuse_if_read_layout_version(&ver);
+        __log_output_field(" - Layout Version", __name_w, ' ', __left__, false);
+        __log_output_hex_lower(&ver, sizeof(ver));
+        __log_output("\n");
+    }
 
-    efuse_lora_mac_t lora_mac;
-    efuse_if_read_lora_mac(&lora_mac);
-    __log_output_field(" - LoRa MAC", __name_w, ' ', __left__, false);
-    __log_output_hex_lower(&lora_mac, sizeof(lora_mac));
-    __log_output("\n");
+    {
+        efuse_serial_number_t serial_number;
+        efuse_if_read_serial_number(&serial_number);
+        __log_output_field(" - Serial Number", __name_w, ' ', __left__, false);
+        __log_output_hex_lower(&serial_number, sizeof(serial_number));
+        __log_output("\n");
+    }
 
-    efuse_serial_number_t serial_number;
-    efuse_if_read_serial_number(&serial_number);
-    __log_output_field(" - Serial Number", __name_w, ' ', __left__, false);
-    __log_output_hex_lower(&serial_number, sizeof(serial_number));
-    __log_output("\n");
+    {
+        efuse_hw_id_t hw_id;
+        efuse_if_read_hw_id(&hw_id);
+        __log_output_field(" - HW ID", __name_w, ' ', __left__, false);
+        __log_output_hex_lower(&hw_id, sizeof(hw_id));
+        __log_output("\n");
+    }
 
-    efuse_hw_id_t hw_id;
-    efuse_if_read_hw_id(&hw_id);
-    __log_output_field(" - HW ID", __name_w, ' ', __left__, false);
-    __log_output_hex_lower(&hw_id, sizeof(hw_id));
-    __log_output("\n");
+    {
+        efuse_project_id_t project_id;
+        efuse_if_read_project_id(&project_id);
+        __log_output_field(" - Project ID", __name_w, ' ', __left__, false);
+        __log_output_hex_lower(&project_id, sizeof(project_id));
+        __log_output("\n");
+    }
 
-    efuse_project_id_t project_id;
-    efuse_if_read_project_id(&project_id);
-    __log_output_field(" - Project ID", __name_w, ' ', __left__, false);
-    __log_output_hex_lower(&project_id, sizeof(project_id));
-    __log_output("\n");
+    {
+        efuse_wifi_mac_t wifi_mac;
+        efuse_if_read_wifi_mac(&wifi_mac);
+        __log_output_field(" - WiFi MAC", __name_w, ' ', __left__, false);
+        __log_output_hex_lower(&wifi_mac, sizeof(wifi_mac));
+        __log_output("\n");
+    }
 
-    efuse_wifi_mac_t wifi_mac;
-    efuse_if_read_wifi_mac(&wifi_mac);
-    __log_output_field(" - WiFi MAC", __name_w, ' ', __left__, false);
-    __log_output_hex_lower(&wifi_mac, sizeof(wifi_mac));
-    __log_output("\n");
+    #ifdef __feature_lora
+    {
+        efuse_lora_mac_t lora_mac;
+        efuse_if_read_lora_mac(&lora_mac);
+        __log_output_field(" - LoRa DevEUI", __name_w, ' ', __left__, false);
+        __log_output_hex_lower(&lora_mac, sizeof(lora_mac));
+        __log_output("\n");
+    }
+    #endif
+
+    #ifdef __efuse_lora_keys_enable
+    {
+        efuse_lora_app_key_t lora_app_key;
+        efuse_if_read_lora_app_key(&lora_app_key);
+        __log_output_field(" - LoRa AppKey", __name_w, ' ', __left__, false);
+        __log_output_hex_lower(&lora_app_key, sizeof(lora_app_key));
+        __log_output("\n");
+    }
+    {
+        efuse_lora_nwk_key_t lora_nwk_key;
+        efuse_if_read_lora_nwk_key(&lora_nwk_key);
+        __log_output_field(" - LoRa NwkKey", __name_w, ' ', __left__, false);
+        __log_output_hex_lower(&lora_nwk_key, sizeof(lora_nwk_key));
+        __log_output("\n");
+    }
+    #endif
 
     __log_output_fill(__total_w, '=', true);
 }

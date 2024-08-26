@@ -95,8 +95,8 @@
         "configs/sdkconfig.ble",
         "configs/sdkconfig.spiram_sx",
         "configs/sdkconfig.board",
-	"configs/sdkconfig.wifi",
-	"configs/sdkconfig.network"
+        "configs/sdkconfig.wifi",
+        "configs/sdkconfig.network"
     ]
 
     [configs.sdkconfig]
@@ -104,5 +104,10 @@
     # sdkconfig specific configs for micropython build variant
     [configs.micropython.sdkconfig]
         CONFIG_FREERTOS_ENABLE_STATIC_TASK_CLEAN_UP="y"
+    
+    [configs.feature.lora.sdkconfig]
+        CONFIG_SDK_BOARD_LORA_WAN_KEYS_ON_EFUSES="y"
+        CONFIG_SDK_BOARD_LORA_WAN_KEYS_EFUSE_KEY5="y"
+
 
 # --- end of file ------------------------------------------------------------ #
