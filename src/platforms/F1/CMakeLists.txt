@@ -51,6 +51,7 @@ __sdk_add_comp_dirs(
     ${__dir_platform_comps}/efuse-if
     ${__dir_platform_comps}/sys-info
     ${__dir_platform_comps}/fuota
+    ${__dir_platform_comps}/nvs-if
 
     ${__dir_platform}/mpy-hooks
     ${__dir_sdk_drivers}/common
