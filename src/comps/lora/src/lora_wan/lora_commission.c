@@ -109,6 +109,41 @@ static void lora_commission_handle_data_change(void)
  * commisioning parameters APIs
  * --------------------------------------------------------------------------- *
  */
+bool lora_commission_check(lora_commission_params_t * p_params)
+{
+    lora_commissioning_data_t* ptr = & s_lora_commissioning_params;
+    bool ret = false;
+
+    if(ptr->type == p_params->type && ptr->version == p_params->version)
+    {
+        if(p_params->type == __LORA_COMMISSION_OTAA)
+        {
+            if(memcmp(ptr->otaa.dev_eui,  p_params->otaa.dev_eui,  8) == 0 &&
+               memcmp(ptr->otaa.join_eui, p_params->otaa.join_eui, 8) == 0 &&
+               memcmp(ptr->otaa.app_key,  p_params->otaa.app_key, 16) == 0)
+            {
+                if((p_params->version == __LORA_WAN_VERSION_1_1_X &&
+                    memcmp(ptr->otaa.nwk_key,  p_params->otaa.nwk_key, 16) == 0)
+                    || (p_params->version == __LORA_WAN_VERSION_1_0_X))
+                {
+                    ret = true;
+                }
+            }
+        }
+        else if(p_params->type == __LORA_COMMISSION_ABP)
+        {
+            if(ptr->abp.dev_addr == p_params->abp.dev_addr &&
+               memcmp(ptr->abp.app_s_key, p_params->abp.app_s_key, 16) == 0 &&
+               memcmp(ptr->abp.nwk_s_key, p_params->abp.nwk_s_key, 16) == 0 &&
+               memcmp(ptr->abp.dev_eui, p_params->abp.dev_eui, 8) == 0)
+            {
+                ret = true;
+            }
+        }
+    }
+
+    return ret;
+}
 
 void lora_commission_set(lora_commission_params_t * p_params)
 {

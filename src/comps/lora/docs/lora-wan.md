@@ -101,7 +101,16 @@ lora.wan_params(region = lora._region.REGION_EU868, lwclass = lora._class.CLASS_
 
 ### Device commissioning
 
-To give the device its credentials, it takes the following arguments:
+Commissioning a device means preparing a new lora-wan end-device, hence if the
+LoRa-Stack is prepared with previous end-device credentials, it will be cleared
+and will be configured with the new credentials as if it is a completely new
+end-device. In other words, the LoRa MAC layer state will start clean for a new
+end-device session and previous session will be cleared.
+
+If the provided credentials are same as previousely commissioned parameters, the
+commissioning will be ignored.
+
+the end-device commissioning credentials are as follows:
 
 - `version=<version>` to specify the end-device LoRa standard. It takes one of
     the following:
@@ -114,7 +123,7 @@ in this activation method, the following keys shall be provided along with:
     - `DevEUI`  The device EUI
     - `JoinEUI` The Join EUI
     - `AppKey`  The AppKey
-    - `NwkKey`  The NwkKey
+    - `NwkKey`  The NwkKey if version 1.1.x 
 
 - `type=lora._commission.ABP` The device will not perform the join procedure and 
     it will send directly an UL message. The following parameters shall be
@@ -124,15 +133,31 @@ in this activation method, the following keys shall be provided along with:
     - `AppSKey` The application security key
     - `NwkSKey` The network security key
 
+- `verify=True` To check the provided parameters are same as the current
+  commissioned parameters or not without doing any commissioning processing.
+
 *REMARK* If the device is already joined the network, after this commissioning
 operation the device will not be considered joined and need to rejoin again
-using the new provided commissioning parameters
+using the new provided commissioning parameters.
 
 Example
 
 ```python
 import lora
 import ubinascii
+
+# verify the existing commissioning
+if lora.commission(
+    verify  = True,
+    type    = lora._commission.OTAA,
+    version = lora._version.VERSION_1_0_X,
+    DevEUI  = ubinascii.unhexlify('0000000000000000'),
+    JoinEUI = ubinascii.unhexlify('0000000000000000'),
+    AppKey  = ubinascii.unhexlify('00000000000000000000000000000000')
+    ) == True:
+    print('end-device is already commissioned')
+else:
+    print('end-device is not commissioned')
 
 # OTAA Version 1.0.x Example
 lora.commission(
@@ -146,7 +171,7 @@ lora.commission(
 # OTAA Version 1.1.x Example
 lora.commission(
     type    = lora._commission.OTAA,
-    version = lora._version.VERSION_1_0_X,
+    version = lora._version.VERSION_1_1_X,
     DevEUI  = ubinascii.unhexlify('0000000000000000'),
     JoinEUI = ubinascii.unhexlify('0000000000000000'),
     AppKey  = ubinascii.unhexlify('00000000000000000000000000000000'),
@@ -182,8 +207,9 @@ lora.commission(
 
 ### Join
 
-Mandator operation to let the device join the network and be able to TX/RX with
-the lora-WAN server
+Mandatory operation to let the device join the network and be able to TX/RX with
+the lora-WAN server. In case of ABP activation, the end-device is considered
+joined after commissioning and join here will not have any effect.
 
 Example:
 
@@ -207,6 +233,10 @@ while lora.is_joined() == False:
 
 ### Sending data
 
+The successfully joined device is capable to tx/rx with the LoRaWAN server. To
+start tx/rx operation, the user shall open a port first using the
+`lora.port_open()` first, otherwise, no tx/rx operation will be performed.
+
 To plan an UL message. It takes the following parameters:
 - `message` the message buffer to be sent, can be a normal string or byte array
 - optional arguments:
@@ -223,10 +253,10 @@ To plan an UL message. It takes the following parameters:
 Example:
 
 ```python
-# send an asynchronous UL message, with id=0, and without confirmation, no retries
-# upon tx failure, and no specified timeout which means the message will be
-# scheduled for UL in its turn within the pending UL messages until the duty-cycle
-# tx operation fetches it and send it
+# send an asynchronous UL message, with id=0, and without confirmation, no
+# retries upon tx failure, and no specified timeout which means the message will
+# be scheduled for UL in its turn within the pending UL messages until the
+# duty-cycle tx operation fetches it and send it.
 lora.send('ul tx message')
 
 # send a message like before message, but if timeout of 3 seconds passed,
@@ -237,7 +267,8 @@ lora.send('ul tx message', timeout=3000)
 # the retries attempts is 20 seconds
 lora.send('ul tx message', timeout=20000, retries=2)
 
-# same as before message but wait for confirmation as well from the network server
+# same as before message but wait for confirmation as well from the network
+# server
 lora.send('ul tx message', timeout=20000, retries=2, confirm=True)
 
 # same as the previous message, but the caller will be blocked until timeout,
@@ -264,7 +295,7 @@ The received data will come in the callback only
 LoRa WAN sends/receives data over what is called `ports`, valid application
 ports are from `1` to `223`.
 
-A port must be opened first before sending and receiving data over it
+> A port must be opened first before sending and receiving data.
 
 Example:
 
@@ -272,12 +303,12 @@ Example:
 # opening port 1
 lora.port_open(1)   # data can be tx/rx over port 1
 
-lora.send('any', port=5)    # ignored because port 5 is not opened
-lora.send('any', port=1)    # will be planned successfully for UL
+lora.send('data', port=5)    # ignored because port 5 is not opened
+lora.send('data', port=1)    # will be planned successfully for UL
 
 # opening port 1
 lora.port_open(5)   # data can be tx/rx over port 5
-lora.send('any', port=5)    # now it will be planned successfully
+lora.send('data', port=5)    # now it will be planned successfully
 
 lora.port_close(1)  # no tx/rx more over this port
 lora.port_close(5)  # no tx/rx more over this port
@@ -292,49 +323,43 @@ lora.port_close(5)  # no tx/rx more over this port
 
 It can set a user lever callback and it takes the following parameters:
 
-- 'handler' a callbeack function to be called
-(default `any`)
-- 'trigger' an OR combination of the required events that can trigger to this callback
+- 'handler' a callbeack function to be called.
+- 'trigger' an OR combination of the required events that can trigger to this
+  callback.
 - 'port' a special port of the incoming messages events (default `any`)
 
 Example:
 
 ```python
-def get_evt_str(evt):
-    if evt != None:
-        if evt == lora._event.EVENT_TX_DONE:
-            return 'EVENT_TX_DONE'
-        elif evt == lora._event.EVENT_TX_TIMEOUT:
-            return 'EVENT_TX_TIMEOUT'
-        elif evt == lora._event.EVENT_TX_FAILED:
-            return 'EVENT_TX_FAILED'
-        elif evt == lora._event.EVENT_TX_CONFIRM:
-            return 'EVENT_TX_CONFIRM'
-        elif evt == lora._event.EVENT_RX_DONE:
-            return 'EVENT_RX_DONE'
-        elif evt == lora._event.EVENT_RX_TIMEOUT:
-            return 'EVENT_RX_TIMEOUT'
-        elif evt == lora._event.EVENT_RX_FAIL:
-            return 'EVENT_RX_FAIL'
-    return '--UNKNOWN-EVENT--'
+def get_event_str(event):
+    if event == lora._event.EVENT_TX_CONFIRM:
+        return 'EVENT_TX_CONFIRM'
+    elif event == lora._event.EVENT_TX_DONE:
+        return 'EVENT_TX_DONE'
+    elif event == lora._event.EVENT_TX_TIMEOUT:
+        return 'EVENT_TX_TIMEOUT'
+    elif event == lora._event.EVENT_TX_FAILED:
+        return 'EVENT_TX_FAILED'
+    elif event == lora._event.EVENT_TX_CONFIRM:
+        return 'EVENT_TX_CONFIRM'
+    elif event == lora._event.EVENT_RX_DONE:
+        return 'EVENT_RX_DONE'
+    elif event == lora._event.EVENT_RX_TIMEOUT:
+        return 'EVENT_RX_TIMEOUT'
+    elif event == lora._event.EVENT_RX_FAIL:
+        return 'EVENT_RX_FAIL'
+    else:
+        return 'UNKNOWN'
 
-def cb_on_any(event, evt_data):
-    print('(  cb_on_any   )--> event: ' + get_evt_str(event))
-    if evt_data != None:
-        print(evt_data)
-    pass
+def port_any_cb(event, evt_data):
+    print('lora event [ {} ] --> data: {}'
+        .format(get_event_str(event), evt_data))
 
-def cb_on_port_1(event, evt_data):
-    print('( cb_on_port_1 )--> event: ' + get_evt_str(event))
-    if evt_data != None:
-        print(evt_data)
-    pass
-
-port_1_triggers = lora._event.EVENT_RX_DONE | lora._event.EVENT_TX_DONE
-lora_unittest.test_callback_set(handler=cb_on_port_1, trigger=port_1_triggers, port=1)
-lora_unittest.test_callback_set(handler=cb_on_any)
-lora_unittest.test_gen_all_callbacks()
+lora.callback(handler=port_any_cb)
 ```
+
+> **NOTE**: Refer to the comprehensive documentation on the LoRa-Callback system
+> for more details [here](lora-callback.md).
 
 <!------------------------------------------------------------------------------
  ! Duty cycle operations
@@ -343,11 +368,12 @@ lora_unittest.test_gen_all_callbacks()
 
 ### Duty cycle operations
 
-The device is normally working in class-A and the device shall follow a duty-cycle
-to do UL/DL operation. This duty cycle should be regulated to respect the time-on-air
-for this device.
+The device is normally working in class-A and the device shall follow a
+duty-cycle to perform an UL/DL operation. This duty cycle should be regulated to
+respect the time-on-air for this device.
 
-The available operation are `duty_set()`, `duty_get()`, `duty_start()`, `duty_stop()`
+The available operation are `duty_set()`, `duty_get()`, `duty_start()`,
+`duty_stop()`
 
 Example
 
@@ -371,9 +397,9 @@ lora.duty_stop()        # stop duty cycle operation
 
 ### RX listening
 
-RX listening means that the device will send a dummy UL message in case no pending
-TX message is pending, so that the server will plan an RX window for this device
-and hence the device can receive any pending DL message
+RX listening means that the device will send a dummy UL message in case no
+pending TX message is pending, so that the server will plan an RX window for
+this device and hence the device can receive any pending DL message.
 
 the default behaviour is that the RX listening is _**disabled**_
 
@@ -383,8 +409,7 @@ Example
 lora.enable_rx_listening()      # enable listening
 
 lora.disable_rx_listening()     # disable listening
-                                # the device will listen only when there is a real
-                                # planned UL TX message
-
+                                # the device will listen only when there is a
+                                # real planned UL TX message.
 ```
 <!--- end of file ------------------------------------------------------------->

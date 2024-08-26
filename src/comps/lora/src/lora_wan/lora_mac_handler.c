@@ -61,7 +61,7 @@
  */
 #define __config_app_tx_duty_cycle              5000
 #define __config_app_tx_durt_cycle_random       1000
-#define __config_lorawan_adr_state              LORAMAC_HANDLER_ADR_OFF
+#define __config_lorawan_adr_state              LORAMAC_HANDLER_ADR_ON
 #define __config_lorawan_default_datarate       DR_0
 #define __config_lorawan_public_network         true
 #define __config_default_message_confirmation   LORAMAC_HANDLER_UNCONFIRMED_MSG

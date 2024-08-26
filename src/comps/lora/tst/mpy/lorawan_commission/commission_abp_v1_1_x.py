@@ -36,10 +36,23 @@ logs.filter_subsystem('lora', False)
 # switch to lora-wan if not
 lora.mode(lora._mode.WAN)
 
+# ---------------------------------------------------------------------------- #
+# Step (1) : Configuring the end-device -- This preparation should be done ONCE
+#            for a new end-device and should not be repeated unless the device
+#            credentials are to be changed.
+# ---------------------------------------------------------------------------- #
 # configure the stack on region EU-868
-lora.wan_params(region=lora._region.REGION_EU868, lwclass=lora._class.CLASS_A)
+lora.wan_params(
+    region=lora._region.REGION_EU868,
+    lwclass=lora._class.CLASS_A)
 
 # start end-device commisioning
+# IMPORTANT:
+#   commissioning must be done only ONCE in the end-device life cycle
+#   after device is registered in the LoRa WAN server.
+#   doing commissioning means you are resetting the LoRa MAC layer with a
+#   newly registered device. If the commissioning is requested with the same
+#   previous parameters, the call will be discarded.
 lora.commission(
     type    = lora._commission.ABP,
     version = lora._version.VERSION_1_1_X,
@@ -49,17 +62,31 @@ lora.commission(
     NwkSKey = ubinascii.unhexlify('00000000000000000000000000000000')
     )
 
-# start join procedure
-lora.join()
+if not lora.is_joined():
+    # start join procedure
+    # Note: The joining procedure does not have a real effect in case of ABP
+    #   activation, because after commissioning a device with ABP method,
+    #   the device can start sending and receiving normally, because it
+    #   considered itself as aready joined the network
+    lora.join() # it will do nothing in ABP here
 
-# wait until join
-while lora.is_joined() == False:
-    print("wait joining ...")
-    time.sleep(2)
-    pass
-print("-- JOINED --")
-lora.stats()
+    while not lora.is_joined():
+        print("wait joining ...")
+        time.sleep(2)
+        pass
+    print("-- JOINED --")
+    lora.stats()
 
+# ---------------------------------------------------------------------------- #
+# Step (2) : Normal end-device LoRa operation.
+#            This should be happened every time the device is reset
+#            operation sequence:
+#               -- open the target lora application port
+#               -- register the required application callback
+#               -- start the duty-cycle operation
+#               -- enable the end-device listening, so that the device can
+#                  receive awaiting messages at the LoRa server
+# ---------------------------------------------------------------------------- #
 # open a working port
 lora.port_open(1)
 

@@ -326,11 +326,24 @@ static lora_error_t lora_wan_ioctl(uint32_t ioctl, void* arg)
             }
         }
     }
+    else if( ioctl == __LORA_IOCTL_CHECK_COMMISSION )
+    {
+        __log_info("ioctl -> check commissoining parameters");
+        return lora_commission_check( arg ) ? __LORA_OK : __LORA_ERROR;
+    }
     else if( ioctl == __LORA_IOCTL_SET_COMMISSION )
     {
-        __log_info("ioctl -> set commissoining parameters");
-        lora_commission_set( arg );
-        lora_wan_process_request(__LORA_WAN_PROCESS_COMMISSION, NULL);
+        if(! lora_commission_check( arg ))
+        {
+            __log_info("ioctl -> set commissoining parameters");
+            lora_commission_set( arg );
+            lora_wan_process_request(__LORA_WAN_PROCESS_COMMISSION, NULL);
+        }
+        else
+        {
+            __log_info("ioctl -> device is already commissioned with the"
+                "given parameters");
+        }
     }
     else if( ioctl == __LORA_IOCTL_JOIN )
     {

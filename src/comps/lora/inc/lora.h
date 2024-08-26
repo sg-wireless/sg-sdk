@@ -112,6 +112,10 @@ typedef enum {
     /* applicable for lora wan mode only */
 
     __LORA_IOCTL_SET_COMMISSION,    /**< to set new commissioning params */
+    __LORA_IOCTL_CHECK_COMMISSION,  /**< to check commissioning params. if the
+                provided commissioning parameters are same as whatever stored
+                in the stack, the return status to the lora_ioctl will be
+                __LORA_OK, otherwise return __LORA_ERROR */
     __LORA_IOCTL_JOIN,              /**< to order join request */
     __LORA_IOCTL_JOIN_STATUS,       /**< to get the current join status */
     __LORA_IOCTL_DUTY_CYCLE_SET,    /**< to set the duty-cycle timer value */

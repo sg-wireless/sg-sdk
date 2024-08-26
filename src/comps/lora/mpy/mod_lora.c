@@ -127,7 +127,7 @@ __mp_mod_fun_var_between(lora, mode, 0, 1)(
     {
         lora_mode_t mode;
         lora_get_mode( & mode );
-        __log_output("lora - %s\n", mode == __LORA_MODE_WAN ? "WAN" : "RAW");
+        __log_info("lora - %s\n", mode == __LORA_MODE_WAN ? "WAN" : "RAW");
         return MP_OBJ_NEW_SMALL_INT(mode);
     }
 }
@@ -367,7 +367,8 @@ __mp_mod_fun_kw(lora, commission, 0)(
         __init_allowed_obj_kw(NwkSKey),
         #undef __init_allowed_obj_kw
         { MP_QSTR_version, MP_ARG_KW_ONLY|MP_ARG_REQUIRED|MP_ARG_INT,
-            {.u_int = 0}}
+            {.u_int = 0}},
+        { MP_QSTR_verify, MP_ARG_KW_ONLY|MP_ARG_BOOL, {.u_bool = false}}
     };
 
     mp_arg_val_t args[MP_ARRAY_SIZE(allowed_args)];
@@ -382,6 +383,7 @@ __mp_mod_fun_kw(lora, commission, 0)(
     #define __arg_app_s_key_obj         args[6].u_obj
     #define __arg_nwk_s_key_obj         args[7].u_obj
     #define __arg_version_int           args[8].u_int
+    #define __arg_verify_bool           args[9].u_bool
 
     lora_commission_params_t params;
 
@@ -485,6 +487,12 @@ __mp_mod_fun_kw(lora, commission, 0)(
         mp_raise_TypeError(MP_ERROR_TEXT("unknown activation type"));
     }
 
+    if(__arg_verify_bool)
+    {
+        return lora_ioctl(__LORA_IOCTL_CHECK_COMMISSION, &params) == __LORA_OK
+            ? mp_const_true : mp_const_false;
+    }
+
     lora_ioctl(__LORA_IOCTL_SET_COMMISSION, &params);
 
     return mp_const_none;
@@ -498,6 +506,7 @@ __mp_mod_fun_kw(lora, commission, 0)(
     #undef __arg_app_s_key_obj
     #undef __arg_nwk_s_key_obj
     #undef __arg_version_int
+    #undef __arg_verify_bool
 }
 
 __mp_mod_fun_0( lora, join )(void)

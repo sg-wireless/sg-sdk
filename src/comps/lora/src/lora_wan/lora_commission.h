@@ -43,6 +43,7 @@ void lora_commission_ctor(void);
 void lora_commission_dtor(void);
 void lora_commission_update_mac_layer( void );
 
+bool lora_commission_check(lora_commission_params_t * p_params);
 void lora_commission_set(lora_commission_params_t * p_params);
 
 uint8_t* lora_commission_get_dev_eui_ref(void);

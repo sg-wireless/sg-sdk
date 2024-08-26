@@ -34,10 +34,16 @@
 * [Initialization](#init)
 * [LoRa Modes](#modes)
 * [LoRa Test Stub](#test-stub)
-* [LoRa Events and Callback](#lora-callback)
-* [LoRa RAW APIs](#lora-raw)
-* [LoRa WAN APIs](#lora-wan)
-* [LoRa Certification Mode](#cert-mode)
+* [LoRa Events and Callback](lora-callback.md)
+* [LoRa RAW APIs](lora-raw.md)
+* [LoRa WAN APIs](lora-wan.md)
+* [LoRa Certification Mode](lora-lctt.md)
+* Examples
+    - Example - LoRa-WAN End-Device Commissioning:
+        - [OTAA - LoRaWAN Specs v1.0.x](../tst/mpy/lorawan_commission/commission_otaa_v1_0_x.py)
+        - [OTAA - LoRaWAN Specs v1.1.x](../tst/mpy/lorawan_commission/commission_otaa_v1_1_x.py)
+        - [ABP - LoRaWAN Specs v1.0.x](../tst/mpy/lorawan_commission/commission_abp_v1_0_x.py)
+        - [ABP - LoRaWAN Specs v1.1.x](../tst/mpy/lorawan_commission/commission_abp_v1_1_x.py)
 
 <!------------------------------------------------------------------------------
  ! Initialization
@@ -56,7 +62,7 @@ import lora     # mandatory before any lora function call
 lora.deinit()   # deinit the stack
                 # all lora calls will be ignored after it
 
-lora.lora.initialize()
+lora.initialize()
                 # initialize the stack again and back to normal operation
 ```
 
@@ -86,41 +92,5 @@ provides an internal stub for callbacks to be used while testing.
 lora.callback_stub_connect()    # connect the internal lora-stack callback stub
 lora.callback_stub_disconnect() # to disconnect it and connect user provided one
 ```
-
-<!------------------------------------------------------------------------------
- ! LoRa Events and Callbacks
- !----------------------------------------------------------------------------->
-<div id="lora-callback"></div>
-
-## LoRa Events and Callbacks
-
-LoRa events and Callback system are explained [here](lora-callback.md)
-
-<!------------------------------------------------------------------------------
- ! LoRa RAW APIs
- !----------------------------------------------------------------------------->
-<div id="lora-raw"></div>
-
-### LoRa RAW APIs
-
-Lora RAW mode API documentation can be found [here](lora-raw.md)
-
-<!------------------------------------------------------------------------------
- ! LoRa WAN APIs
- !----------------------------------------------------------------------------->
-<div id="lora-wan"></div>
-
-### LoRa WAN APIs
-
-Lora RAW mode API documentation can be found [here](lora-wan.md)
-
-<!------------------------------------------------------------------------------
- ! LoRa Certification Mode
- !----------------------------------------------------------------------------->
-<div id="cert-mode"></div>
-
-### LoRa Certification Mode
-
-LoRa Certification Mode documentation can be found [here](lora-lctt.md)
 
 <!--- end of file ------------------------------------------------------------->
