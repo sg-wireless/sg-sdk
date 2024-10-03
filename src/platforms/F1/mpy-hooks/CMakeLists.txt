@@ -81,6 +81,9 @@ __sdk_add_component( f1_mpy_hooks
     MPY_MODS
         "${CMAKE_CURRENT_LIST_DIR}/*.c"
 
+    LOGS_DEFS
+        ${CMAKE_CURRENT_LIST_DIR}/machine_timers_hooks.c
+
     SRCS
         "${CMAKE_CURRENT_LIST_DIR}/*.c"
 

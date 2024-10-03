@@ -257,6 +257,11 @@ soft_reset_exit:
     mp_bluetooth_deinit();
     #endif
 
+    #ifdef CONFIG_SDK_MPY_HOOK_MACHINE_VIRTUAL_TIMERS_ENABLE
+    void hook_mpy_machine_timer_virtual_deinit_all(void);
+    hook_mpy_machine_timer_virtual_deinit_all();
+    #endif
+
     machine_timer_deinit_all();
 
     #if MICROPY_PY_THREAD

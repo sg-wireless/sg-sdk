@@ -39,10 +39,12 @@
 #include "shared/readline/readline.h"
 #include "sdkconfig.h"
 #include "board_hooks.h"
-#include "log_lib.h"
 #include "freertos/timers.h"
 #include "adt_list.h"
 
+#define __log_subsystem F1
+#define __log_component hook_timers
+#include "log_lib.h"
 __log_component_def(F1, hook_timers, cyan, 1, 0)
 
 #ifdef CONFIG_SDK_MPY_HOOK_MACHINE_VIRTUAL_TIMERS_ENABLE
@@ -434,6 +436,41 @@ void hook_mpy_machine_timer_virtual_print(
     mp_printf(p, "period=%d ms, ", self->period);
     mp_printf(p, "repeat=%d, ", self->repeat);
     mp_printf(p, "enabled=%d )", self->enabled);
+}
+
+void hook_mpy_machine_timer_virtual_deinit_all(void)
+{
+    machine_virtual_timer_obj_t* obj;
+
+    __log_info("deinit_all()");
+
+    while(s_initialised_timers_head)
+    {
+        obj = __list_item_to_obj(s_initialised_timers_head);
+        const char* name = get_timer_name( obj );
+
+        __log_info("deinit vtimer [%p] %s", obj, name);
+
+        if(obj->handle)
+        {
+            if( xTimerStop(obj->handle, portMAX_DELAY) != pdPASS )
+            {
+                __log_error( "failed to stop timer %s", name );
+            }
+            else
+            {
+                obj->enabled = false;
+            }
+
+            if( xTimerDelete(obj->handle, 0) != pdPASS )
+            {
+                __log_error( "failed to delete timer %s", name );
+            }
+            obj->handle = NULL;
+        }
+
+        virtual_timer_delete(obj);
+    }
 }
 
 /** -------------------------------------------------------------------------- *
