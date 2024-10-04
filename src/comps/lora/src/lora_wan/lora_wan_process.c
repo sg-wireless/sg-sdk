@@ -719,7 +719,11 @@ static void trx_start_processing(void)
                 uint32_t ts = lora_stub_get_timestamp_ms();
                 if(tx_msg.msg_header.expire_timestamp > ts) {
                     uint32_t period = tx_msg.msg_header.expire_timestamp - ts;
-                    __log_info("-- start timeout timer: %d msec", period);
+                    __log_info("PROCESS-TX::start_timer() "
+                        "msg_id: %d, period: %d expire_at: %d",
+                        tx_msg.msg_header.msg_app_id,
+                        period,
+                        tx_msg.msg_header.expire_timestamp);
                     msg_timeout_timer_start( period );
 
                     lmh_send(tx_msg.msg_payload, tx_msg_payload_len,
@@ -786,10 +790,6 @@ static void trx_cancel_ongoing_processing(void)
 
 static void trx_post_msg_ind(int ind)
 {
-    if(tx_msg.msg_header.sync)
-    {
-        sync_obj_release(tx_msg.msg_header.sync_obj);
-    }
     lora_wan_port_ind_msg_t ind_msg = {
         .type = ind,
         .ind_params.tx = {
@@ -804,6 +804,11 @@ static void trx_post_msg_ind(int ind)
         ind_msg.ind_params.tx.data_rate = tx_status_params.data_rate;
     }
     lora_wan_port_indication(tx_msg.msg_header.port_num, &ind_msg);
+
+    if(tx_msg.msg_header.sync)
+    {
+        sync_obj_release(tx_msg.msg_header.sync_obj);
+    }
 }
 
 static void trx_process_timeout(void)
@@ -903,7 +908,8 @@ static void lmh_cb_on_mac_tx(lmh_tx_status_params_t* p_tx_info)
         }
         else
         {
-            __log_warn("-- mac tx status un-handled case");
+            __log_warn("-- mac tx status un-handled case -> status:%d",
+                p_tx_info->status);
             trx_retry_handler(p_tx_info);
         }
     }

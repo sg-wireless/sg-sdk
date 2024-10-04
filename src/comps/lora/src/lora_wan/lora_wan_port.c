@@ -60,9 +60,20 @@ static void lora_buf_mem_mgr_unlock(void)
     lora_stub_mutex_unlock(mem_mgr_mutex_handle);
 }
 
-#define __buffers_mem_space         (2048)
+#ifdef CONFIG_LORA_WAN_TRX_BUFFERS_MEM_SPACE_SIZE
+#define __buffers_mem_space_tx \
+    __msize_kb(CONFIG_LORA_WAN_TX_BUFFERS_MEM_SPACE_SIZE)
+#define __buffers_mem_space_rx \
+    __msize_kb(CONFIG_LORA_WAN_RX_BUFFERS_MEM_SPACE_SIZE)
+#else
+#define __buffers_mem_space_tx     __msize_kb(6)
+#define __buffers_mem_space_rx     __msize_kb(2)
+#endif
 
-__buf_chain_mem_def(_lora_wan_buf_mem, __buffers_mem_space, 32,
+__buf_chain_mem_def(_lora_wan_buf_mem_tx, __buffers_mem_space_tx, 32,
+    lora_buf_mem_mgr_lock, lora_buf_mem_mgr_unlock);
+
+__buf_chain_mem_def(_lora_wan_buf_mem_rx, __buffers_mem_space_rx, 32,
     lora_buf_mem_mgr_lock, lora_buf_mem_mgr_unlock);
 
 /** -------------------------------------------------------------------------- *
@@ -123,10 +134,9 @@ static void port_tx_timeout_timer_callback(void* data)
     buf_header_t * p_buf_header;
     lora_wan_port_tx_msg_t * p_tx_msg;
 
-    lora_buf_mem_mgr_lock();
-
     bool is_broken;
     do {
+        lora_buf_mem_mgr_lock();
         is_broken = false;
         __adt_list_foreach(p_port->tx_buf_chain.list, p_buf_header)
         {
@@ -136,10 +146,9 @@ static void port_tx_timeout_timer_callback(void* data)
                 p_tx_msg->expire_timestamp);
             if(p_tx_msg->has_timeout && p_tx_msg->expire_timestamp <= ts) {
                 // -- clear this message from the chained buffer
-                if(p_tx_msg->sync)
-                {
-                    sync_obj_release(p_tx_msg->sync_obj);
-                }
+                bool is_sync = p_tx_msg->sync;
+                sync_obj_t sync_obj = p_tx_msg->sync_obj;
+
                 __log_info("found expired message -- clear it");
                 lora_wan_port_ind_msg_t ind_msg = {
                     .type = __IND_TX_TIMEOUT,
@@ -148,18 +157,29 @@ static void port_tx_timeout_timer_callback(void* data)
                         .msg_seq_num = p_tx_msg->msg_seq_num,
                     }
                 };
-                buf_mem_chain_clear_buf(&p_port->tx_buf_chain,
-                    p_buf_header);
+
+                __log_info("PORT-QUEUE::expire() msg_id: %d, expire_at: %d",
+                    p_tx_msg->msg_app_id,
+                    p_tx_msg->expire_timestamp);
+
+                buf_mem_chain_clear_buf(&p_port->tx_buf_chain, p_buf_header);
+
                 lora_buf_mem_mgr_unlock();
+
                 lora_wan_port_indication(p_port->port_num, &ind_msg);
-                lora_buf_mem_mgr_lock();
+                if(is_sync) {
+                    sync_obj_release(sync_obj);
+                }
+
                 is_broken = true;
                 break;
             }
         }
     } while ( is_broken );
 
-    lora_buf_mem_mgr_unlock();
+    if( ! is_broken ) {
+        lora_buf_mem_mgr_unlock();
+    }
 
     port_restart_tx_timeout_timer(p_port);
 }
@@ -175,11 +195,10 @@ static void port_restart_tx_timeout_timer(lora_wan_port_t* p_port)
     buf_header_t * p_buf_header;
     lora_wan_port_tx_msg_t * p_tx_msg;
 
-    lora_buf_mem_mgr_lock();
-
     __log_info("search for earliest deadline msg");
     bool is_broken;
     do {
+        lora_buf_mem_mgr_lock();
         is_broken = false;
         __adt_list_foreach(p_port->tx_buf_chain.list, p_buf_header)
         {
@@ -195,12 +214,11 @@ static void port_restart_tx_timeout_timer(lora_wan_port_t* p_port)
                 }
                 else
                 {
+                    bool is_sync = p_tx_msg->sync;
+                    sync_obj_t sync_obj = p_tx_msg->sync_obj;
+
                     // -- clear this message from the chained buffer
                     __log_info("found expired message -- clear it");
-                    if(p_tx_msg->sync)
-                    {
-                        sync_obj_release(p_tx_msg->sync_obj);
-                    }
                     lora_wan_port_ind_msg_t ind_msg = {
                         .type = __IND_TX_TIMEOUT,
                         .ind_params.tx = {
@@ -211,8 +229,11 @@ static void port_restart_tx_timeout_timer(lora_wan_port_t* p_port)
                     buf_mem_chain_clear_buf(&p_port->tx_buf_chain,
                         p_buf_header);
                     lora_buf_mem_mgr_unlock();
+
                     lora_wan_port_indication(p_port->port_num, &ind_msg);
-                    lora_buf_mem_mgr_lock();
+                    if(is_sync) {
+                        sync_obj_release(sync_obj);
+                    }
                     is_broken = true;
                     break;
                 }
@@ -220,7 +241,9 @@ static void port_restart_tx_timeout_timer(lora_wan_port_t* p_port)
         }
     } while (is_broken);
 
-    lora_buf_mem_mgr_unlock();
+    if( ! is_broken)  {
+        lora_buf_mem_mgr_unlock();
+    }
 
     if( min_period < (uint32_t)-1 ) {
         __log_info("restarting the tx timeout timer period: %d", min_period);
@@ -273,11 +296,11 @@ lora_port_error_t lora_wan_port_open(lora_wan_port_t* p_port, int num)
         lora_stub_sem_new(), buf_chain_sync_wait, buf_chain_sync_signal);
     
     // -- channels connections to the mem space manager
-    buf_mem_chain_connect(&__buf_chain_mgr_id(_lora_wan_buf_mem),
+    buf_mem_chain_connect(&__buf_chain_mgr_id(_lora_wan_buf_mem_rx),
         &p_port->rx_buf_chain);
-    buf_mem_chain_connect(&__buf_chain_mgr_id(_lora_wan_buf_mem),
+    buf_mem_chain_connect(&__buf_chain_mgr_id(_lora_wan_buf_mem_tx),
         &p_port->tx_buf_chain);
-    buf_mem_chain_connect(&__buf_chain_mgr_id(_lora_wan_buf_mem),
+    buf_mem_chain_connect(&__buf_chain_mgr_id(_lora_wan_buf_mem_rx),
         &p_port->ind_buf_chain);
 
     p_port->tx_timeout_timer = lora_stub_timer_init("port-tx-timeout",
@@ -301,11 +324,11 @@ lora_port_error_t lora_wan_port_close(lora_wan_port_t* p_port)
     __log_info("~dtor() --> port %d", p_port->port_num);
     lora_stub_timer_delete(p_port->tx_timeout_timer);
     lora_stub_timer_delete(p_port->rx_timeout_timer);
-    buf_mem_chain_disconnect(&__buf_chain_mgr_id(_lora_wan_buf_mem),
+    buf_mem_chain_disconnect(&__buf_chain_mgr_id(_lora_wan_buf_mem_rx),
         &p_port->rx_buf_chain);
-    buf_mem_chain_disconnect(&__buf_chain_mgr_id(_lora_wan_buf_mem),
+    buf_mem_chain_disconnect(&__buf_chain_mgr_id(_lora_wan_buf_mem_tx),
         &p_port->tx_buf_chain);
-    buf_mem_chain_disconnect(&__buf_chain_mgr_id(_lora_wan_buf_mem),
+    buf_mem_chain_disconnect(&__buf_chain_mgr_id(_lora_wan_buf_mem_rx),
         &p_port->ind_buf_chain);
     __adt_list_del(ports_list, p_port);
     __access_unlock();
@@ -373,8 +396,13 @@ lora_port_error_t lora_wan_port_tx(
 
     if(p_tx_params->timeout) {
         msg_header.has_timeout = 1;
-        msg_header.expire_timestamp = lora_stub_get_timestamp_ms() +
-            p_tx_params->timeout;
+        uint32_t curr_time = lora_stub_get_timestamp_ms();
+        msg_header.expire_timestamp = curr_time + p_tx_params->timeout;
+        __log_info("PORT-TX::queue() msg_id: %d, tout: %d, expire_at: %d, "
+            "curr_time: %d",
+            p_tx_params->msg_app_id,
+            p_tx_params->timeout,
+            msg_header.expire_timestamp, curr_time);
     }
 
     msg_header.confirm = p_tx_params->confirm;

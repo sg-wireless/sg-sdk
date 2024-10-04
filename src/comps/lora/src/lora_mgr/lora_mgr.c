@@ -281,8 +281,10 @@ static void lora_callback_stub(lora_event_t event, void* event_data)
 
             if(ind_param.event != __LORA_EVENT_NONE)
             {
-                __log_output("evt: "__cyan__"%s"__default__,
-                    lora_get_event_str(ind_param.event));
+                __log_output("evt: "__cyan__"%s"__default__
+                    " app-id: "__green__"%d"__default__,
+                    lora_get_event_str(ind_param.event),
+                    ind_param.tx.msg_app_id);
             }
 
             if(ind_param.event == __LORA_EVENT_TX_DONE ||
