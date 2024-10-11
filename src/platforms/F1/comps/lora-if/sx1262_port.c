@@ -367,15 +367,15 @@ static int sx1262_spi_trx( sx126x_spi_trx_t* p_trx )
  * --------------------------------------------------------------------------- *
  */
 
-static void sx126x_chip_free_signal(void)
+static void sx126x_chip_free_signal(uint32_t timestamp)
 {
     __log_debug("int signal --> sx126x free");
 }
 
-static void sx126x_irq_signal(void)
+static void sx126x_irq_signal(uint32_t timestamp)
 {
     __log_debug("int signal --> sx126x irq");
-    sx126x_port_irq();
+    sx126x_port_irq(timestamp);
 }
 
 static void sx1262_gpios_ctor( void )

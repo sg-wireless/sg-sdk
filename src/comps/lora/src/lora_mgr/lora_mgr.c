@@ -45,6 +45,7 @@
 #include "lora_common_utils.h"
 #include "lora_wan_port.h"
 #include "lora_port.h"
+#include "stub_system.h"
 
 /** -------------------------------------------------------------------------- *
  * manager nvm data handling
@@ -261,7 +262,15 @@ lora_error_t lora_connect_callback_stub(void)
  */
 static void lora_callback_stub(lora_event_t event, void* event_data)
 {
-    __log_output("lora: "__yellow__"%s "__default__, lora_get_event_str(event));
+    uint32_t ts = lora_stub_get_timestamp_ms();
+    uint32_t ms = ts % 1000;
+    uint32_t ss = (ts / 1000) % 60;
+    uint32_t mm = (ts / (60 * 1000)) % 60;
+    uint32_t hh = (ts / (60 * 60 * 1000)) % 24;
+
+    __log_output("[%7d][%02d:%02d:%02d:%03d] lora: "__yellow__"%s "__default__,
+        ts, hh, mm, ss, ms,
+        lora_get_event_str(event));
 
     #define __rx_buff_len   0xff
     static uint8_t buff[__rx_buff_len];
@@ -290,11 +299,13 @@ static void lora_callback_stub(lora_event_t event, void* event_data)
             if(ind_param.event == __LORA_EVENT_TX_DONE ||
                 ind_param.event == __LORA_EVENT_TX_CONFIRM)
             {
-                __log_output(" ul_counter:"__cyan__"%d, "__default__
-                        " tx_power: "__yellow__"%d"__default__", "
-                        " data-rate: "__green__"%d"__default__,
+                __log_output(" ul-counter:"__cyan__"%d, "__default__
+                        " tx-power: "__yellow__"%d"__default__", "
+                        " dr: "__green__"%d"__default__
+                        " app-id: "__green__"%d"__default__,
                     ind_param.tx.ul_frame_counter,
-                    ind_param.tx.tx_power, ind_param.tx.data_rate);
+                    ind_param.tx.tx_power, ind_param.tx.data_rate,
+                    ind_param.tx.msg_app_id);
             }
             else if(ind_param.event == __LORA_EVENT_RX_DONE)
             {

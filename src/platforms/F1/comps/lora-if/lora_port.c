@@ -291,11 +291,7 @@ static void timer_set_period(void* handle, uint32_t msec)
  */
 static uint32_t get_timestamp_msec(void)
 {
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    uint32_t ms = tv.tv_sec * 1000U;
-    ms += (uint32_t)tv.tv_usec / 1000U;
-    return ms;
+    return esp_timer_get_time() / 1000U;
 }
 static void delay_msec(uint32_t msec)
 {

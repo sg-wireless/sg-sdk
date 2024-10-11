@@ -122,6 +122,7 @@ void SysTimeSet( SysTime_t sysTime )
     struct timeval tv;
     gettimeofday(&tv, NULL);
     tv.tv_sec = sysTime.Seconds;
+    tv.tv_usec = sysTime.SubSeconds * 1000U;
     __log_debug("-- setting new time: %ld", tv.tv_sec);
 
     struct tm *lt;

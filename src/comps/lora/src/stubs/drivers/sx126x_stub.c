@@ -67,7 +67,7 @@ void sx126x_port_init( sx126x_port_t * p_port_params )
 static DioIrqHandler* p_sx126x_drv_irq_handler;
 static void(*p_service_level_irq_handler)(void) = NULL;
 
-void sx126x_port_irq( void )
+void sx126x_port_irq( uint32_t timestamp )
 {
     // -- register a timestamp here
     // lora_rxwin_stamp_event(__stamp_event_irq);
@@ -76,7 +76,7 @@ void sx126x_port_irq( void )
     __log_info("lora interrupt ...");
 
     // -- radio processing
-    p_sx126x_drv_irq_handler(NULL);
+    p_sx126x_drv_irq_handler((void*)timestamp);
 
     // -- lora service app processing
     if(p_service_level_irq_handler)

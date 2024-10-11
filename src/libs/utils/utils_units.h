@@ -166,7 +166,8 @@ extern "C" {
     * @param __kb input tim in Kilo Bytes
     * @retval <uint32_t> the time in Bytes
     **********************************************************/
-    #define __msize_kb(__kb)             ((__kb ## ul) << 10ul)
+    #define __msize_kb(__kb)           __stepper_msize_kb(__kb)
+    #define __stepper_msize_kb(__kb)     ((__kb ## ul) << 10ul)
 
    /*******************************************************//**
     * @def __msize_mb(__mb)
@@ -174,7 +175,8 @@ extern "C" {
     * @param __mb input tim in Mega Bytes
     * @retval <uint32_t> the time in Bytes
     **********************************************************/
-    #define __msize_mb(__mb)             ((__mb ## ul) << 20ul)
+    #define __msize_mb(__mb)           __stepper_msize_mb(__mb)
+    #define __stepper_msize_mb(__mb)     ((__mb ## ul) << 20ul)
 
    /*******************************************************//**
     * @def __addr_bits(__msize)

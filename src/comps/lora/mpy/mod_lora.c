@@ -34,7 +34,7 @@
 #define __log_component  mpy_lora
 #include "log_lib.h"
 #include "mp_lite_if.h"
-// #include "mpirq.h"
+#include "py/objstr.h"
 #include "lora.h"
 #include "lora_wan_duty.h"
 #include "mphalport.h"
@@ -532,11 +532,59 @@ __mp_mod_fun_kw(lora, wan_params, 0)(
     size_t n_args, const mp_obj_t *pos_args, mp_map_t* kw_args)
 {
     static const mp_arg_t allowed_args[] = {
-        { MP_QSTR_region, MP_ARG_KW_ONLY | MP_ARG_INT,
-            {.u_int = __LORA_REGION_EU868}},
-        { MP_QSTR_lwclass,  MP_ARG_KW_ONLY | MP_ARG_INT,
-            {.u_int = __LORA_WAN_CLASS_A}},
+        { MP_QSTR_region, MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = -1u}},
+        { MP_QSTR_lwclass,  MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = -1u}},
     };
+
+    if(kw_args->used == 0)
+    {
+        static const qstr lw_params_dict_keys[] = {
+            MP_QSTR_region,
+            MP_QSTR_lwclass,
+            MP_QSTR_payload_len
+        };
+        static mp_obj_str_t region_str_obj = {.base = {&mp_type_str}};
+        static char class_str[] = {"-"};
+        static MP_DEFINE_STR_OBJ(class_str_obj, class_str);
+
+        static mp_obj_tuple_t lw_params_dict_obj = {
+            .base = {&mp_type_attrtuple},
+            .len = sizeof(lw_params_dict_keys)/sizeof(lw_params_dict_keys[0]),
+            .items = { 
+                MP_ROM_PTR(&region_str_obj),
+                MP_ROM_PTR(&class_str_obj),
+                0,
+                MP_ROM_PTR((void *)lw_params_dict_keys)
+            }
+        };
+
+        lora_wan_param_t param;
+
+        param.type = __LORA_WAN_PARAM_REGION;
+        lora_ioctl(__LORA_IOCTL_GET_PARAM, &param);
+        const char* region_str = lora_get_region_str(param.param.region);
+        region_str_obj.len = strlen(region_str);
+        region_str_obj.data = (const byte*)region_str;
+
+        param.type = __LORA_WAN_PARAM_CLASS;
+        lora_ioctl(__LORA_IOCTL_GET_PARAM, &param);
+        if(param.param.class == __LORA_WAN_CLASS_A ||
+            param.param.class == __LORA_WAN_CLASS_B ||
+            param.param.class == __LORA_WAN_CLASS_C)
+        {
+            class_str[0] = 'A' + param.param.class;
+        }
+        else
+        {
+            class_str[0] = 'X';
+        }
+
+        param.type = __LORA_WAN_PARAM_PAYLOAD;
+        lora_ioctl(__LORA_IOCTL_GET_PARAM, &param);
+        lw_params_dict_obj.items[2] = MP_ROM_INT(param.param.payload);
+
+        return MP_OBJ_FROM_PTR(&lw_params_dict_obj);
+    }
 
     mp_arg_val_t args[MP_ARRAY_SIZE(allowed_args)];
     mp_arg_parse_all(n_args, pos_args, kw_args,
@@ -546,9 +594,9 @@ __mp_mod_fun_kw(lora, wan_params, 0)(
 
     lora_wan_param_t param;
 
-    #define __check_and_set_param(_p, _P, _a, _d, _t)           \
+    #define __check_and_set_param(_p, _P, _d, _t)               \
         do{                                                     \
-            if( _a || __arg_##_p##_##_t != _d ) {               \
+            if( __arg_##_p##_##_t != _d ) {                     \
                 param.type = __LORA_WAN_PARAM_ ## _P;           \
                 lora_ioctl(__LORA_IOCTL_GET_PARAM, &param);     \
                 if(param.param._p != __arg_##_p##_##_t) {       \
@@ -558,8 +606,8 @@ __mp_mod_fun_kw(lora, wan_params, 0)(
             }                                                   \
         } while(0)
 
-    __check_and_set_param(region,   REGION, 1, 0, int);
-    __check_and_set_param(class,    CLASS,  1, 0, int);
+    __check_and_set_param(region,       REGION,     -1u, int);
+    __check_and_set_param(class,        CLASS,      -1u, int);
 
     #undef __check_and_set_param
 
@@ -567,6 +615,118 @@ __mp_mod_fun_kw(lora, wan_params, 0)(
 
     #undef __arg_region_int
     #undef __arg_class_int
+}
+
+__mp_mod_fun_kw(lora, rxwin_calibrate, 0)(
+    size_t n_args, const mp_obj_t *pos_args, mp_map_t* kw_args) {
+
+    #define __arg_sys_rx_err_idx            0
+    #define __arg_cal_enable_idx            1
+    #define __arg_cal_time_shift_idx        2
+    #define __arg_cal_time_extension_idx    3
+
+    #define __arg_sys_rx_err_type            int
+    #define __arg_cal_enable_type            bool
+    #define __arg_cal_time_shift_type        int
+    #define __arg_cal_time_extension_type    int
+
+    static mp_arg_t allowed_args[] = {
+        { MP_QSTR_sys_rx_err,  MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = 0}},
+        { MP_QSTR_enable, MP_ARG_KW_ONLY | MP_ARG_INT, {.u_bool = 0}},
+        { MP_QSTR_time_shift, MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = 0}},
+        { MP_QSTR_time_extension, MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = 0}},
+    };
+
+    #define __arg_defval(_arg, _type)   \
+        allowed_args[__tricat(__arg_, _arg, _idx)].defval.u_##_type
+    
+    #define __ioctl_get(_param_type, _type, _local_var) \
+        param.type = _param_type;                       \
+        lora_ioctl(__LORA_IOCTL_GET_PARAM, &param);     \
+        _type _local_var = param.param._local_var
+
+    lora_wan_param_t param;
+
+    __ioctl_get(__LORA_WAN_PARAM_SYS_RX_ERR, int, sys_rx_err);
+    __arg_defval(sys_rx_err, int) = sys_rx_err;
+
+    __ioctl_get(__LORA_WAN_PARAM_CAL_ENABLE, bool, cal_enable);
+    __arg_defval(cal_enable, bool) = cal_enable;
+
+    __ioctl_get(__LORA_WAN_PARAM_CAL_RXWIN_TIME_SHIFT, int, cal_time_shift);
+    __arg_defval(cal_time_shift, int) = param.param.cal_time_shift;
+
+    __ioctl_get(__LORA_WAN_PARAM_CAL_RXWIN_EXTENSION, int, cal_time_extension);
+    __arg_defval(cal_time_extension, int) = cal_time_extension;
+
+    if(kw_args->used == 0)
+    {
+        static const qstr lw_rxwin_cal_params_dict_keys[] = {
+            [__arg_sys_rx_err_idx]          = MP_QSTR_sys_rx_err,
+            [__arg_cal_enable_idx]          = MP_QSTR_enable,
+            [__arg_cal_time_shift_idx]      = MP_QSTR_time_shift,
+            [__arg_cal_time_extension_idx]  = MP_QSTR_time_extension,
+        };
+        static mp_obj_tuple_t lw_rxwin_cal_params_dict_obj = {
+            .base = {&mp_type_attrtuple},
+            .len = sizeof(lw_rxwin_cal_params_dict_keys)
+                    / sizeof(lw_rxwin_cal_params_dict_keys[0]),
+            .items = { 
+                0, 0, 0, 0,
+                MP_ROM_PTR((void *)lw_rxwin_cal_params_dict_keys)
+            }
+        };
+        mp_obj_t *p_items = lw_rxwin_cal_params_dict_obj.items;
+        p_items[__arg_sys_rx_err_idx] = MP_ROM_INT(sys_rx_err);
+        p_items[__arg_cal_enable_idx] = MP_ROM_INT(cal_enable);
+        p_items[__arg_cal_time_shift_idx] = MP_ROM_INT(cal_time_shift);
+        p_items[__arg_cal_time_extension_idx] = MP_ROM_INT(cal_time_extension);
+
+        return MP_OBJ_FROM_PTR(&lw_rxwin_cal_params_dict_obj);
+    }
+
+    mp_arg_val_t args[MP_ARRAY_SIZE(allowed_args)];
+    mp_arg_parse_all(n_args, pos_args, kw_args, MP_ARRAY_SIZE(allowed_args),
+        allowed_args, args);
+
+    #define __ioctl_set_if_neq(_param_type, _type, _local_var)          \
+        if(_local_var !=                                                \
+                args[__tricat(__arg_, _local_var, _idx)].u_##_type) {   \
+            param.type = _param_type;                                   \
+            param.param._local_var =                                    \
+                args[__tricat(__arg_, _local_var, _idx)].u_##_type;     \
+            lora_ioctl(__LORA_IOCTL_SET_PARAM, &param);                 \
+        }
+
+    __ioctl_set_if_neq(__LORA_WAN_PARAM_SYS_RX_ERR, int, sys_rx_err);
+    __ioctl_set_if_neq(__LORA_WAN_PARAM_CAL_ENABLE, bool, cal_enable);
+    __ioctl_set_if_neq(__LORA_WAN_PARAM_CAL_RXWIN_TIME_SHIFT,
+        int, cal_time_shift);
+    __ioctl_set_if_neq(__LORA_WAN_PARAM_CAL_RXWIN_EXTENSION,
+        int,cal_time_extension);
+
+    return mp_const_none;
+
+    #undef __arg_defval
+    #undef __ioctl_get
+    #undef __ioctl_set
+    #undef __ioctl_set_if_neq
+
+    #undef __arg_sys_rx_err_idx
+    #undef __arg_cal_enable_idx
+    #undef __arg_cal_time_shift_idx
+    #undef __arg_cal_time_extension_idx
+
+    #undef __arg_sys_rx_err_type
+    #undef __arg_cal_enable_type
+    #undef __arg_cal_time_shift_type
+    #undef __arg_cal_time_extension_type
+}
+
+__mp_mod_fun_0(lora, rxwin_toggle_verbosity)(void) {
+
+    lora_ioctl(__LORA_IOCTL_TOGGLE_RXWIN_VERBOSITY, NULL);
+    return mp_const_none;
 }
 
 /** -------------------------------------------------------------------------- *

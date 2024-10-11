@@ -42,7 +42,12 @@ extern "C" {
  * configs
  * --------------------------------------------------------------------------- *
  */
-#define __max_supported_simultaneous_ports  10
+#ifdef CONFIG_LORA_WAN_MAX_APP_LAYER_USED_PORTS
+    #define __max_supported_simultaneous_ports  \
+        CONFIG_LORA_WAN_MAX_APP_LAYER_USED_PORTS
+#else
+    #define __max_supported_simultaneous_ports  10
+#endif
 
 /** -------------------------------------------------------------------------- *
  * typoedef

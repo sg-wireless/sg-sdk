@@ -44,8 +44,9 @@ extern "C" {
  * @brief   a callback function prototype. the component that has an io expander
  *          input port pin handler can define a callback function of this type
  *          and the ioexpander will invoke it if the respective signal changed
+ * @param timestamp the precise timestamp of the signal change trigger.
  */
-typedef void (* ioexp_callback_t)(void);
+typedef void (* ioexp_callback_t)(uint32_t timestamp);
 
 /* --- api declarations ----------------------------------------------------- */
 

@@ -12,7 +12,6 @@ void __sm_action_fun(lora_wan, joined_enter)(void* data);
 static input_table_t sm_lora_wan_inputs_table[] = {
     [__sm_input_id(lora_wan, join_req)] = { "join_req" },
     [__sm_input_id(lora_wan, mac_req)] = { "mac_req" },
-    [__sm_input_id(lora_wan, radio_evt)] = { "radio_evt" },
     [__sm_input_id(lora_wan, join_done)] = { "join_done" },
     [__sm_input_id(lora_wan, join_fail)] = { "join_fail" },
     [__sm_input_id(lora_wan, commission)] = { "commission" },
@@ -35,9 +34,6 @@ static action_table_t sm_lora_wan_actions_table[] = {
     [__sm_action_id(lora_wan, process_mac)] = {
         "process_mac",
         __sm_action_fun(lora_wan, process_mac)},
-    [__sm_action_id(lora_wan, process_radio)] = {
-        "process_radio",
-        __sm_action_fun(lora_wan, process_radio)},
     [__sm_action_id(lora_wan, switch_slass)] = {
         "switch_slass",
         __sm_action_fun(lora_wan, switch_slass)},
@@ -95,11 +91,6 @@ static state_trans_table_t sm_lora_wan_not_joined_trans_table [] = {
         .next_state_id = __sm_state_id(lora_wan, not_joined),
     },
     {
-        .input_id = __sm_input_id(lora_wan, radio_evt),
-        .action_id = __sm_action_id(lora_wan, process_radio),
-        .next_state_id = __sm_state_id(lora_wan, not_joined),
-    },
-    {
         .input_id = __sm_input_id(lora_wan, join_done),
         .action_id = __sm_action_id(lora_wan, switch_slass),
         .next_state_id = __sm_state_id(lora_wan, chg_class),
@@ -146,11 +137,6 @@ static state_trans_table_t sm_lora_wan_chg_class_trans_table [] = {
         .next_state_id = __sm_state_id(lora_wan, chg_class),
     },
     {
-        .input_id = __sm_input_id(lora_wan, radio_evt),
-        .action_id = __sm_action_id(lora_wan, process_radio),
-        .next_state_id = __sm_state_id(lora_wan, chg_class),
-    },
-    {
         .input_id = __sm_input_id(lora_wan, join_req),
         .action_id = __sm_action_id(lora_wan, start_join),
         .next_state_id = __sm_state_id(lora_wan, not_joined),
@@ -176,11 +162,6 @@ static state_trans_table_t sm_lora_wan_chg_class_trans_table [] = {
 
 /* --- state -> lct --------------------------------------------------------- */
 static state_trans_table_t sm_lora_wan_lct_trans_table [] = {
-    {
-        .input_id = __sm_input_id(lora_wan, radio_evt),
-        .action_id = __sm_action_id(lora_wan, process_radio),
-        .next_state_id = __sm_state_id(lora_wan, lct),
-    },
     {
         .input_id = __sm_input_id(lora_wan, duty_cycle),
         .action_id = __sm_action_id(lora_wan, lct_handle),
@@ -223,11 +204,6 @@ static state_trans_table_t sm_lora_wan_joined_trans_table [] = {
         .next_state_id = __sm_state_id(lora_wan, joined),
     },
     {
-        .input_id = __sm_input_id(lora_wan, radio_evt),
-        .action_id = __sm_action_id(lora_wan, process_radio),
-        .next_state_id = __sm_state_id(lora_wan, joined),
-    },
-    {
         .input_id = __sm_input_id(lora_wan, join_req),
         .action_id = __sm_action_id(lora_wan, start_join),
         .next_state_id = __sm_state_id(lora_wan, not_joined),
@@ -261,11 +237,6 @@ static state_trans_table_t sm_lora_wan_trx_trans_table [] = {
     {
         .input_id = __sm_input_id(lora_wan, mac_req),
         .action_id = __sm_action_id(lora_wan, process_mac),
-        .next_state_id = __sm_state_id(lora_wan, trx),
-    },
-    {
-        .input_id = __sm_input_id(lora_wan, radio_evt),
-        .action_id = __sm_action_id(lora_wan, process_radio),
         .next_state_id = __sm_state_id(lora_wan, trx),
     },
     {
@@ -323,11 +294,6 @@ static state_trans_table_t sm_lora_wan_lct_join_trans_table [] = {
     {
         .input_id = __sm_input_id(lora_wan, mac_req),
         .action_id = __sm_action_id(lora_wan, process_mac),
-        .next_state_id = __sm_state_id(lora_wan, lct_join),
-    },
-    {
-        .input_id = __sm_input_id(lora_wan, radio_evt),
-        .action_id = __sm_action_id(lora_wan, process_radio),
         .next_state_id = __sm_state_id(lora_wan, lct_join),
     },
     {

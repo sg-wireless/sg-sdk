@@ -100,8 +100,11 @@ void sx126x_port_init( sx126x_port_t * p_port_params );
 
 /**
  * @brief   This function shall ba called if the sx126x interrupt pin is raised 
+ * 
+ * @param timestamp the accurate timestamp at which the interrupt pin raised
+ *          to be considered for any further time calculations
  */
-void sx126x_port_irq( void );
+void sx126x_port_irq( uint32_t timestamp );
 
 /* --- end of file ---------------------------------------------------------- */
 #ifdef __cplusplus

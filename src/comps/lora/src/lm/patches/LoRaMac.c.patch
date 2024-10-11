@@ -1,17 +1,137 @@
---- ../../../../../ext/LoRaMac-node/src/mac/LoRaMac.c	2023-06-14 18:49:49
-+++ ./modified_sources/LoRaMac.c	2023-10-05 13:16:44
-@@ -48,6 +48,10 @@
+--- ../../../../../ext/LoRaMac-node/src/mac/LoRaMac.c	2024-10-01 14:57:12
++++ ./modified_sources/LoRaMac.c	2024-10-11 19:26:52
+@@ -48,6 +48,18 @@
  
  #include "LoRaMac.h"
  
-+// #define __log_subsystem lora
-+// #define __log_component wan_mac
-+// #include "log_lib.h"
++#define __log_subsystem lora
++#define __log_component wan_mac
++#include "log_lib.h"
++
++void lw_rxwin_set_last_tx_done_timestamp(uint32_t timestamp);
++uint32_t lm_rxwin_get_delay(uint32_t win_act_delay);
++void lm_rxwin_set_rx_state(int state);
++void lm_rxwin_time_ctrl_align(void);
++void lw_radio_process_rxwin_timer_expire(
++    void (*p_handler)(void*), uint32_t rx_act_delay, int rx_win);
++int32_t lw_rxwin_calibration_get_time_extension(void);
 +
  /*!
   * Maximum PHY layer payload size
   */
-@@ -2566,7 +2570,9 @@
+@@ -743,7 +755,12 @@
+ 
+ static void OnRadioTxDone( void )
+ {
+-    TxDoneParams.CurTime = TimerGetCurrentTime( );
++    uint32_t radio_get_irq_timestamp(void);
++    TxDoneParams.CurTime = radio_get_irq_timestamp( );
++
++    lw_rxwin_set_last_tx_done_timestamp(TxDoneParams.CurTime);
++
++    // TxDoneParams.CurTime = TimerGetCurrentTime( );
+     MacCtx.LastTxSysTime = SysTimeGet( );
+ 
+     LoRaMacRadioEvents.Events.TxDone = 1;
+@@ -753,7 +770,10 @@
+ 
+ static void OnRadioRxDone( uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr )
+ {
+-    RxDoneParams.LastRxDone = TimerGetCurrentTime( );
++    lm_rxwin_set_rx_state( 1 );
++    uint32_t radio_get_irq_timestamp(void);
++    RxDoneParams.LastRxDone = radio_get_irq_timestamp( );
++    // RxDoneParams.LastRxDone = TimerGetCurrentTime( );
+     RxDoneParams.Payload = payload;
+     RxDoneParams.Size = size;
+     RxDoneParams.Rssi = rssi;
+@@ -774,6 +794,9 @@
+ 
+ static void OnRadioRxError( void )
+ {
++    void lm_rxwin_set_rx_state(int state);
++    lm_rxwin_set_rx_state( 3 );
++
+     LoRaMacRadioEvents.Events.RxError = 1;
+ 
+     OnMacProcessNotify( );
+@@ -781,6 +804,9 @@
+ 
+ static void OnRadioRxTimeout( void )
+ {
++    void lm_rxwin_set_rx_state(int state);
++    lm_rxwin_set_rx_state( 2 );
++
+     LoRaMacRadioEvents.Events.RxTimeout = 1;
+ 
+     OnMacProcessNotify( );
+@@ -810,12 +836,19 @@
+     }
+ 
+     // Setup timers
++    void TimerStartWithPeriod( TimerEvent_t *obj, uint32_t value );
++
+     CRITICAL_SECTION_BEGIN( );
+-    uint32_t offset = TimerGetCurrentTime( ) - TxDoneParams.CurTime;
+-    TimerSetValue( &MacCtx.RxWindowTimer1, MacCtx.RxWindow1Delay - offset );
+-    TimerStart( &MacCtx.RxWindowTimer1 );
+-    TimerSetValue( &MacCtx.RxWindowTimer2, MacCtx.RxWindow2Delay - offset );
+-    TimerStart( &MacCtx.RxWindowTimer2 );
++    // uint32_t offset = TimerGetCurrentTime( ) - TxDoneParams.CurTime;
++    // TimerSetValue( &MacCtx.RxWindowTimer1, MacCtx.RxWindow1Delay - offset );
++    // TimerStart( &MacCtx.RxWindowTimer1 );
++    TimerStartWithPeriod(&MacCtx.RxWindowTimer1,
++        lm_rxwin_get_delay(MacCtx.RxWindow1Delay - MacCtx.RxWindow1Config.WindowOffset));
++    // TimerSetValue( &MacCtx.RxWindowTimer2, MacCtx.RxWindow2Delay - offset );
++    // TimerStart( &MacCtx.RxWindowTimer2 );
++    // TimerStartWithPeriod(&MacCtx.RxWindowTimer2, MacCtx.RxWindow2Delay - offset);
++    TimerStartWithPeriod(&MacCtx.RxWindowTimer2,
++        lm_rxwin_get_delay(MacCtx.RxWindow2Delay - MacCtx.RxWindow2Config.WindowOffset));
+     CRITICAL_SECTION_END( );
+ 
+     if( MacCtx.NodeAckRequested == true )
+@@ -1929,7 +1962,7 @@
+     }
+ }
+ 
+-static void OnRxWindow1TimerEvent( void* context )
++static void OnRxWindow1TimerEvent_process( void* context )
+ {
+     MacCtx.RxWindow1Config.Channel = MacCtx.Channel;
+     MacCtx.RxWindow1Config.DrOffset = Nvm.MacGroup2.MacParams.Rx1DrOffset;
+@@ -1938,10 +1971,17 @@
+     MacCtx.RxWindow1Config.RxSlot = RX_SLOT_WIN_1;
+     MacCtx.RxWindow1Config.NetworkActivation = Nvm.MacGroup2.NetworkActivation;
+ 
++    // __log_output("rx1 >> offset: %d, tout:%d max-rx-win: %d\n", MacCtx.RxWindow1Config.WindowOffset, MacCtx.RxWindow1Config.WindowTimeout, Nvm.MacGroup2.MacParams.MaxRxWindow);
+     RxWindowSetup( &MacCtx.RxWindowTimer1, &MacCtx.RxWindow1Config );
+ }
++static void OnRxWindow1TimerEvent( void* context )
++{
++    lw_radio_process_rxwin_timer_expire(
++        OnRxWindow1TimerEvent_process,
++        MacCtx.RxWindow1Delay - MacCtx.RxWindow1Config.WindowOffset, 1);
++}
+ 
+-static void OnRxWindow2TimerEvent( void* context )
++static void OnRxWindow2TimerEvent_process( void* context )
+ {
+     // Check if we are processing Rx1 window.
+     // If yes, we don't setup the Rx2 window.
+@@ -1958,6 +1998,12 @@
+ 
+     RxWindowSetup( &MacCtx.RxWindowTimer2, &MacCtx.RxWindow2Config );
+ }
++static void OnRxWindow2TimerEvent( void* context )
++{
++    lw_radio_process_rxwin_timer_expire(
++        OnRxWindow2TimerEvent_process,
++        MacCtx.RxWindow2Delay - MacCtx.RxWindow2Config.WindowOffset, 2);
++}
+ 
+ static void OnRetransmitTimeoutTimerEvent( void* context )
+ {
+@@ -2566,7 +2612,9 @@
                      // Copy received GPS Epoch time into system time
                      sysTime = gpsEpochTime;
                      // Add Unix to Gps epoch offset. The system time is based on Unix time.
@@ -22,7 +142,18 @@
  
                      // Compensate time difference between Tx Done time and now
                      sysTimeCurrent = SysTimeGet( );
-@@ -5245,11 +5251,8 @@
+@@ -3249,7 +3297,9 @@
+ 
+     if( RegionRxConfig( Nvm.MacGroup2.Region, rxConfig, ( int8_t* )&MacCtx.McpsIndication.RxDatarate ) == true )
+     {
+-        Radio.Rx( Nvm.MacGroup2.MacParams.MaxRxWindow );
++        lm_rxwin_time_ctrl_align();
++        Radio.Rx( Nvm.MacGroup2.MacParams.MaxRxWindow +
++            lw_rxwin_calibration_get_time_extension() );
+         MacCtx.RxSlot = rxConfig->RxSlot;
+     }
+ }
+@@ -5245,11 +5295,8 @@
   */
  static void AbpJoinPendingStart( void )
  {

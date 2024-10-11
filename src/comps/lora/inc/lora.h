@@ -142,6 +142,7 @@ typedef enum {
                 in listening mode */
     __LORA_IOCTL_LCT_MODE_SET,  /**< to set the LCT mode on/off */
     __LORA_IOCTL_LCT_MODE_GET,  /**< to get the LCT mode status */
+    __LORA_IOCTL_TOGGLE_RXWIN_VERBOSITY,  /**< to open/close rx-win verbosity */
 } lora_ioctl_t;
 
 /**
@@ -249,7 +250,13 @@ typedef enum {
 typedef enum {
     __LORA_WAN_PARAM_REGION,    /**< to configure region parameter */
     __LORA_WAN_PARAM_CLASS,     /**< to configure class type parameter */
-    __LORA_WAN_PARAM_PAYLOAD    /**< to get current available payload size */
+    __LORA_WAN_PARAM_PAYLOAD,   /**< to get current available payload size */
+    __LORA_WAN_PARAM_SYS_RX_ERR,/**< system rx window max error margin */
+    __LORA_WAN_PARAM_CAL_RXWIN_TIME_SHIFT,
+                                /**< rx-window time-shift calibration param */
+    __LORA_WAN_PARAM_CAL_RXWIN_EXTENSION,
+                            /**< rx-window time-extension calibration param */
+    __LORA_WAN_PARAM_CAL_ENABLE,/**< rx-window calibration param enable */
 } lora_wan_param_type_t;
 
 /**
@@ -261,7 +268,11 @@ typedef struct {
     union {
         lora_region_t       region; /**< value of the new region */
         lora_wan_class_t    class;  /**< value of the new required class type */
-        uint8_t             payload; /**< value of the payload size */
+        uint8_t     payload;            /**< value of the payload size */
+        int32_t     sys_rx_err;         /**< value of max sys rx error */
+        bool        cal_enable;         /**< fine tune calibration enable */
+        int32_t     cal_time_shift;     /**< calibration time-shift */
+        int32_t     cal_time_extension; /**< calibration time-extension */
     } param;
 } lora_wan_param_t;
 

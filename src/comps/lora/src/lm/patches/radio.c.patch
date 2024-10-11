@@ -1,0 +1,135 @@
+--- ../../../../../ext/LoRaMac-node/src/radio/sx126x/radio.c	2024-10-01 14:57:12
++++ ./modified_sources/radio.c	2024-10-12 00:25:13
+@@ -30,6 +30,10 @@
+ #include "sx126x-board.h"
+ #include "board.h"
+ 
++#define __log_subsystem lora
++#define __log_component wan_radio
++#include "log_lib.h"
++
+ /*!
+  * \brief Initializes the radio
+  *
+@@ -578,8 +582,10 @@
+     }
+ }
+ 
++static float s_ch_freq;
+ void RadioSetChannel( uint32_t freq )
+ {
++    s_ch_freq = (float)freq / 1000000.0f;
+     SX126xSetRfFrequency( freq );
+ }
+ 
+@@ -634,7 +640,7 @@
+ 
+     return rnd;
+ }
+-
++#include "systime.h"
+ void RadioSetRxConfig( RadioModems_t modem, uint32_t bandwidth,
+                          uint32_t datarate, uint8_t coderate,
+                          uint32_t bandwidthAfc, uint16_t preambleLen,
+@@ -661,6 +667,10 @@
+     switch( modem )
+     {
+         case MODEM_FSK:
++            __log_info(__purple__" <- RX"
++                __default__" freq:"__yellow__"%.01f"
++                __default__" mod:"__red__"FSK",
++                s_ch_freq);
+             SX126xSetStopRxTimerOnPreambleDetect( false );
+             SX126x.ModulationParams.PacketType = PACKET_TYPE_GFSK;
+ 
+@@ -737,6 +747,19 @@
+             SX126x.PacketParams.Params.LoRa.CrcMode = ( RadioLoRaCrcModes_t )crcOn;
+             SX126x.PacketParams.Params.LoRa.InvertIQ = ( RadioLoRaIQModes_t )iqInverted;
+ 
++            int _bw = SX126x.ModulationParams.Params.LoRa.Bandwidth;
++            __log_info(__purple__" <- RX"
++                __default__" freq:"__yellow__"%.01f"
++                __default__" mod:"__green__"LORA"
++                __default__" sf:"__yellow__ "%2d"
++                __default__" bw:"__cyan__   "%3d"
++                __default__" cr:"__blue__   "4/%d",
++                s_ch_freq,
++                SX126x.ModulationParams.Params.LoRa.SpreadingFactor,
++                _bw == LORA_BW_125 ? 125 : _bw == LORA_BW_250 ? 250 : _bw == LORA_BW_500 ? 500 : 0,
++                coderate + 4
++                );
++
+             RadioStandby( );
+             RadioSetModem( ( SX126x.ModulationParams.PacketType == PACKET_TYPE_GFSK ) ? MODEM_FSK : MODEM_LORA );
+             SX126xSetModulationParams( &SX126x.ModulationParams );
+@@ -758,7 +781,10 @@
+             RxTimeout = 0xFFFF;
+ 
+             break;
++        default:
++            __log_error("-- RX mod: UNKNOWN");
+     }
++    s_ch_freq = 0.0f;
+ }
+ 
+ void RadioSetTxConfig( RadioModems_t modem, int8_t power, uint32_t fdev,
+@@ -771,6 +797,10 @@
+     switch( modem )
+     {
+         case MODEM_FSK:
++            __log_info(__green__" -> TX"
++                __default__" freq:"__yellow__"%.01f"
++                __default__" mod:"__red__"FSK",
++                s_ch_freq);
+             SX126x.ModulationParams.PacketType = PACKET_TYPE_GFSK;
+             SX126x.ModulationParams.Params.Gfsk.BitRate = datarate;
+ 
+@@ -843,12 +873,29 @@
+             SX126x.PacketParams.Params.LoRa.CrcMode = ( RadioLoRaCrcModes_t )crcOn;
+             SX126x.PacketParams.Params.LoRa.InvertIQ = ( RadioLoRaIQModes_t )iqInverted;
+ 
++            int _bw = SX126x.ModulationParams.Params.LoRa.Bandwidth;
++            __log_info(__green__" -> TX"
++                __default__" freq:"__yellow__"%.01f"
++                __default__" mod:"__green__"LORA"
++                __default__" sf:"__yellow__ "%2d"
++                __default__" bw:"__cyan__   "%3d"
++                __default__" cr:"__blue__   "4/%d"
++                __default__" pow:"__green__"%d",
++                s_ch_freq,
++                SX126x.ModulationParams.Params.LoRa.SpreadingFactor,
++                _bw == 4 ? 125 : _bw == 5 ? 250 : _bw == 6 ? 500 : 0,
++                coderate + 4, power
++                );
++
+             RadioStandby( );
+             RadioSetModem( ( SX126x.ModulationParams.PacketType == PACKET_TYPE_GFSK ) ? MODEM_FSK : MODEM_LORA );
+             SX126xSetModulationParams( &SX126x.ModulationParams );
+             SX126xSetPacketParams( &SX126x.PacketParams );
+             break;
++        default:
++            __log_error("-- TX CFG-UNKNOWN");
+     }
++    s_ch_freq = 0.0f;
+ 
+     // WORKAROUND - Modulation Quality with 500 kHz LoRa Bandwidth, see DS_SX1261-2_V1.2 datasheet chapter 15.1
+     if( ( modem == MODEM_LORA ) && ( SX126x.ModulationParams.Params.LoRa.Bandwidth == LORA_BW_500 ) )
+@@ -1242,9 +1289,18 @@
+     }
+ }
+ 
++static volatile uint32_t s_irq_fired_timastamp;
+ void RadioOnDioIrq( void* context )
+ {
+     IrqFired = true;
++    /* register the timestamp for accurate time calculation */
++    // s_irq_fired_timastamp = TimerGetCurrentTime( );
++    s_irq_fired_timastamp = (uint32_t)context;
++}
++
++uint32_t radio_get_irq_timestamp(void)
++{
++    return s_irq_fired_timastamp;
+ }
+ 
+ void RadioIrqProcess( void )

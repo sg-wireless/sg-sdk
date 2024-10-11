@@ -11,7 +11,6 @@
 
 void __sm_action_fun(lora_wan, start_join)(void* data);
 void __sm_action_fun(lora_wan, process_mac)(void* data);
-void __sm_action_fun(lora_wan, process_radio)(void* data);
 void __sm_action_fun(lora_wan, switch_slass)(void* data);
 void __sm_action_fun(lora_wan, restart_join)(void* data);
 void __sm_action_fun(lora_wan, commission)(void* data);
@@ -30,7 +29,6 @@ void __sm_action_fun(lora_wan, lct_joined)(void* data);
 enum {
     __sm_input_id(lora_wan, join_req),
     __sm_input_id(lora_wan, mac_req),
-    __sm_input_id(lora_wan, radio_evt),
     __sm_input_id(lora_wan, join_done),
     __sm_input_id(lora_wan, join_fail),
     __sm_input_id(lora_wan, commission),
@@ -47,7 +45,6 @@ enum {
 enum {
     __sm_action_id(lora_wan, start_join),
     __sm_action_id(lora_wan, process_mac),
-    __sm_action_id(lora_wan, process_radio),
     __sm_action_id(lora_wan, switch_slass),
     __sm_action_id(lora_wan, restart_join),
     __sm_action_id(lora_wan, commission),

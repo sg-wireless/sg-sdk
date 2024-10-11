@@ -98,6 +98,9 @@ lora_region_t lmh_get_region(void);
 void lmh_set_class(lora_wan_class_t class);
 lora_wan_class_t lmh_get_class(void);
 
+void lmh_set_sys_rx_error(uint32_t rx_error_margin);
+uint32_t lmh_get_sys_rx_error(void);
+
 void lmh_start_class_c_temp_session(void);
 void lmh_stop_class_c_temp_session(void);
 

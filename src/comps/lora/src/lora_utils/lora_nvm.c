@@ -110,11 +110,11 @@ void lora_nvm_handle_change(
 
         __log_nvm_debug(key_name, "init-record", p_mem, mem_size, "--");
 
-        p_tail->magic = __lora_nvm_load_magic;
         if( load_default_method )
         {
             load_default_method( p_mem, mem_size );
         }
+        p_tail->magic = __lora_nvm_load_magic;
         crc = lora_stub_crc32(0, p_mem, mem_size - 4);
         p_tail->crc32 = crc;
 

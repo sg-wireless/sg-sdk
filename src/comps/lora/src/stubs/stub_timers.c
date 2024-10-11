@@ -46,6 +46,7 @@ static lora_port_timer_delete_t     * p_timer_delete;
 static lora_port_timer_start_t      * p_timer_start;
 static lora_port_timer_stop_t       * p_timer_stop;
 static lora_port_timer_set_period_t * p_timer_set_period;
+static lora_port_get_timestamp_ms_t * p_get_timestamp_msec;
 
 void lora_stub_timers_init(void* p_init_params)
 {
@@ -57,6 +58,7 @@ void lora_stub_timers_init(void* p_init_params)
     p_timer_start   = ptr->timer_start;
     p_timer_stop    = ptr->timer_stop;
     p_timer_set_period = ptr->timer_set_period;
+    p_get_timestamp_msec = ptr->get_timestamp_msec;
 }
 
 /** -------------------------------------------------------------------------- *
@@ -170,11 +172,15 @@ void lora_stub_timer_delete(void* handle)
 
 void lora_stub_timer_start(void* handle, uint32_t period_ms)
 {
+    uint32_t ts_1 = p_get_timestamp_msec();
     stub_timer_t* p_timer = get_timer(handle);
     if( p_timer )
     {
-        if(period_ms)
-            p_timer_set_period(handle, period_ms);
+        if(period_ms) {
+            uint32_t offset = p_get_timestamp_msec() - ts_1;
+            if( period_ms > offset )
+                p_timer_set_period(handle, period_ms - offset);
+        }
         __log_debug(__blue__"timer start --> handle:%p, cb:%p, arg:%p, msec:%d",
                 handle, p_timer->p_callback, p_timer->arg, period_ms);
         p_timer_start(handle);
@@ -233,6 +239,10 @@ void TimerInit( TimerEvent_t *obj, void (*callback)(void*) )
 void TimerStart( TimerEvent_t *obj )
 {
     lora_stub_timer_start(obj->Context, 0);
+}
+void TimerStartWithPeriod( TimerEvent_t *obj, uint32_t value )
+{
+    lora_stub_timer_start(obj->Context, value);
 }
 void TimerStop( TimerEvent_t *obj )
 {

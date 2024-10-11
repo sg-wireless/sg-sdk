@@ -70,6 +70,13 @@
 #define __config_lorawan_port                   1
 #define __config_lora_active_region             LORAMAC_REGION_EU868
 
+#ifdef CONFIG_LORA_WAN_DEFAULT_SYSTEM_MAX_RX_ERROR_MS
+#define __config_lorawan_sys_max_rx_error       \
+    CONFIG_LORA_WAN_DEFAULT_SYSTEM_MAX_RX_ERROR_MS
+#else
+#define __config_lorawan_sys_max_rx_error       20
+#endif
+
 /** -------------------------------------------------------------------------- *
  * lora-wan nvm application parameters
  * --------------------------------------------------------------------------- *
@@ -78,6 +85,7 @@
 typedef struct {
     LoRaMacRegion_t         region;
     lora_wan_class_t        class;
+    uint32_t                sys_rx_error;
     lora_nvm_record_tail_t  nvm_record_tail;
 } lora_wan_app_nvm_data_t;
 
@@ -89,9 +97,10 @@ static bool s_is_class_c_temp_session = false;
 
 static void lora_wan_app_data_defaults( void* p_record_mem, uint32_t size )
 {
-    memset(p_record_mem, 0, sizeof(size));
+    memset(p_record_mem, 0, size);
     s_lora_wan_app_nvm_data.region = __config_lora_active_region;
     s_lora_wan_app_nvm_data.class = __LORA_WAN_CLASS_A;
+    s_lora_wan_app_nvm_data.sys_rx_error = __config_lorawan_sys_max_rx_error;
 }
 static void lora_wan_handle_app_nvm_data_change(void)
 {
@@ -161,6 +170,8 @@ static LmHandlerParams_t s_lmh_params = {
     .PingSlotPeriodicity    = REGION_COMMON_DEFAULT_PING_SLOT_PERIODICITY,
 };
 
+static void lmh_set_sys_rx_error_impl(uint32_t rx_error);
+
 void lmh_init( void )
 {
     __log_info("start lmh re-init");
@@ -174,8 +185,7 @@ void lmh_init( void )
         return;
     }
 
-    #define __max_rx_error      100
-    LmHandlerSetSystemMaxRxError( __max_rx_error );
+    lmh_set_sys_rx_error_impl(s_lora_wan_app_nvm_data.sys_rx_error);
 
     extern void lora_proto_compliance_init(void);
     lora_proto_compliance_init();
@@ -241,6 +251,29 @@ void lmh_set_region(lora_region_t region)
         lora_wan_handle_app_nvm_data_change();
     }
     __log_error("invalid region %d", region);
+}
+
+static void lmh_set_sys_rx_error_impl(uint32_t rx_error)
+{
+    if(rx_error > 100) {
+        __log_warn("sys rx max err margin too high: %d", rx_error);
+    }
+    void lw_rxwin_set_sys_time_err(uint32_t sys_time_err);
+    lw_rxwin_set_sys_time_err(rx_error);
+
+    LmHandlerSetSystemMaxRxError( rx_error );
+}
+
+void lmh_set_sys_rx_error(uint32_t rx_error_margin)
+{
+    s_lora_wan_app_nvm_data.sys_rx_error = rx_error_margin;
+    lora_wan_handle_app_nvm_data_change();
+    lmh_set_sys_rx_error_impl(rx_error_margin);
+}
+
+uint32_t lmh_get_sys_rx_error(void)
+{
+    return s_lora_wan_app_nvm_data.sys_rx_error;
 }
 
 lora_region_t lmh_get_region(void)

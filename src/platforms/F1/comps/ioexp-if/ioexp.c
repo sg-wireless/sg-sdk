@@ -194,21 +194,24 @@ __opt_paste(__lte__, y,
 
 #define __ioexp_sig_int_handler(sig) __concat(ioexp_sig_int_handler__, sig)
 
+static volatile uint32_t s_callback_timestamp;
+static volatile uint32_t s_wakeup_timestamp;
+
 #if __opt_test(__lora__, y)
 static void __ioexp_sig_int_handler(lora_int)(bool pin_value) {
     if( __ioexp_sig_int_callback(lora_int) )
-        __ioexp_sig_int_callback(lora_int)();
+        __ioexp_sig_int_callback(lora_int)(s_callback_timestamp);
 }
 static void __ioexp_sig_int_handler(lora_free)(bool pin_value) {
     if( __ioexp_sig_int_callback(lora_free) )
-        __ioexp_sig_int_callback(lora_free)();
+        __ioexp_sig_int_callback(lora_free)(s_callback_timestamp);
 }
 #endif
 
 #if __opt_test(__lte__, y)
 static void __ioexp_sig_int_handler(lte_ring)(bool pin_value) {
     if( __ioexp_sig_int_callback(lte_ring) )
-        __ioexp_sig_int_callback(lte_ring)();
+        __ioexp_sig_int_callback(lte_ring)(s_callback_timestamp);
 }
 #endif
 
@@ -356,6 +359,7 @@ static void esp32_ioexp_task(void * arg)
         if(xSemaphoreTake(s_ioexp_sync_sem_handle, portMAX_DELAY)== pdTRUE)
         {
             __ioexp_access_lock();
+            s_callback_timestamp = s_wakeup_timestamp;
             __log_debug("interrupt event");
             pcal6408a_interrupt_trigger_port();
             __ioexp_access_unlock();
@@ -384,6 +388,7 @@ static void esp32_ioexp_int_handler(void * args)
 {
     (void)args;
     static BaseType_t xHigherPriorityTaskWoken;
+    s_wakeup_timestamp = esp_timer_get_time() / 1000U;
     if(xSemaphoreGiveFromISR(s_ioexp_sync_sem_handle,
         &xHigherPriorityTaskWoken) != pdTRUE)
     {

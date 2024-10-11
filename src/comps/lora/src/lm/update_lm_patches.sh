@@ -34,4 +34,11 @@ __main_update_script=${__root_dir}/tools/builder/cmake/update_patches.sh
 
 ${__main_update_script} ${__original_dir} ${__modified_dir} ${__patch_dir}
 
+__original_dir=${__root_dir}/ext/LoRaMac-node/src/radio/sx126x
+${__main_update_script} \
+    ${__root_dir}/ext/LoRaMac-node/src/radio/sx126x \
+    ${__modified_dir} \
+    ${__patch_dir} \
+    radio.c
+
 # --- end of file ------------------------------------------------------------ #

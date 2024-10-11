@@ -81,7 +81,6 @@ static void trx_post_msg_ind(int ind);
 /* ############################ Not-Joined State ############################ */
 __sm_trans(lora_wan, not_joined,    join_req,   start_join,     not_joined  )
 __sm_trans(lora_wan, not_joined,    mac_req,    process_mac,    not_joined  )
-__sm_trans(lora_wan, not_joined,    radio_evt,  process_radio,  not_joined  )
 __sm_trans(lora_wan, not_joined,    join_done,  switch_slass,   chg_class   )
 __sm_trans(lora_wan, not_joined,    join_fail,  restart_join,   not_joined  )
 __sm_trans(lora_wan, not_joined,    commission, commission,     not_joined  )
@@ -90,7 +89,6 @@ __sm_trans(lora_wan, not_joined,    lct_on,     lct_enter,      lct         )
 /* ############################## Joined State ############################## */
 __sm_trans(lora_wan, joined,        duty_cycle, start_trx,      trx         )
 __sm_trans(lora_wan, joined,        mac_req,    process_mac,    joined      )
-__sm_trans(lora_wan, joined,        radio_evt,  process_radio,  joined      )
 __sm_trans(lora_wan, joined,        join_req,   start_join,     not_joined  )
 __sm_trans(lora_wan, joined,        commission, commission,     not_joined  )
 __sm_trans(lora_wan, joined,        req_class,  switch_slass,   chg_class   )
@@ -99,7 +97,6 @@ __sm_trans(lora_wan, joined,        lct_on,     lct_enter,      lct         )
 /* ################################ TRX State ############################### */
 __sm_trans(lora_wan, trx,           duty_cycle, start_trx,      trx         )
 __sm_trans(lora_wan, trx,           mac_req,    process_mac,    trx         )
-__sm_trans(lora_wan, trx,           radio_evt,  process_radio,  trx         )
 __sm_trans(lora_wan, trx,           join_req,   start_join,     not_joined  )
 __sm_trans(lora_wan, trx,           commission, commission,     not_joined  )
 __sm_trans(lora_wan, trx,           timeout,    trx_timeout,    joined      )
@@ -111,7 +108,6 @@ __sm_trans(lora_wan, chg_class,     req_class,  switch_slass,   chg_class   )
 __sm_trans(lora_wan, chg_class,     class_chg,  ind_class,      joined      )
 __sm_trans(lora_wan, chg_class,     mac_req,    process_mac,    chg_class   )
 __sm_trans(lora_wan, chg_class,     duty_cycle, do_nothing,     chg_class   )
-__sm_trans(lora_wan, chg_class,     radio_evt,  process_radio,  chg_class   )
 __sm_trans(lora_wan, chg_class,     join_req,   start_join,     not_joined  )
 __sm_trans(lora_wan, chg_class,     commission, commission,     not_joined  )
 __sm_trans(lora_wan, chg_class,     timeout,    trx_timeout,    chg_class   )
@@ -123,7 +119,6 @@ __sm_trans(lora_wan, lct_idle,      join_req,   lct_join,       lct_join    )
 __sm_trans(lora_wan, lct_idle,      lct_off,    lct_exit,       not_joined  )
 
 /* ############################### LCT State ################################ */
-__sm_trans(lora_wan, lct,           radio_evt,  process_radio,  lct         )
 __sm_trans(lora_wan, lct,           duty_cycle, lct_handle,     lct         )
 __sm_trans(lora_wan, lct,           mac_req,    process_mac,    lct         )
 __sm_trans(lora_wan, lct,           join_req,   lct_join,       lct_join    )
@@ -132,7 +127,6 @@ __sm_trans(lora_wan, lct,           lct_off,    lct_exit,       not_joined  )
 
 /* ############################## LCT Joining ############################### */
 __sm_trans(lora_wan, lct_join,      mac_req,    process_mac,    lct_join    )
-__sm_trans(lora_wan, lct_join,      radio_evt,  process_radio,  lct_join    )
 __sm_trans(lora_wan, lct_join,      join_done,  lct_joined,     lct         )
 __sm_trans(lora_wan, lct_join,      join_fail,  lct_join,       lct_join    )
 __sm_trans(lora_wan, lct_join,      lct_off,    lct_exit,       not_joined  )
@@ -496,13 +490,6 @@ __sm_action(lora_wan, process_mac)(void* data)
 {
     lmh_process();
 }
-__sm_action(lora_wan, process_radio)(void* data)
-{
-    if( Radio.IrqProcess != NULL ) {
-        Radio.IrqProcess( );
-    }
-    lmh_process();
-}
 __sm_action(lora_wan, start_trx)(void* data)
 {
     if( lmh_is_busy() )
@@ -594,8 +581,6 @@ static input_id_t get_state_machine_input(lora_wan_process_request_t req)
         return __sm_input_id(lora_wan, join_fail);
     if( req == __LORA_WAN_PROCESS_PROCESS_MAC )
         return __sm_input_id(lora_wan, mac_req);
-    if( req == __LORA_WAN_PROCESS_RADIO_EVENT )
-        return __sm_input_id(lora_wan, radio_evt);
     if( req == __LORA_WAN_PROCESS_TRX_DUTY_CYCLE )
         return __sm_input_id(lora_wan, duty_cycle);
     if( req == __LORA_WAN_PROCESS_MSG_TIMEOUT )
@@ -976,7 +961,8 @@ typedef struct {
 static void lora_port_service_level_irq_handler(void)
 {
     __log_info("notify from irq handler");
-    lora_wan_process_request(__LORA_WAN_PROCESS_RADIO_EVENT, NULL);
+    void lw_radio_process_events(void);
+    lw_radio_process_events();
 }
 
 void lora_wan_process_ctor(void)
@@ -1037,7 +1023,6 @@ static const char* lora_wan_get_req_str(lora_wan_process_request_t req)
     case __LORA_WAN_PROCESS_JOIN_FAIL:      return "join-fail";
     case __LORA_WAN_PROCESS_JOIN_STATUS_REQ:return "join-status-req";
     case __LORA_WAN_PROCESS_PROCESS_MAC:    return "process-mac";
-    case __LORA_WAN_PROCESS_RADIO_EVENT:    return "radio-event";
     case __LORA_WAN_PROCESS_TRX_DUTY_CYCLE: return "trx-duty-cycle";
     case __LORA_WAN_PROCESS_MSG_TIMEOUT:    return "msg-timeout";
     case __LORA_WAN_PROCESS_REQ_CLASS:      return "req-class";

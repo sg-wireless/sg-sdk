@@ -53,6 +53,7 @@
 #include "lora_mode.h"
 #include "utils_bitarray.h"
 #include "lora_proto_compliance.h"
+#include "lora_wan_radio_process.h"
 
 /** -------------------------------------------------------------------------- *
  * applications ports alloc/free
@@ -110,7 +111,7 @@ static void port_set_common_callback(void* arg)
     int i;
     for(i = 0; i < __max_app_ports; ++i)
     {
-        if( __bitarray_get(allocated_ports, i) && s_ports[i].callback == NULL )
+        if( __bitarray_get(allocated_ports, i) )
         {
             s_ports[i].callback = arg;
         }
@@ -159,6 +160,9 @@ static lora_error_t lora_wan_ctor(void)
     lora_error_t ret = __LORA_OK;
 
     __log_info("lora wan ctor()");
+
+    void lw_radio_process_ctor(void);
+    lw_radio_process_ctor();
 
     lora_commission_ctor();
 
@@ -474,6 +478,16 @@ static lora_error_t lora_wan_ioctl(uint32_t ioctl, void* arg)
             p_param->param.class = lmh_get_class();
         } else if (p_param->type == __LORA_WAN_PARAM_PAYLOAD) {
             p_param->param.payload = lmh_get_tx_payload_size();
+        } else if (p_param->type == __LORA_WAN_PARAM_SYS_RX_ERR) {
+            p_param->param.sys_rx_err = lmh_get_sys_rx_error();
+        } else if (p_param->type == __LORA_WAN_PARAM_CAL_ENABLE) {
+            p_param->param.cal_enable = lw_rxwin_calibration_get_enablement();
+        } else if (p_param->type == __LORA_WAN_PARAM_CAL_RXWIN_TIME_SHIFT) {
+            p_param->param.cal_time_shift =
+                lw_rxwin_calibration_get_time_shift();
+        } else if (p_param->type == __LORA_WAN_PARAM_CAL_RXWIN_EXTENSION) {
+            p_param->param.cal_time_extension =
+                lw_rxwin_calibration_get_time_extension();
         } else {
             __log_error("unknown lorawan parameter : %d", p_param->type);
         }
@@ -492,6 +506,15 @@ static lora_error_t lora_wan_ioctl(uint32_t ioctl, void* arg)
             }
         } else if (p_param->type == __LORA_WAN_PARAM_CLASS) {
             lmh_set_class(p_param->param.class);
+        } else if (p_param->type == __LORA_WAN_PARAM_SYS_RX_ERR) {
+            lmh_set_sys_rx_error(p_param->param.sys_rx_err);
+        } else if (p_param->type == __LORA_WAN_PARAM_CAL_ENABLE) {
+            lw_rxwin_calibration_set_enablement(p_param->param.cal_enable);
+        } else if (p_param->type == __LORA_WAN_PARAM_CAL_RXWIN_TIME_SHIFT) {
+            lw_rxwin_calibration_set_time_shift(p_param->param.cal_time_shift);
+        } else if (p_param->type == __LORA_WAN_PARAM_CAL_RXWIN_EXTENSION) {
+            lw_rxwin_calibration_set_time_extension(
+                p_param->param.cal_time_extension);
         } else {
             __log_error("unknown lorawan parameter : %d", p_param->type);
         }
@@ -516,6 +539,10 @@ static lora_error_t lora_wan_ioctl(uint32_t ioctl, void* arg)
             NULL);
     }
     #endif /* CONFIG_LORA_LCT_CONTROL_API */
+    else if( ioctl == __LORA_IOCTL_TOGGLE_RXWIN_VERBOSITY )
+    {
+        lm_rxwin_toggle_debug_verbosity();
+    }
     else
     {
         __log_info("ioctl -> "__red__"unknown lora wan ioctl"__default__);
