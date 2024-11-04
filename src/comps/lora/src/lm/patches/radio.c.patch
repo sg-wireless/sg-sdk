@@ -1,28 +1,48 @@
 --- ../../../../../ext/LoRaMac-node/src/radio/sx126x/radio.c	2024-10-01 14:57:12
-+++ ./modified_sources/radio.c	2024-10-12 00:25:13
-@@ -30,6 +30,10 @@
++++ ./modified_sources/radio.c	2024-10-31 16:17:52
+@@ -30,6 +30,13 @@
  #include "sx126x-board.h"
  #include "board.h"
  
 +#define __log_subsystem lora
 +#define __log_component wan_radio
 +#include "log_lib.h"
++void lm_radio_process_lock(void);
++void lm_radio_process_unlock(void);
++void lm_radio_process_assert(void);
 +
  /*!
   * \brief Initializes the radio
   *
-@@ -578,8 +582,10 @@
+@@ -542,6 +549,7 @@
+ 
+ RadioState_t RadioGetStatus( void )
+ {
++    lm_radio_process_assert();
+     switch( SX126xGetOperatingMode( ) )
+     {
+         case MODE_TX:
+@@ -557,6 +565,7 @@
+ 
+ void RadioSetModem( RadioModems_t modem )
+ {
++    lm_radio_process_assert();
+     switch( modem )
+     {
+     default:
+@@ -578,8 +587,11 @@
      }
  }
  
 +static float s_ch_freq;
  void RadioSetChannel( uint32_t freq )
  {
++    lm_radio_process_assert();
 +    s_ch_freq = (float)freq / 1000000.0f;
      SX126xSetRfFrequency( freq );
  }
  
-@@ -634,7 +640,7 @@
+@@ -634,7 +646,7 @@
  
      return rnd;
  }
@@ -31,7 +51,16 @@
  void RadioSetRxConfig( RadioModems_t modem, uint32_t bandwidth,
                           uint32_t datarate, uint8_t coderate,
                           uint32_t bandwidthAfc, uint16_t preambleLen,
-@@ -661,6 +667,10 @@
+@@ -643,7 +655,7 @@
+                          bool crcOn, bool freqHopOn, uint8_t hopPeriod,
+                          bool iqInverted, bool rxContinuous )
+ {
+-
++    lm_radio_process_assert();
+     RxContinuous = rxContinuous;
+     if( rxContinuous == true )
+     {
+@@ -661,6 +673,10 @@
      switch( modem )
      {
          case MODEM_FSK:
@@ -42,7 +71,7 @@
              SX126xSetStopRxTimerOnPreambleDetect( false );
              SX126x.ModulationParams.PacketType = PACKET_TYPE_GFSK;
  
-@@ -737,6 +747,19 @@
+@@ -737,6 +753,19 @@
              SX126x.PacketParams.Params.LoRa.CrcMode = ( RadioLoRaCrcModes_t )crcOn;
              SX126x.PacketParams.Params.LoRa.InvertIQ = ( RadioLoRaIQModes_t )iqInverted;
  
@@ -62,7 +91,7 @@
              RadioStandby( );
              RadioSetModem( ( SX126x.ModulationParams.PacketType == PACKET_TYPE_GFSK ) ? MODEM_FSK : MODEM_LORA );
              SX126xSetModulationParams( &SX126x.ModulationParams );
-@@ -758,7 +781,10 @@
+@@ -758,7 +787,10 @@
              RxTimeout = 0xFFFF;
  
              break;
@@ -73,7 +102,12 @@
  }
  
  void RadioSetTxConfig( RadioModems_t modem, int8_t power, uint32_t fdev,
-@@ -771,6 +797,10 @@
+@@ -767,10 +799,14 @@
+                         bool fixLen, bool crcOn, bool freqHopOn,
+                         uint8_t hopPeriod, bool iqInverted, uint32_t timeout )
+ {
+-
++    lm_radio_process_assert();
      switch( modem )
      {
          case MODEM_FSK:
@@ -84,7 +118,7 @@
              SX126x.ModulationParams.PacketType = PACKET_TYPE_GFSK;
              SX126x.ModulationParams.Params.Gfsk.BitRate = datarate;
  
-@@ -843,12 +873,29 @@
+@@ -843,12 +879,29 @@
              SX126x.PacketParams.Params.LoRa.CrcMode = ( RadioLoRaCrcModes_t )crcOn;
              SX126x.PacketParams.Params.LoRa.InvertIQ = ( RadioLoRaIQModes_t )iqInverted;
  
@@ -114,7 +148,127 @@
  
      // WORKAROUND - Modulation Quality with 500 kHz LoRa Bandwidth, see DS_SX1261-2_V1.2 datasheet chapter 15.1
      if( ( modem == MODEM_LORA ) && ( SX126x.ModulationParams.Params.LoRa.Bandwidth == LORA_BW_500 ) )
-@@ -1242,9 +1289,18 @@
+@@ -1026,6 +1079,7 @@
+ 
+ void RadioSend( uint8_t *buffer, uint8_t size )
+ {
++    lm_radio_process_assert();
+     SX126xSetDioIrqParams( IRQ_TX_DONE | IRQ_RX_TX_TIMEOUT,
+                            IRQ_TX_DONE | IRQ_RX_TX_TIMEOUT,
+                            IRQ_RADIO_NONE,
+@@ -1048,21 +1102,26 @@
+ 
+ void RadioSleep( void )
+ {
++    lm_radio_process_lock();
+     SleepParams_t params = { 0 };
+ 
+     params.Fields.WarmStart = 1;
+     SX126xSetSleep( params );
+ 
+     DelayMs( 2 );
++    lm_radio_process_unlock();
+ }
+ 
+ void RadioStandby( void )
+ {
++    lm_radio_process_lock();
+     SX126xSetStandby( STDBY_RC );
++    lm_radio_process_unlock();
+ }
+ 
+ void RadioRx( uint32_t timeout )
+ {
++    lm_radio_process_assert();
+     SX126xSetDioIrqParams( IRQ_RADIO_ALL, //IRQ_RX_DONE | IRQ_RX_TX_TIMEOUT,
+                            IRQ_RADIO_ALL, //IRQ_RX_DONE | IRQ_RX_TX_TIMEOUT,
+                            IRQ_RADIO_NONE,
+@@ -1086,6 +1145,7 @@
+ 
+ void RadioRxBoosted( uint32_t timeout )
+ {
++    lm_radio_process_assert();
+     SX126xSetDioIrqParams( IRQ_RADIO_ALL, //IRQ_RX_DONE | IRQ_RX_TX_TIMEOUT,
+                            IRQ_RADIO_ALL, //IRQ_RX_DONE | IRQ_RX_TX_TIMEOUT,
+                            IRQ_RADIO_NONE,
+@@ -1109,12 +1169,14 @@
+ 
+ void RadioSetRxDutyCycle( uint32_t rxTime, uint32_t sleepTime )
+ {
++    lm_radio_process_assert();
+     SX126xSetRxDutyCycle( rxTime, sleepTime );
+ }
+ 
+ void RadioAddRegisterToRetentionList( uint16_t registerAddress )
+ {
+     uint8_t buffer[9];
++    lm_radio_process_assert();
+ 
+     // Read the address and registers already added to the list
+     SX126xReadRegisters( REG_RETENTION_LIST_BASE_ADDRESS, buffer, 9 );
+@@ -1144,6 +1206,7 @@
+ 
+ void RadioStartCad( void )
+ {
++    lm_radio_process_assert();
+     SX126xSetDioIrqParams( IRQ_CAD_DONE | IRQ_CAD_ACTIVITY_DETECTED, IRQ_CAD_DONE | IRQ_CAD_ACTIVITY_DETECTED, IRQ_RADIO_NONE, IRQ_RADIO_NONE );
+     SX126xSetCad( );
+ }
+@@ -1151,6 +1214,7 @@
+ void RadioSetTxContinuousWave( uint32_t freq, int8_t power, uint16_t time )
+ {
+     uint32_t timeout = ( uint32_t )time * 1000;
++    lm_radio_process_assert();
+ 
+     SX126xSetRfFrequency( freq );
+     SX126xSetRfTxPower( power );
+@@ -1162,31 +1226,37 @@
+ 
+ int16_t RadioRssi( RadioModems_t modem )
+ {
++    lm_radio_process_assert();
+     return SX126xGetRssiInst( );
+ }
+ 
+ void RadioWrite( uint32_t addr, uint8_t data )
+ {
++    lm_radio_process_assert();
+     SX126xWriteRegister( addr, data );
+ }
+ 
+ uint8_t RadioRead( uint32_t addr )
+ {
++    lm_radio_process_assert();
+     return SX126xReadRegister( addr );
+ }
+ 
+ void RadioWriteBuffer( uint32_t addr, uint8_t *buffer, uint8_t size )
+ {
++    lm_radio_process_assert();
+     SX126xWriteRegisters( addr, buffer, size );
+ }
+ 
+ void RadioReadBuffer( uint32_t addr, uint8_t *buffer, uint8_t size )
+ {
++    lm_radio_process_assert();
+     SX126xReadRegisters( addr, buffer, size );
+ }
+ 
+ void RadioSetMaxPayloadLength( RadioModems_t modem, uint8_t max )
+ {
++    lm_radio_process_assert();
+     if( modem == MODEM_LORA )
+     {
+         SX126x.PacketParams.Params.LoRa.PayloadLength = MaxPayloadLength = max;
+@@ -1204,6 +1274,7 @@
+ 
+ void RadioSetPublicNetwork( bool enable )
+ {
++    lm_radio_process_assert();
+     RadioPublicNetwork.Current = RadioPublicNetwork.Previous = enable;
+ 
+     RadioSetModem( MODEM_LORA );
+@@ -1242,13 +1313,23 @@
      }
  }
  
@@ -125,11 +279,16 @@
 +    /* register the timestamp for accurate time calculation */
 +    // s_irq_fired_timastamp = TimerGetCurrentTime( );
 +    s_irq_fired_timastamp = (uint32_t)context;
-+}
-+
+ }
+ 
 +uint32_t radio_get_irq_timestamp(void)
 +{
 +    return s_irq_fired_timastamp;
- }
- 
++}
++
  void RadioIrqProcess( void )
+ {
++    lm_radio_process_assert();
+     CRITICAL_SECTION_BEGIN( );
+     // Clear IRQ flag
+     const bool isIrqFired = IrqFired;

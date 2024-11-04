@@ -250,6 +250,9 @@ static lora_error_t lora_wan_dtor(void)
     /** TODO: reset radio and put it into sleep */
     Radio.Sleep();
 
+    void lw_radio_process_dtor(void);
+    lw_radio_process_dtor();
+
     return ret;
 }
 static lora_error_t lora_wan_stats(void)

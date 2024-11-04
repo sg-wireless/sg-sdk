@@ -1,0 +1,17 @@
+--- ../../../../../ext/LoRaMac-node/src/apps/LoRaMac/common/LmHandler/LmHandler.c	2024-10-31 15:53:49
++++ ./modified_sources/LmHandler.c	2024-10-31 15:55:42
+@@ -377,10 +377,10 @@
+     uint16_t size = 0;
+ 
+     // Process Radio IRQ
+-    if( Radio.IrqProcess != NULL )
+-    {
+-        Radio.IrqProcess( );
+-    }
++    // if( Radio.IrqProcess != NULL )
++    // {
++    //     Radio.IrqProcess( );
++    // }
+ 
+     // Processes the LoRaMac events
+     LoRaMacProcess( );

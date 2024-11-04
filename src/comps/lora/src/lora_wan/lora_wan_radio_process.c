@@ -117,21 +117,52 @@ static SemaphoreHandle_t s_access_mutex = NULL;
             s_proc_name);                               \
         s_is_access_init = true;                        \
     } while(0)
+#define __access_guard_deinit()             \
+    do {                                    \
+        vSemaphoreDelete(s_access_mutex);   \
+        s_is_access_init = false;           \
+    } while(0)
 #define __access_lock() \
     if(s_is_access_init)xSemaphoreTake(s_access_mutex, portMAX_DELAY)
 #define __access_unlock() \
     if(s_is_access_init)xSemaphoreGive(s_access_mutex)
+
+static bool s_is_process_lock_init = false;
+static SemaphoreHandle_t s_process_mutex = NULL;
+#define __process_guard_init()                                          \
+    do {                                                                \
+        s_process_mutex = xSemaphoreCreateMutex();                      \
+        __log_assert(s_process_mutex != NULL,                           \
+            "failed to create %s processing guard mutex", s_proc_name); \
+        s_is_process_lock_init = true;                                  \
+    } while(0)
+#define __process_guard_deinit()             \
+    do {                                    \
+        vSemaphoreDelete(s_process_mutex);  \
+        s_is_process_lock_init = false;     \
+    } while(0)
+#define __process_lock() \
+    if(s_is_process_lock_init)xSemaphoreTake(s_process_mutex, portMAX_DELAY)
+#define __process_unlock() \
+    if(s_is_process_lock_init)xSemaphoreGive(s_process_mutex)
 
 /** -------------------------------------------------------------------------- *
  * lora radio process task
  * --------------------------------------------------------------------------- *
  */
 static SemaphoreHandle_t s_sync_sem_handle = NULL;
+static SemaphoreHandle_t s_sync_back_sem_handle = NULL;
 static TaskHandle_t      s_task_handle = NULL;
 
 static struct {
-    void (*p_handler)(void*);
-    void* args;
+    struct {
+        void (*p_handler)(void*);
+        void* args;
+        bool sync_wait;
+    } req;
+
+    void (*p_irq_handler)(void*);
+
     enum {
         __proc_idle,
         __proc_busy
@@ -142,40 +173,85 @@ static void lw_radio_process_task(void * arg)
 {
     void (*p_handler)(void*);
     void* args;
+    bool  is_sync;
+
+    void (*p_irq_handler)(void*);
 
     while(1)
     {
         if(xSemaphoreTake(s_sync_sem_handle, portMAX_DELAY) == pdTRUE)
         {
+            restart_processing:
+
             __access_lock();
-            p_handler = s_exec_ctx.p_handler;
-            args = s_exec_ctx.args;
+
+            p_handler = s_exec_ctx.req.p_handler;
+            args = s_exec_ctx.req.args;
+            is_sync = s_exec_ctx.req.sync_wait;
+            s_exec_ctx.req.p_handler = NULL;
+            s_exec_ctx.req.args = NULL;
+            s_exec_ctx.req.sync_wait = false;
+
+            p_irq_handler = s_exec_ctx.p_irq_handler;
+            s_exec_ctx.p_irq_handler = NULL;
+
             s_exec_ctx.state = __proc_busy;
+
             __access_unlock();
+
+            if(p_irq_handler)
+            {
+                lm_radio_process_lock();
+                p_irq_handler(NULL);
+                lm_radio_process_unlock();
+            }
 
             if(p_handler)
             {
+                lm_radio_process_lock();
                 p_handler(args);
+                lm_radio_process_unlock();
             }
-            else
+
+            if( ! ( p_handler || p_irq_handler ) )
             {
                 __log_warn("%s triggerred without request handler",
                     s_proc_name);
             }
 
             __access_lock();
+
             s_exec_ctx.state = __proc_idle;
+
+            if(p_handler && is_sync) {
+                if(xSemaphoreGive(s_sync_back_sem_handle) != pdTRUE)
+                {
+                    __log_error("%s: failed to give sem sync-back",
+                        s_proc_name);
+                }
+            }
+
+            p_irq_handler = s_exec_ctx.p_irq_handler;
+
             __access_unlock();
+
+            if(p_irq_handler)
+            {
+                goto restart_processing;
+            }
+        }
+        else
+        {
+            __log_error("%s: failed to take sem sync", s_proc_name);
         }
     }
 }
 
 static void lw_rxwin_timing_ctrl_ctor(void);
+static bool is_module_initialized = false;
 void lw_radio_process_ctor(void)
 {
-    static bool is_initialized = false;
-
-    if(is_initialized)
+    if(is_module_initialized)
     {
         return;
     }
@@ -185,10 +261,14 @@ void lw_radio_process_ctor(void)
     lw_rxwin_timing_ctrl_ctor();
 
     __access_guard_init();
+    __process_guard_init();
 
     s_sync_sem_handle = xSemaphoreCreateBinary();
     __log_assert(s_sync_sem_handle != NULL,
         "%s: failed to create sync sem", s_proc_name);
+    s_sync_back_sem_handle = xSemaphoreCreateBinary();
+    __log_assert(s_sync_back_sem_handle != NULL,
+        "%s: failed to create sync-back sem", s_proc_name);
 
     xTaskCreate(
         lw_radio_process_task,      // task function
@@ -200,40 +280,177 @@ void lw_radio_process_ctor(void)
         );
     configASSERT( s_task_handle );
 
-    is_initialized = true;
+    is_module_initialized = true;
+}
+
+void lw_radio_process_dtor(void)
+{
+    vTaskDelete(s_task_handle);
+    __access_guard_deinit();
+    __process_guard_deinit();
+
+    is_module_initialized = false;
 }
 
 static void lw_radio_process_request(
     void (*p_handler)(void*),
     void* args,
-    bool asserted_request
+    bool asserted_request,
+    bool sync,
+    bool is_irq_handler
     )
 {
-    place_request:
+    bool do_log_free = false;
+    bool do_log_busy = true;
+
+    do_process_request:
+
     __access_lock();
-    if(s_exec_ctx.state == __proc_idle)
+
+    if(is_irq_handler)
     {
-        s_exec_ctx.p_handler = p_handler;
-        s_exec_ctx.args = args;
-    }
-    else
-    {
-        __log_warn("process %s is busy", s_proc_name);
+        s_exec_ctx.p_irq_handler = p_handler;
+        if(s_exec_ctx.state == __proc_idle) {
+            if(xSemaphoreGive(s_sync_sem_handle) != pdTRUE)
+            {
+                __log_error("%s: failed to give sem sync", s_proc_name);
+            }
+        }
         __access_unlock();
+        return;
+    }
+
+    if(s_exec_ctx.state == __proc_busy)
+    {
+        __access_unlock();
+        if(do_log_busy)
+        {
+            __log_debug("-> lora-wan-radio task is busy");
+            do_log_free = true;
+            do_log_busy = false;
+        }
+
         if(asserted_request)
         {
-            goto place_request;
+            goto do_process_request;
         }
-        else
-        {
-            return;
-        }
+
+        return;
     }
+
+    if(do_log_free) {
+        __log_debug("<- lora-wan-radio task is free\n");
+    }
+
+    s_exec_ctx.req.p_handler = p_handler;
+    s_exec_ctx.req.args = args;
+    s_exec_ctx.req.sync_wait = sync;
+    s_exec_ctx.state = __proc_busy;
+
     __access_unlock();
 
     if(xSemaphoreGive(s_sync_sem_handle) != pdTRUE)
     {
-        __log_error("%s: failed to give sem", s_proc_name);
+        __log_error("%s: failed to give sem sync", s_proc_name);
+    }
+
+    if(sync)
+    {
+        if(xSemaphoreTake(s_sync_sem_handle, portMAX_DELAY) != pdTRUE)
+        {
+            __log_error("%s: failed to take sem sync-back", s_proc_name);
+        }
+    }
+}
+
+static volatile void* s_owner_task_handle = NULL;
+static volatile void* s_owner_task_name = NULL;
+static volatile uint32_t s_owner_lock_counter = 0;
+
+void lm_radio_process_lock(void)
+{
+    if( ! is_module_initialized )
+    {
+        return;
+    }
+    void* current_task_handle = xTaskGetCurrentTaskHandle();
+    bool do_lock = true;
+    bool is_waiting = false;
+
+    if(s_owner_task_handle == current_task_handle)
+    {
+        ++ s_owner_lock_counter;
+        do_lock = false;
+    }
+    else if(s_owner_task_handle != NULL)
+    {
+        __log_debug("[%s] is waiting [%s] for radio access",
+            pcTaskGetName(NULL), s_owner_task_name);
+        is_waiting = true;
+    }
+
+    if(do_lock) {
+        __process_lock();
+        s_owner_task_handle = current_task_handle;
+        s_owner_task_name = pcTaskGetName(NULL);
+        ++ s_owner_lock_counter;
+        if(is_waiting)
+        {
+            __log_debug("[%s] has granted radio access\n", s_owner_task_name);
+        }
+    }
+}
+
+void lm_radio_process_unlock(void)
+{
+    if( ! is_module_initialized )
+    {
+        return;
+    }
+    void* current_task_handle = xTaskGetCurrentTaskHandle();
+    bool do_unlock;
+
+    if(current_task_handle == s_owner_task_handle)
+    {
+        if(s_owner_lock_counter == 1)
+        {
+            do_unlock = true;
+            s_owner_task_handle = NULL;
+            s_owner_task_name = NULL;
+        }
+        else
+        {
+            do_unlock = false;
+        }
+        -- s_owner_lock_counter;
+    }
+    else
+    {
+        __log_output("**** non-owner task unlock mutex\n");
+        __log_assert(0, "*** panic ***");
+    }
+
+    if(do_unlock)
+    {
+        __process_unlock();
+    }
+}
+
+void lm_radio_process_assert(void)
+{
+    if( ! is_module_initialized )
+    {
+        return;
+    }
+    void* current_task_handle = xTaskGetCurrentTaskHandle();
+    if(current_task_handle != s_owner_task_handle)
+    {
+        __log_output(__yellow__"%p"__default__"]("__cyan__"%s"__default__"): "
+            "lm radio processing is asserted by another maybe ["
+            __red__"%p"__default__"]("__red__"%s"__default__")\n",
+            current_task_handle, pcTaskGetName(NULL),
+            s_owner_task_handle, s_owner_task_name);
+        __log_assert(0, "*** panic ***");
     }
 }
 
@@ -466,8 +683,9 @@ void lw_radio_process_rxwin_timer_expire(
     s_rxwin_ctrl_ctx.rxwin_act_delay = rx_act_delay;
     s_rxwin_ctrl_ctx.curr_handled_rxwin = rx_win;
     __access_unlock();
-
-    lw_radio_process_request(lw_rxwin_timer_expire_handler, NULL, true);
+    __log_debug("rxwin timer expire process req");
+    lw_radio_process_request(lw_rxwin_timer_expire_handler, NULL, true, false,
+        false);
 }
 
 static void lw_radio_process_irqs_handler(void* args)
@@ -481,7 +699,14 @@ static void lw_radio_process_irqs_handler(void* args)
 }
 void lw_radio_process_events(void)
 {
-    lw_radio_process_request(lw_radio_process_irqs_handler, NULL, true);
+    __log_debug("radio irq process req");
+    lw_radio_process_request(lw_radio_process_irqs_handler, NULL, true, false,
+        true);
+}
+
+void lw_radio_process(void (p_process_handler)(void*), void* arg, bool sync)
+{
+    lw_radio_process_request(p_process_handler, arg, true, sync, false);
 }
 
 /* --- end of file ---------------------------------------------------------- */

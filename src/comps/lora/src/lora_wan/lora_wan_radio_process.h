@@ -46,6 +46,7 @@ extern "C" {
  * @brief initializes the lora radio processing
  */
 void lw_radio_process_ctor(void);
+void lw_radio_process_dtor(void);
 
 /**
  * @brief sets the semteck lora-stack rx window system max time error to be
@@ -98,6 +99,15 @@ void lw_radio_process_rxwin_timer_expire(
 void lw_radio_process_events(void);
 
 void lm_rxwin_toggle_debug_verbosity(void);
+
+void lw_radio_process(void (p_process_handler)(void*), void* arg, bool sync);
+
+/**
+ * @brief for mutual execution of the radio functions
+ */
+void lm_radio_process_lock(void);
+void lm_radio_process_unlock(void);
+void lm_radio_process_assert(void);
 
 /* --- end of file ---------------------------------------------------------- */
 #ifdef __cplusplus

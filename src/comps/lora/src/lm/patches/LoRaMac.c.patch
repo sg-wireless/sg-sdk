@@ -1,6 +1,6 @@
 --- ../../../../../ext/LoRaMac-node/src/mac/LoRaMac.c	2024-10-01 14:57:12
-+++ ./modified_sources/LoRaMac.c	2024-10-11 19:26:52
-@@ -48,6 +48,18 @@
++++ ./modified_sources/LoRaMac.c	2024-10-31 16:04:00
+@@ -48,6 +48,23 @@
  
  #include "LoRaMac.h"
  
@@ -15,11 +15,16 @@
 +void lw_radio_process_rxwin_timer_expire(
 +    void (*p_handler)(void*), uint32_t rx_act_delay, int rx_win);
 +int32_t lw_rxwin_calibration_get_time_extension(void);
++void lw_radio_process(void (p_process_handler)(void*), void* arg, bool sync);
++
++void lm_radio_process_lock(void);
++void lm_radio_process_unlock(void);
++void lm_radio_process_assert(void);
 +
  /*!
   * Maximum PHY layer payload size
   */
-@@ -743,7 +755,12 @@
+@@ -743,7 +760,12 @@
  
  static void OnRadioTxDone( void )
  {
@@ -33,7 +38,7 @@
      MacCtx.LastTxSysTime = SysTimeGet( );
  
      LoRaMacRadioEvents.Events.TxDone = 1;
-@@ -753,7 +770,10 @@
+@@ -753,7 +775,10 @@
  
  static void OnRadioRxDone( uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr )
  {
@@ -45,7 +50,7 @@
      RxDoneParams.Payload = payload;
      RxDoneParams.Size = size;
      RxDoneParams.Rssi = rssi;
-@@ -774,6 +794,9 @@
+@@ -774,6 +799,9 @@
  
  static void OnRadioRxError( void )
  {
@@ -55,7 +60,7 @@
      LoRaMacRadioEvents.Events.RxError = 1;
  
      OnMacProcessNotify( );
-@@ -781,6 +804,9 @@
+@@ -781,6 +809,9 @@
  
  static void OnRadioRxTimeout( void )
  {
@@ -65,7 +70,7 @@
      LoRaMacRadioEvents.Events.RxTimeout = 1;
  
      OnMacProcessNotify( );
-@@ -810,12 +836,19 @@
+@@ -810,12 +841,19 @@
      }
  
      // Setup timers
@@ -90,7 +95,7 @@
      CRITICAL_SECTION_END( );
  
      if( MacCtx.NodeAckRequested == true )
-@@ -1929,7 +1962,7 @@
+@@ -1929,7 +1967,7 @@
      }
  }
  
@@ -99,7 +104,7 @@
  {
      MacCtx.RxWindow1Config.Channel = MacCtx.Channel;
      MacCtx.RxWindow1Config.DrOffset = Nvm.MacGroup2.MacParams.Rx1DrOffset;
-@@ -1938,10 +1971,17 @@
+@@ -1938,10 +1976,17 @@
      MacCtx.RxWindow1Config.RxSlot = RX_SLOT_WIN_1;
      MacCtx.RxWindow1Config.NetworkActivation = Nvm.MacGroup2.NetworkActivation;
  
@@ -118,7 +123,7 @@
  {
      // Check if we are processing Rx1 window.
      // If yes, we don't setup the Rx2 window.
-@@ -1958,6 +1998,12 @@
+@@ -1958,6 +2003,12 @@
  
      RxWindowSetup( &MacCtx.RxWindowTimer2, &MacCtx.RxWindow2Config );
  }
@@ -131,7 +136,7 @@
  
  static void OnRetransmitTimeoutTimerEvent( void* context )
  {
-@@ -2566,7 +2612,9 @@
+@@ -2566,7 +2617,9 @@
                      // Copy received GPS Epoch time into system time
                      sysTime = gpsEpochTime;
                      // Add Unix to Gps epoch offset. The system time is based on Unix time.
@@ -142,7 +147,7 @@
  
                      // Compensate time difference between Tx Done time and now
                      sysTimeCurrent = SysTimeGet( );
-@@ -3249,7 +3297,9 @@
+@@ -3249,7 +3302,9 @@
  
      if( RegionRxConfig( Nvm.MacGroup2.Region, rxConfig, ( int8_t* )&MacCtx.McpsIndication.RxDatarate ) == true )
      {
@@ -153,7 +158,93 @@
          MacCtx.RxSlot = rxConfig->RxSlot;
      }
  }
-@@ -5245,11 +5295,8 @@
+@@ -3270,11 +3325,13 @@
+ 
+     // At this point the Radio should be idle.
+     // Thus, there is no need to set the radio in standby mode.
++    lm_radio_process_lock();
+     if( RegionRxConfig( Nvm.MacGroup2.Region, &MacCtx.RxWindowCConfig, ( int8_t* )&MacCtx.McpsIndication.RxDatarate ) == true )
+     {
+         Radio.Rx( 0 ); // Continuous mode
+         MacCtx.RxSlot = MacCtx.RxWindowCConfig.RxSlot;
+     }
++    lm_radio_process_unlock();
+ }
+ 
+ LoRaMacStatus_t PrepareFrame( LoRaMacHeader_t* macHdr, LoRaMacFrameCtrl_t* fCtrl, uint8_t fPort, void* fBuffer, uint16_t fBufferSize )
+@@ -3395,7 +3452,9 @@
+     txConfig.AntennaGain = Nvm.MacGroup2.MacParams.AntennaGain;
+     txConfig.PktLen = MacCtx.PktBufferLen;
+ 
++    lm_radio_process_lock();
+     RegionTxConfig( Nvm.MacGroup2.Region, &txConfig, &txPower, &MacCtx.TxTimeOnAir );
++    lm_radio_process_unlock();
+ 
+     MacCtx.McpsConfirm.Status = LORAMAC_EVENT_INFO_STATUS_ERROR;
+     MacCtx.McpsConfirm.Datarate = Nvm.MacGroup1.ChannelsDatarate;
+@@ -3440,14 +3499,18 @@
+     MacCtx.ResponseTimeoutStartTime = 0;
+ 
+     // Send now
++    lm_radio_process_lock();
+     Radio.Send( MacCtx.PktBuffer, MacCtx.PktBufferLen );
++    lm_radio_process_unlock();
+ 
+     return LORAMAC_STATUS_OK;
+ }
+ 
+ LoRaMacStatus_t SetTxContinuousWave( uint16_t timeout, uint32_t frequency, uint8_t power )
+ {
++    lm_radio_process_lock();
+     Radio.SetTxContinuousWave( frequency, power, timeout );
++    lm_radio_process_unlock();
+ 
+     MacCtx.MacState |= LORAMAC_TX_RUNNING;
+ 
+@@ -3509,7 +3572,9 @@
+         // The public/private network flag may change upon reloading MacGroup2
+         // from NVM and we thus need to synchronize the radio. The same function
+         // is invoked in LoRaMacInitialization.
++        lm_radio_process_lock();
+         Radio.SetPublicNetwork( Nvm.MacGroup2.PublicNetwork );
++        lm_radio_process_unlock();
+     }
+ 
+     // Secure Element
+@@ -3903,7 +3968,9 @@
+     MacCtx.RadioEvents.RxError = OnRadioRxError;
+     MacCtx.RadioEvents.TxTimeout = OnRadioTxTimeout;
+     MacCtx.RadioEvents.RxTimeout = OnRadioRxTimeout;
++    lm_radio_process_lock();
+     Radio.Init( &MacCtx.RadioEvents );
++    lm_radio_process_unlock();
+ 
+     // Initialize the Secure Element driver
+     if( SecureElementInit( &Nvm.SecureElement ) != SECURE_ELEMENT_SUCCESS )
+@@ -3930,10 +3997,12 @@
+     }
+ 
+     // Random seed initialization
++    lm_radio_process_lock();
+     srand1( Radio.Random( ) );
+ 
+     Radio.SetPublicNetwork( Nvm.MacGroup2.PublicNetwork );
+     Radio.Sleep( );
++    lm_radio_process_unlock();
+ 
+     LoRaMacEnableRequests( LORAMAC_REQUEST_HANDLING_ON );
+ 
+@@ -4683,7 +4752,9 @@
+         case MIB_PUBLIC_NETWORK:
+         {
+             Nvm.MacGroup2.PublicNetwork = mibSet->Param.EnablePublicNetwork;
++            lm_radio_process_lock();
+             Radio.SetPublicNetwork( Nvm.MacGroup2.PublicNetwork );
++            lm_radio_process_unlock();
+             break;
+         }
+         case MIB_RX2_CHANNEL:
+@@ -5245,11 +5316,8 @@
   */
  static void AbpJoinPendingStart( void )
  {
