@@ -128,7 +128,7 @@ __log_subsystem_def(default, default, 1, 0)
     do {                                        \
         if(!(cond)) {                           \
             __log_basic_type(assert, args);     \
-            /**(int*)NULL = 0;*/                \
+            *(int*)NULL = 0;                    \
         }                                       \
     } while(0)
 
