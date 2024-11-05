@@ -37,6 +37,39 @@ and this project adheres to
 
 
 <!------------------------------------------------------------------------------
+ ! v1.1.0
+ !----------------------------------------------------------------------------->
+## [1.1.0] - 2024-11-05
+### Added
+
+- New support for LoRa OTAA security keys existence on the ESP32 eFuses.
+- New matured ESP32 NVS interface component to easily inspect and change the
+  underlying NVS partitions.
+- New F1 boards configurations support `SGW3201-F1L-StarterKit` and
+  `SGW3401-F1C-StarterKit`
+
+### Changes and Fixes
+
+- SG Wireless Control Platform Client Feature supported:
+  - LoRa support in control-client and adding LoRa network over-the-air
+    configuration.
+  - Support of ctrl-client automatic activation (ZTP "Zero-Touch-Provisioning")
+    over LoRa network.
+
+- LoRa Changes and Fixes
+  - Unify lora callback interface to receive a single context object as tuple
+    carrying all related information to the incoming lora event.
+  - New changes to fine tune and control accurately the RX windows timing.
+  - LoRa RX/TX messages parameters enhancements and fixes.
+  - LoRa docs and examples updates.
+
+- Micropython related
+  - Enforce micropython hooked virtual timers de-init at soft reset
+
+- Others
+  - Enforce system panics by default in all log assertions.
+
+<!------------------------------------------------------------------------------
  ! v1.0.0
  !----------------------------------------------------------------------------->
 ## [1.0.0] - 2024-08-05
@@ -52,7 +85,7 @@ and this project adheres to
     performance and speed.
 
 - Micropython
-  - Fix the micropython virtual timers byt redirecting it to the RTOS timers.
+  - Fix the micropython virtual timers by redirecting it to the RTOS timers.
 
 - Fuel-Guage
   - Support of battery parmeters (designCapacity, minSysVoltage, taperCurrent)
