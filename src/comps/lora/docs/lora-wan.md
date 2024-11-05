@@ -331,31 +331,17 @@ It can set a user lever callback and it takes the following parameters:
 Example:
 
 ```python
-def get_event_str(event):
-    if event == lora._event.EVENT_TX_CONFIRM:
-        return 'EVENT_TX_CONFIRM'
-    elif event == lora._event.EVENT_TX_DONE:
-        return 'EVENT_TX_DONE'
-    elif event == lora._event.EVENT_TX_TIMEOUT:
-        return 'EVENT_TX_TIMEOUT'
-    elif event == lora._event.EVENT_TX_FAILED:
-        return 'EVENT_TX_FAILED'
-    elif event == lora._event.EVENT_TX_CONFIRM:
-        return 'EVENT_TX_CONFIRM'
-    elif event == lora._event.EVENT_RX_DONE:
-        return 'EVENT_RX_DONE'
-    elif event == lora._event.EVENT_RX_TIMEOUT:
-        return 'EVENT_RX_TIMEOUT'
-    elif event == lora._event.EVENT_RX_FAIL:
-        return 'EVENT_RX_FAIL'
-    else:
-        return 'UNKNOWN'
+def lora_callback(context):
+    def get_class_const_name(__class, __const):
+        for k,v in __class.__dict__.items():
+            if v == __const:
+                return k
+        return 'unknown'
+    print('lora event: {} with-context: {}'.format(
+        get_class_const_name(lora._event, context['event']), context))
+    pass
 
-def port_any_cb(event, evt_data):
-    print('lora event [ {} ] --> data: {}'
-        .format(get_event_str(event), evt_data))
-
-lora.callback(handler=port_any_cb)
+lora.callback( handler = lora_callback )
 ```
 
 > **NOTE**: Refer to the comprehensive documentation on the LoRa-Callback system

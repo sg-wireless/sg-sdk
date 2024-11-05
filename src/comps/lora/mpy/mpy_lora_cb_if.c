@@ -159,7 +159,7 @@ static mpy_lora_callbacks_t* acquire_port_callbacks_resource(int port)
         return NULL;
     }
 
-    int i, j;
+    int i;
     mpy_lora_callbacks_t * p_cbs, *p_avail = NULL;
     bool found_avail_resource = false;
 
@@ -186,10 +186,7 @@ static mpy_lora_callbacks_t* acquire_port_callbacks_resource(int port)
         /* initialize the first available resource and reserve is */
         p_cbs = p_avail;
         p_cbs->port_num = port;
-        for( j = 0; j < __mpy_lora_max_callback_events_count; ++j )
-        {
-            p_cbs->cb_on_event[j] = mp_const_none;
-        }
+        init_callback_struct(p_cbs);
         return p_cbs;
     }
 
@@ -218,6 +215,58 @@ static bool release_port_callbacks_resource(int port)
     return false;
 }
 
+static mp_obj_t get_mpy_callback_func(
+    int target_port,
+    mpy_lora_callback_type_t cb_evt)
+{
+    if(cb_evt == __MPY_LORA_CB_ON_ANY)
+    {
+        __log_debug("-- end here --");
+        return mp_const_none;
+    }
+
+    mpy_lora_callbacks_t * p_any_cb = & mpy_callbacks_main.any;
+    mpy_lora_callbacks_t * p_port_cb = NULL;
+
+    if(target_port != __port_any)
+    {
+        /* find if specialized port callback */
+        int i;
+        for(i = 0; i < __max_supported_simultaneous_ports; ++i)
+        {
+            int port = mpy_callbacks_main.port_special_cb[i].port_num;
+            if(port && port == target_port)
+            {
+                __log_info("-- found special port %d callback", target_port);
+                p_port_cb = &mpy_callbacks_main.port_special_cb[i];
+                break;
+            }
+        }
+    }
+
+    if(p_port_cb == NULL) {
+        __log_info("-- no special port %d callback", target_port);
+    }
+
+    /* find if specialized event callback */
+    int idx = 0;
+    uint32_t temp = cb_evt;
+    while( (temp & 1) == 0 ) {
+        ++idx;
+        temp >>= 1;
+    }
+
+    mp_obj_t cb_fun_obj = mp_const_none;
+
+    if(p_port_cb)
+        cb_fun_obj = p_port_cb->cb_on_event[idx];
+
+    if(cb_fun_obj == mp_const_none)
+        cb_fun_obj = p_any_cb->cb_on_event[idx];
+
+    return cb_fun_obj;
+}
+
 /** -------------------------------------------------------------------------- *
  * Pycom LoRa-Stack callback conjunction
  * --------------------------------------------------------------------------- *
@@ -226,22 +275,221 @@ static bool release_port_callbacks_resource(int port)
 static uint8_t s_rx_buffer[__rx_buf_len];
 static uint8_t s_rx_len;
 
-static const mp_obj_fun_builtin_fixed_t mpy_callback_exec_obj;
+static void mpy_schedule_user_callback(mp_obj_t func_obj, mp_obj_t arg_obj)
+{
+    if(func_obj != mp_const_none)
+    {
+        mp_sched_schedule(func_obj, arg_obj);
+    }
+}
 
-static mp_obj_t lora_raw_new_rx_tuple(lora_raw_rx_event_data_t* rx_info);
+static mp_obj_t prepare_callback_arg_tuple(
+    lora_mode_t mode,
+    mpy_lora_callback_type_t  cb_evt,
+    void*  evt_data)
+{
+    mp_obj_t tuple_obj = mp_const_none;
+
+    if(mode == __LORA_MODE_RAW) {
+        if(cb_evt == __MPY_LORA_CB_ON_RX_DONE)
+        {
+            tuple_obj = mp_obj_new_dict(4);
+            lora_raw_rx_event_data_t* rx_info = evt_data;
+            mp_obj_dict_store(tuple_obj, MP_OBJ_NEW_QSTR(MP_QSTR_event),
+                MP_OBJ_NEW_SMALL_INT(__MPY_LORA_CB_ON_RX_DONE));
+            mp_obj_dict_store(tuple_obj, MP_OBJ_NEW_QSTR(MP_QSTR_data),
+                mp_obj_new_bytearray(rx_info->len, rx_info->buf));
+            mp_obj_dict_store(tuple_obj, MP_OBJ_NEW_QSTR(MP_QSTR_RSSI),
+                MP_OBJ_NEW_SMALL_INT(rx_info->rssi));
+            mp_obj_dict_store(tuple_obj, MP_OBJ_NEW_QSTR(MP_QSTR_SNR),
+                MP_OBJ_NEW_SMALL_INT(rx_info->snr));
+        }
+        else
+        {
+            tuple_obj = mp_obj_new_dict(1);
+            mp_obj_dict_store(tuple_obj, MP_OBJ_NEW_QSTR(MP_QSTR_event),
+                MP_OBJ_NEW_SMALL_INT(cb_evt));
+
+        }
+    }
+    else if( mode == __LORA_MODE_WAN )
+    {
+        if( cb_evt == __MPY_LORA_CB_ON_RX_DONE )
+        {
+            tuple_obj = mp_obj_new_dict(7);
+            lora_wan_ind_params_t* ind_info = evt_data;
+            mp_obj_dict_store(tuple_obj, MP_OBJ_NEW_QSTR(MP_QSTR_event),
+                MP_OBJ_NEW_SMALL_INT(cb_evt));
+            mp_obj_dict_store(tuple_obj, MP_OBJ_NEW_QSTR(MP_QSTR_data),
+                mp_obj_new_bytearray(ind_info->len, ind_info->buf));
+            mp_obj_dict_store(tuple_obj, MP_OBJ_NEW_QSTR(MP_QSTR_RSSI),
+                MP_OBJ_NEW_SMALL_INT(ind_info->rx.rssi));
+            mp_obj_dict_store(tuple_obj, MP_OBJ_NEW_QSTR(MP_QSTR_SNR),
+                MP_OBJ_NEW_SMALL_INT(ind_info->rx.snr));
+            mp_obj_dict_store(tuple_obj, MP_OBJ_NEW_QSTR(MP_QSTR_port),
+                MP_OBJ_NEW_SMALL_INT(ind_info->port_num));
+            mp_obj_dict_store(tuple_obj, MP_OBJ_NEW_QSTR(MP_QSTR_DR),
+                MP_OBJ_NEW_SMALL_INT(ind_info->rx.data_rate));
+            mp_obj_dict_store(tuple_obj, MP_OBJ_NEW_QSTR(MP_QSTR_dl_frame_counter),
+                MP_OBJ_NEW_SMALL_INT(ind_info->rx.dl_frame_counter));
+        }
+        else if (evt_data != NULL)
+        {
+            tuple_obj = mp_obj_new_dict(2);
+            mp_obj_dict_store(tuple_obj, MP_OBJ_NEW_QSTR(MP_QSTR_event),
+                MP_OBJ_NEW_SMALL_INT(cb_evt));
+            mp_obj_dict_store(tuple_obj, MP_OBJ_NEW_QSTR(MP_QSTR_msg_id),
+                MP_OBJ_NEW_SMALL_INT((uint32_t)evt_data));
+        }
+        else
+        {
+            tuple_obj = mp_obj_new_dict(1);
+            mp_obj_dict_store(tuple_obj, MP_OBJ_NEW_QSTR(MP_QSTR_event),
+                MP_OBJ_NEW_SMALL_INT(cb_evt));
+        }
+    }
+
+    return tuple_obj;
+}
+
+static mpy_lora_callback_type_t get_event_callback_type(lora_event_t event)
+{
+    static struct {uint16_t evt; uint16_t cb_evt;} m [] = {
+        { __LORA_EVENT_TX_DONE     ,__MPY_LORA_CB_ON_TX_DONE },
+        { __LORA_EVENT_TX_TIMEOUT  ,__MPY_LORA_CB_ON_TX_TIMEOUT },
+        { __LORA_EVENT_TX_FAIL     ,__MPY_LORA_CB_ON_TX_FAIL },
+        { __LORA_EVENT_TX_CONFIRM  ,__MPY_LORA_CB_ON_TX_CONFIRM },
+        { __LORA_EVENT_RX_DONE     ,__MPY_LORA_CB_ON_RX_DONE },
+        { __LORA_EVENT_RX_TIMEOUT  ,__MPY_LORA_CB_ON_RX_TIMEOUT },
+        { __LORA_EVENT_RX_FAIL     ,__MPY_LORA_CB_ON_RX_FAIL }
+    };
+
+    int i;
+    for(i = 0; i < sizeof(m)/sizeof(m[0]); i++)
+    {
+        if( event == m[i].evt ) {
+            return m[i].cb_evt;
+        }
+    }
+    return __MPY_LORA_CB_ON_ANY;
+}
+
+static void mpy_callback_exec_handler(lora_event_t event, void* event_data)
+{
+    mpy_lora_callback_type_t cb_evt;
+
+    if(event == __LORA_EVENT_INDICATION)
+    {
+        /** ------------------------------------------------------ *
+         * lora-wan callbacks
+         * ------------------------------------------------------- *
+         */
+        __log_info("lora-wan callback indication handler");
+        lora_wan_ind_params_t ind_params = {
+            .buf = s_rx_buffer,
+            .len = __rx_buf_len
+        };
+
+        /* will flush all indications that come until receiving NONE
+           event which means no more indications from lora-wan */
+        do {
+            lora_ioctl(__LORA_IOCTL_PORT_GET_IND_PARAM, & ind_params);
+
+            __log_info("callback::ind-event: "__yellow__"%s"__default__,
+                lora_get_event_str(event));
+
+            cb_evt = get_event_callback_type(ind_params.event);
+
+            switch(ind_params.event)
+            {
+            case __LORA_EVENT_TX_DONE:
+            case __LORA_EVENT_TX_CONFIRM:
+            case __LORA_EVENT_TX_TIMEOUT:
+            case __LORA_EVENT_TX_FAIL:
+                mpy_schedule_user_callback(
+                    get_mpy_callback_func(ind_params.port_num, cb_evt),
+                    prepare_callback_arg_tuple(__LORA_MODE_WAN,
+                        cb_evt, (void*)(ind_params.tx.msg_app_id)) );
+                break;
+            case __LORA_EVENT_RX_DONE:
+                mpy_schedule_user_callback(
+                    get_mpy_callback_func(ind_params.port_num, cb_evt),
+                    prepare_callback_arg_tuple(__LORA_MODE_WAN,
+                        cb_evt, &ind_params) );
+                break;
+            case __LORA_EVENT_RX_TIMEOUT:
+            case __LORA_EVENT_RX_FAIL:
+                mpy_schedule_user_callback(
+                    get_mpy_callback_func(ind_params.port_num, cb_evt),
+                    prepare_callback_arg_tuple(__LORA_MODE_WAN, cb_evt, NULL));
+                break;
+            default:
+                __log_info("-- unhandled indication");
+            }
+
+        } while( ind_params.event != __LORA_EVENT_NONE );
+    }
+    else
+    {
+        /** ------------------------------------------------------ *
+         * lora-raw callbacks
+         * ------------------------------------------------------- *
+         */
+
+        __log_info("callback:: event: "__yellow__"%s"__default__,
+            lora_get_event_str(event));
+        if(event == __LORA_EVENT_RX_DONE)
+        {
+            __log_assert(event_data, "invalid received data");
+
+            lora_raw_rx_event_data_t* rx_info = event_data;
+            __log_dump(s_rx_buffer, s_rx_len, 8, __log_dump_flag_hide_address |
+                __log_dump_flag_disp_char_on_rhs | __log_dump_flag_disp_char,
+                __word_len_8);
+            mpy_schedule_user_callback(
+                get_mpy_callback_func(__port_any, __MPY_LORA_CB_ON_RX_DONE),
+                prepare_callback_arg_tuple(__LORA_MODE_RAW,
+                    __MPY_LORA_CB_ON_RX_DONE, rx_info));
+        }
+        else
+        {
+            cb_evt = get_event_callback_type(event);
+            mpy_schedule_user_callback(
+                get_mpy_callback_func(__port_any, cb_evt),
+                prepare_callback_arg_tuple(__LORA_MODE_RAW, cb_evt, NULL));
+        }
+    }
+}
+
+static mp_obj_t mpy_callback_exec(mp_obj_t arg)
+{
+    if( ! MP_OBJ_IS_INT(arg) )
+    {
+        // -- occurs only in the lora-raw rx event callback
+        void* ptr = MP_OBJ_TO_PTR(arg);
+        mpy_callback_exec_handler(__LORA_EVENT_RX_DONE, ptr);
+        free(ptr);
+        return mp_const_none;
+    }
+    else
+    {
+        mpy_callback_exec_handler(MP_OBJ_SMALL_INT_VALUE(arg), NULL);
+    }
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(mpy_callback_exec_obj, mpy_callback_exec);
 
 static void lora_stack_callback(lora_event_t event, void* event_data)
 {
-    __log_info("callback:: event: "__yellow__"%s"__default__,
-        lora_get_event_str(event));
-
-    /**
-     * This RX event is for lora-raw mode.
-     * The received data shall be captured here because the thread context will
-     * be switched after calling mp_sched_schedule() and the data delivered here
-     * with this event will not be valid and safe to process.
-     */
-    if(event == __LORA_EVENT_RX_DONE) {
+    mp_obj_t arg_obj;
+    if(event == __LORA_EVENT_RX_DONE)
+    {
+        /**
+         * This RX event is for lora-raw mode.
+         * The received data shall be captured here because the thread context
+         * will be switched after calling mp_sched_schedule() and the data
+         * delivered here with this event will not be valid and safe to process.
+         */
         __log_assert(event_data, "invalid received data");
         lora_raw_rx_event_data_t* rx_info = event_data;
         /**
@@ -265,255 +513,15 @@ static void lora_stack_callback(lora_event_t event, void* event_data)
          */
         __log_assert(((uint32_t)saved & 1u) == 0,
             "non-aligned allocation, can not continue .. panic");
-
-        mp_sched_schedule(
-            MP_OBJ_FROM_PTR(&mpy_callback_exec_obj),
-            MP_OBJ_FROM_PTR(saved));
-        return;
-    }
-
-    /**
-     * This step will cause the uPython to schedule calling the user callback
-     * function in the mp_task which is the main uPython thread of execution
-     */
-    mp_sched_schedule(
-        MP_OBJ_FROM_PTR(&mpy_callback_exec_obj),
-        MP_OBJ_NEW_SMALL_INT(event));
-}
-
-static mp_obj_t lora_raw_new_rx_tuple(lora_raw_rx_event_data_t* rx_info)
-{
-    mp_obj_t dict = mp_obj_new_dict(3);
-
-    mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_data),
-        mp_obj_new_bytearray(rx_info->len, rx_info->buf));
-    mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_RSSI),
-        MP_OBJ_NEW_SMALL_INT(rx_info->rssi));
-    mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_SNR),
-        MP_OBJ_NEW_SMALL_INT(rx_info->snr));
-
-    return dict;
-}
-
-static mp_obj_t lora_wan_new_rx_tuple(lora_wan_ind_params_t* ind_info)
-{
-    mp_obj_t dict = mp_obj_new_dict(6);
-
-    mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_data),
-        mp_obj_new_bytearray(ind_info->len, ind_info->buf));
-    mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_RSSI),
-        MP_OBJ_NEW_SMALL_INT(ind_info->rx.rssi));
-    mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_SNR),
-        MP_OBJ_NEW_SMALL_INT(ind_info->rx.snr));
-    mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_port),
-        MP_OBJ_NEW_SMALL_INT(ind_info->port_num));
-    mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_DR),
-        MP_OBJ_NEW_SMALL_INT(ind_info->rx.data_rate));
-    mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_dl_frame_counter),
-        MP_OBJ_NEW_SMALL_INT(ind_info->rx.dl_frame_counter));
-
-    return dict;
-}
-
-/** -------------------------------------------------------------------------- *
- * uPython Callback function conjunction
- * --------------------------------------------------------------------------- *
- */
-static void mpy_callback_caller(
-    int target_port,
-    mpy_lora_callback_type_t cb_type,
-    mp_obj_t event_data_obj)
-{
-    if(cb_type == __MPY_LORA_CB_ON_ANY)
-    {
-        __log_debug("-- end here --");
-        return;
-    }
-
-    mp_obj_t event_obj = MP_OBJ_NEW_SMALL_INT(cb_type);
-
-    int i;
-    mpy_lora_callbacks_t * p_any_cb = & mpy_callbacks_main.any;
-    mpy_lora_callbacks_t * p_port_cb = NULL;
-    for(i = 0; i < __max_supported_simultaneous_ports; ++i)
-    {
-        int port = mpy_callbacks_main.port_special_cb[i].port_num;
-        if(port && port == target_port)
-        {
-            __log_info("-- found special port %d callback", target_port);
-            p_port_cb = &mpy_callbacks_main.port_special_cb[i];
-            break;
-        }
-    }
-
-    if(p_port_cb == NULL) {
-        __log_info("-- no special port %d callback", target_port);
-    }
-
-    mp_obj_t cb_fun_obj = mp_const_none;
-
-    int idx = 0;
-    /* start counting zeros until the first one */
-    int temp = cb_type;
-    while( (temp & 1) == 0 ) {
-        ++idx;
-        temp >>= 1;
-    }
-
-    if(p_port_cb)
-        cb_fun_obj = p_port_cb->cb_on_event[idx];
-
-    if(cb_fun_obj == mp_const_none)
-        cb_fun_obj = p_any_cb->cb_on_event[idx];
-
-    if(cb_fun_obj != mp_const_none) {
-        __log_info("-- call uPython callback");
-        mp_call_function_2(cb_fun_obj, event_obj, event_data_obj);
-    }
-}
-#ifdef __unittest
-extern void lora_unittest_stub_get_indication(lora_wan_ind_params_t* ind_params);
-#endif
-static mp_obj_t mpy_callback_exec(mp_obj_t arg)
-{
-    if( ! MP_OBJ_IS_INT(arg) )
-    {
-        // -- occurs only in the lora-raw rx event callback
-        void* ptr = MP_OBJ_TO_PTR(arg);
-        mpy_callback_caller(__port_any, __MPY_LORA_CB_ON_RX_DONE,
-            lora_raw_new_rx_tuple(ptr));
-        free(ptr);
-        return mp_const_none;
-    }
-
-    lora_event_t event =  MP_OBJ_SMALL_INT_VALUE(arg);
-    mpy_lora_callback_type_t cb_type;
-    mp_obj_t event_data_obj;
-    __log_debug("-- mod_lora_cb_if callback handler --");
-
-    if(event == __LORA_EVENT_INDICATION)
-    {
-        /** ------------------------------------------------------ *
-         * lora-wan callbacks
-         * ------------------------------------------------------- *
-         */
-        __log_info("lora-wan callback indication handler");
-        lora_wan_ind_params_t ind_params = {
-            .buf = s_rx_buffer,
-            .len = __rx_buf_len
-        };
-
-        /* will flush all indications that come until receiving NONE
-           event which means no more indications from lora-wan */
-        do{
-            #ifdef __unittest
-            lora_unittest_stub_get_indication(& ind_params);
-            #else
-            lora_ioctl(__LORA_IOCTL_PORT_GET_IND_PARAM, & ind_params);
-            #endif
-
-            event_data_obj = mp_const_none;
-
-            switch(ind_params.event)
-            {
-            case __LORA_EVENT_TX_DONE:
-                __log_info("-- tx done indication");
-                cb_type = __MPY_LORA_CB_ON_TX_DONE;
-                event_data_obj = MP_OBJ_NEW_SMALL_INT(ind_params.tx.msg_app_id);
-                break;
-            case __LORA_EVENT_TX_CONFIRM:
-                __log_info("-- tx confirm indication");
-                cb_type = __MPY_LORA_CB_ON_TX_CONFIRM;
-                event_data_obj = MP_OBJ_NEW_SMALL_INT(ind_params.tx.msg_app_id);
-                break;
-            case __LORA_EVENT_TX_TIMEOUT:
-                __log_info("-- tx timeout indication");
-                cb_type = __MPY_LORA_CB_ON_TX_TIMEOUT;
-                event_data_obj = MP_OBJ_NEW_SMALL_INT(ind_params.tx.msg_app_id);
-                break;
-            case __LORA_EVENT_TX_FAIL:
-                __log_info("-- tx fail indication");
-                cb_type = __MPY_LORA_CB_ON_TX_FAIL;
-                event_data_obj = MP_OBJ_NEW_SMALL_INT(ind_params.tx.msg_app_id);
-                break;
-            case __LORA_EVENT_RX_DONE:
-                __log_info("-- rx data indication -> len:%d", ind_params.len);
-                cb_type = __MPY_LORA_CB_ON_RX_DONE;
-                event_data_obj = lora_wan_new_rx_tuple(&ind_params);
-                break;
-            case __LORA_EVENT_RX_TIMEOUT:
-                __log_info("-- rx timeout indication");
-                cb_type = __MPY_LORA_CB_ON_RX_TIMEOUT;
-                break;
-            case __LORA_EVENT_RX_FAIL:
-                __log_info("-- rx fail indication");
-                cb_type = __MPY_LORA_CB_ON_RX_FAIL;
-                break;
-            default:
-                __log_info("-- unhandled indication");
-                cb_type = __MPY_LORA_CB_ON_ANY;
-            }
-
-            mpy_callback_caller(ind_params.port_num, cb_type, event_data_obj);
-
-        } while( ind_params.event != __LORA_EVENT_NONE );
+        
+        arg_obj = MP_OBJ_FROM_PTR(saved);
     }
     else
     {
-        /** ------------------------------------------------------ *
-         * lora-raw callbacks
-         * ------------------------------------------------------- *
-         */
-        event_data_obj = mp_const_none;
-
-        __log_debug("--> event %d", event);
-
-        if( event == __LORA_EVENT_RX_DONE )
-        {
-            __log_error("unexpected event, rx event should be handled earlier");
-            return mp_const_none;
-        }
-        else if(event == __LORA_EVENT_TX_DONE )
-        {
-            cb_type = __MPY_LORA_CB_ON_TX_DONE;
-        }
-        else if(event == __LORA_EVENT_TX_CONFIRM )
-        {
-            cb_type = __MPY_LORA_CB_ON_TX_CONFIRM;
-        }
-        else if (event == __LORA_EVENT_TX_FAIL)
-        {
-            cb_type = __MPY_LORA_CB_ON_TX_FAIL;
-        }
-        else if(event == __LORA_EVENT_TX_TIMEOUT)
-        {
-            cb_type = __MPY_LORA_CB_ON_TX_TIMEOUT;
-        }
-        else if(event == __LORA_EVENT_RX_FAIL)
-        {
-            cb_type = __MPY_LORA_CB_ON_RX_FAIL;
-        }
-        else if(event == __LORA_EVENT_RX_TIMEOUT)
-        {
-            cb_type = __MPY_LORA_CB_ON_RX_TIMEOUT;
-        }
-        else
-        {
-            cb_type = __MPY_LORA_CB_ON_ANY;
-        }
-
-        mpy_callback_caller(__port_any, cb_type, event_data_obj);
+        arg_obj = MP_OBJ_NEW_SMALL_INT(event);
     }
 
-    return mp_const_none;
+    mp_sched_schedule(MP_OBJ_FROM_PTR(&mpy_callback_exec_obj), arg_obj);
 }
-static MP_DEFINE_CONST_FUN_OBJ_1(mpy_callback_exec_obj, mpy_callback_exec);
-
-#ifdef __unittest
-void lora_unittest_lora_stack_callback(lora_event_t event, void* event_data)
-{
-    lora_stack_callback(event, event_data);
-}
-#endif
 
 /* --- end of file ---------------------------------------------------------- */

@@ -1,5 +1,5 @@
     regional params
-        region         : EU-433
+        region         : EU433
         frequency      : 433000000 Hz
         freq_khz       : 433000.000 KHz
         freq_mhz       : 433.000 MHz
@@ -15,9 +15,9 @@
         chip           : SX1262
         max tx_power   : +22 dBm
     tx params
-        tx_power       : +10 dBm
+        tx_power       : +12 dBm
         antenna_gain   : +2.15 dBi
-        tx_power_eff   : +7 dBm
+        tx_power_eff   : +9 dBm
         tx_timeout     : 5000 msec
         tx_iq          : False
     rx params

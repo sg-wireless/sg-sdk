@@ -1,7 +1,7 @@
 -- reset all parameters -- region EU868 ----------------
 -- lora stats
     regional params
-        region         : EU-868
+        region         : EU868
         frequency      : 868000000 Hz
         freq_khz       : 868000.000 KHz
         freq_mhz       : 868.000 MHz
@@ -33,7 +33,7 @@ error: invalid value for 'frequency'
 error: invalid value for 'frequency'
 -- correct frequency with a given region ---------------
     regional params
-        region         : AS-923
+        region         : AS923
         frequency      : 923000000 Hz
         freq_khz       : 923000.000 KHz
         freq_mhz       : 923.000 MHz
@@ -59,7 +59,7 @@ error: invalid value for 'frequency'
         rx_iq          : False
 -- reset all parameters -- region EU868 ----------------
     regional params
-        region         : EU-868
+        region         : EU868
         frequency      : 868000000 Hz
         freq_khz       : 868000.000 KHz
         freq_mhz       : 868.000 MHz
@@ -106,7 +106,7 @@ sf = 13 --> error: invalid value for 'sf'
 sf = 14 --> error: invalid value for 'sf'
 
     regional params
-        region         : EU-868
+        region         : EU868
         frequency      : 868000000 Hz
         freq_khz       : 868000.000 KHz
         freq_mhz       : 868.000 MHz
@@ -139,7 +139,7 @@ bandwidth = 750 --> error: invalid value for 'bandwidth'
 bandwidth = 100 --> error: invalid value for 'bandwidth'
 
     regional params
-        region         : EU-868
+        region         : EU868
         frequency      : 868000000 Hz
         freq_khz       : 868000.000 KHz
         freq_mhz       : 868.000 MHz

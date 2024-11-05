@@ -56,7 +56,7 @@ To display the current settings of the lora RAW, use `lora.stats()`,
 ```
 >>> lora.stats()
     regional params
-        region         : EU-868
+        region         : EU868
         frequency      : 868000000 Hz
         freq_khz       : 868000.000 KHz
         freq_mhz       : 868.000 MHz
@@ -285,30 +285,15 @@ to know the available events that can come in the callback
 Example
 
 ```python
-def get_event_str(event, bytes):
-    if event == lora._event.EVENT_TX_CONFIRM:
-        return 'EVENT_TX_CONFIRM'
-    elif event == lora._event.EVENT_TX_DONE:
-        return 'EVENT_TX_DONE'
-    elif event == lora._event.EVENT_TX_TIMEOUT:
-        return 'EVENT_TX_TIMEOUT'
-    elif event == lora._event.EVENT_TX_FAILED:
-        return 'EVENT_TX_FAILED'
-    elif event == lora._event.EVENT_TX_CONFIRM:
-        return 'EVENT_TX_CONFIRM'
-    elif event == lora._event.EVENT_RX_DONE:
-        return 'EVENT_RX_DONE'
-    elif event == lora._event.EVENT_RX_TIMEOUT:
-        return 'EVENT_RX_TIMEOUT'
-    elif event == lora._event.EVENT_RX_FAIL:
-        return 'EVENT_RX_FAIL'
-    else:
-        return 'UNKNOWN'
+def lora_callback(context):
+    def get_class_const_name(__class, __const):
+        for k,v in __class.__dict__.items():
+            if v == __const:
+                return k
+        return 'unknown'
+    print('lora event: {} with-context: {}'.format(
+        get_class_const_name(lora._event, context['event']), context))
     pass
-
-def lora_callback(event, evt_data):
-    print('lora event [ {} ] --> data: {}'
-        .format(get_event_str(event), evt_data))
 
 lora.callback( handler = lora_callback )
 

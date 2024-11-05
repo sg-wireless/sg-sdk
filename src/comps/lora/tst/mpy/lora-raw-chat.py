@@ -37,9 +37,9 @@ if lora.mode() != lora._mode.RAW:
     lora.mode(lora._mode.RAW)
 
 # define the callback
-def lora_callback(event, bytes):
-    if event == lora._event.RX_PACKET_EVENT:
-        print(bytes)
+def lora_callback(context):
+    if context['event'] == lora._event.RX_PACKET_EVENT:
+        print(context['data'])
     pass
 lora.callback(handler=lora_callback)
 

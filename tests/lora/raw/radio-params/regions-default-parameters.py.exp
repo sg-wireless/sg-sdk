@@ -1,6 +1,6 @@
 --- region [ REGION_AS923 ] ------------------------------
     regional params
-        region         : AS-923
+        region         : AS923
         frequency      : 923000000 Hz
         freq_khz       : 923000.000 KHz
         freq_mhz       : 923.000 MHz
@@ -26,7 +26,7 @@
         rx_iq          : False
 --- region [ REGION_AU915 ] ------------------------------
     regional params
-        region         : AU-915
+        region         : AU915
         frequency      : 915000000 Hz
         freq_khz       : 915000.000 KHz
         freq_mhz       : 915.000 MHz
@@ -52,7 +52,7 @@
         rx_iq          : False
 --- region [ REGION_CN470 ] ------------------------------
     regional params
-        region         : CN-470
+        region         : CN470
         frequency      : 470000000 Hz
         freq_khz       : 470000.000 KHz
         freq_mhz       : 470.000 MHz
@@ -78,7 +78,7 @@
         rx_iq          : False
 --- region [ REGION_CN779 ] ------------------------------
     regional params
-        region         : CN-779
+        region         : CN779
         frequency      : 779000000 Hz
         freq_khz       : 779000.000 KHz
         freq_mhz       : 779.000 MHz
@@ -104,7 +104,7 @@
         rx_iq          : False
 --- region [ REGION_EU433 ] ------------------------------
     regional params
-        region         : EU-433
+        region         : EU433
         frequency      : 433000000 Hz
         freq_khz       : 433000.000 KHz
         freq_mhz       : 433.000 MHz
@@ -130,7 +130,7 @@
         rx_iq          : False
 --- region [ REGION_EU868 ] ------------------------------
     regional params
-        region         : EU-868
+        region         : EU868
         frequency      : 868000000 Hz
         freq_khz       : 868000.000 KHz
         freq_mhz       : 868.000 MHz
@@ -156,7 +156,7 @@
         rx_iq          : False
 --- region [ REGION_IN865 ] ------------------------------
     regional params
-        region         : IN-865
+        region         : IN865
         frequency      : 865000000 Hz
         freq_khz       : 865000.000 KHz
         freq_mhz       : 865.000 MHz
@@ -182,7 +182,7 @@
         rx_iq          : False
 --- region [ REGION_KR920 ] ------------------------------
     regional params
-        region         : KR-920
+        region         : KR920
         frequency      : 920000000 Hz
         freq_khz       : 920000.000 KHz
         freq_mhz       : 920.000 MHz
@@ -208,7 +208,7 @@
         rx_iq          : False
 --- region [ REGION_RU864 ] ------------------------------
     regional params
-        region         : RU-864
+        region         : RU864
         frequency      : 864000000 Hz
         freq_khz       : 864000.000 KHz
         freq_mhz       : 864.000 MHz
@@ -234,7 +234,7 @@
         rx_iq          : False
 --- region [ REGION_US915 ] ------------------------------
     regional params
-        region         : US-915
+        region         : US915
         frequency      : 915000000 Hz
         freq_khz       : 915000.000 KHz
         freq_mhz       : 915.000 MHz
