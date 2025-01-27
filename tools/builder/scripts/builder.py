@@ -224,7 +224,9 @@ class BuilderCli:
                             'clean',
                             'flash',
                             'erase',
-                            'config'
+                            'config',
+                            'full-flash',
+                            'idf'
                             ]
             , group     = group_build_options
             , default   = 'build'
@@ -240,6 +242,9 @@ class BuilderCli:
                 , 'config'  : f'''To open the configuration menu. It is the same
                                 menu that is used in the Linux kernel
                                 configuration'''
+                , 'full-flash' : f'''flash including the bootloader. This is useful
+                                when enabling secure boot for the first time, as the bootloader 
+                                is not flashed by default'''
             }
         )
 
@@ -273,6 +278,14 @@ class BuilderCli:
                             build versioning'''
         )
 
+        # -- hardware build variants
+        cli.add_pos_arg( 'idf_command'
+            , group     = group_build_options
+            , default   = ''
+            , help      = f'''The idf.py build command target.'''
+        )
+
+
         self.__options = cli.parse()
         self.__check_arguments_sanity()
         # log(self.__options)
@@ -304,7 +317,7 @@ class BuilderCli:
                         ' is incorrect or in use', RED)
                     sanity_failed = True
         command = self.get_build_command()
-        if command in ['flash', 'erase'] and ports == None:
+        if command in ['flash', 'erase', 'full-flash'] and ports == None:
             log(f'-- error: port must be specified for {command} command', RED)
             sanity_failed = True
         if sanity_failed:
@@ -312,6 +325,9 @@ class BuilderCli:
 
     def get_build_command(self):
         return self.__options['command']
+    
+    def get_idf_command(self):
+        return self.__options['idf_command']    
 
     def get_ports(self):
         if 'port' in self.__options:

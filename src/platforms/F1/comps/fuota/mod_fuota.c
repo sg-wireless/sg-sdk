@@ -168,7 +168,7 @@ __mp_mod_fun_0(fuota, finish)(void)
 	partition_now = esp_ota_get_running_partition();
 	result = esp_ota_begin(partition_new, 0, &esp_ota_handle);
 	result = esp_ota_end(esp_ota_handle);
-	__log_output("OTA esp_ota_end returned %d", result);
+	__log_output("OTA esp_ota_end returned %d\n", result);
 
     if(result != ESP_OK)
     {
@@ -177,9 +177,9 @@ __mp_mod_fun_0(fuota, finish)(void)
 
     partition_new = esp_ota_get_next_update_partition(NULL);
 	result = esp_ota_set_boot_partition(partition_new);
-	__log_output("OTA esp_ota_set_boot_partition returned %d", result);
-	__log_output("NEXT boot from partition: %s", partition_new->label);
-	__log_output("Current boot partition: %s", partition_now->label);
+	__log_output("OTA esp_ota_set_boot_partition returned %d\n", result);
+	__log_output("NEXT boot from partition: %s\n", partition_new->label);
+	__log_output("Current boot partition: %s\n", partition_now->label);
 	if (ESP_OK != result) {
         mp_raise_msg(&mp_type_OSError,
             MP_ERROR_TEXT("Error setting new ota partition"));

@@ -53,7 +53,7 @@ extern "C" {
 // minor: for Backward compatible new feature
 #define FW_RELEASE_VERSION_MINOR            1
 // patch: Backward compatible bug fix
-#define FW_RELEASE_VERSION_PATCH            0
+#define FW_RELEASE_VERSION_PATCH            1
 
 // FW release version as string
 #define FW_RELEASE_VERSION_STRING       "v" \

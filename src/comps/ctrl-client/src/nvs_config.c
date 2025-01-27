@@ -42,12 +42,13 @@ static bool part_init = false;
 
 bool nvs_config_init0(nvs_handle_t *ro_handle, nvs_handle_t *rw_handle,
                       const char *name) {
+    //esp_log_level_set(TAG, ESP_LOG_VERBOSE);
     ESP_LOGD(TAG, "Initializing nvs config for module %s", name);
     esp_err_t err;
 #ifdef CONFIG_NVS_ENCRYPTION
     const esp_partition_t *key_part = esp_partition_find_first(
         ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_DATA_NVS_KEYS,
-        "nvs_key");
+        "nvs_keys");
     nvs_sec_cfg_t sec_cfg;
     err = nvs_flash_read_security_cfg(key_part, &sec_cfg);
     ESP_LOGD(TAG, "Dumping sec_cfg.eky");

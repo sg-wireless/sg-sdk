@@ -76,14 +76,15 @@
     # partition-table-file = "partition_table_16mb.csv"
 
     partition-table = [
-        # Name,     Type,   SubType,    Offset,     Size
-        ["nvs"    , "data"  , "nvs",    "0x11000",    "0xA000", ""          ],
-        ["otadata", "data"  , "ota",    "0x1B000",    "0x2000", "encrypted" ],
-        ["nvs_cfg", "data"  , "nvs",    "0x1D000",    "0x3000", ""          ],
-        ["factory", "app"   , "factory","0x20000",    "2560k",  "encrypted" ],
-        ["ota_0"  , "app"   , "ota_0",  "0x2A0000",   "2560k",  "encrypted" ],
-        ["ota_1"  , "app"   , "ota_1",  "0x520000",   "2560k",  "encrypted" ],
-        ["vfs"    , "data"  , "6",      "0x800000",   "8192k",  "encrypted" ]
+        # Name,     Type,   SubType,      Offset,      Size
+        ["nvs"    , "data"  , "nvs",      "0x11000",   "0x9000", ""          ],
+	    ["nvs_keys", "data" , "nvs_keys", "0x1A000",   "0x1000", "encrypted" ],
+        ["otadata", "data"  , "ota",      "0x1B000",   "0x2000", "encrypted" ],
+        ["nvs_cfg", "data"  , "nvs",      "0x1D000",   "0x3000", ""          ],
+        ["factory", "app"   , "factory",  "0x20000",   "2560k",  "encrypted" ],
+        ["ota_0"  , "app"   , "ota_0",    "0x2A0000",  "2560k",  "encrypted" ],
+        ["ota_1"  , "app"   , "ota_1",    "0x520000",  "2560k",  "encrypted" ],
+        ["vfs"    , "data"  , "6",        "0x800000",  "8192k",  "encrypted" ]
     ]
 
     # sdkconfig for esp-idf

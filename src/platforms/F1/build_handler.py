@@ -191,6 +191,7 @@ def process_command(ctx: BuilderContext):
     ports = ctx.cli.get_ports()
     board_ids = ctx.cfg.get_config('id')
     custom_version_str = ctx.cli.get_custom_version_string()
+    idf_command = ctx.cli.get_idf_command()
     if board_ids == None:
         log(f'board config file missed the board ids (OEM; name, number)')
         exit(1)
@@ -259,7 +260,7 @@ def process_command(ctx: BuilderContext):
 
     pkg = f'{build_dir}/{sdk_board}-{ver_str["ver-str"]}.tar'
 
-    if command == 'build' or command == 'flash':
+    if command == 'build' or command == 'flash' or command == 'full-flash':
         if variant == 'micropython':
             cmd_seq.append(
                 f'make -C {mpy_path}/ports/esp32' +
@@ -295,6 +296,10 @@ def process_command(ctx: BuilderContext):
     elif command == 'clean':
         cmd_seq.extend([
             f'idf.py -C {platform_dir} -B {build_dir} {opts} fullclean'
+        ])
+    elif command == 'idf':
+        cmd_seq.extend([
+            f'idf.py -C {platform_dir} -B {build_dir} {opts} {idf_command}'
         ])
 
     try:
@@ -339,7 +344,45 @@ def process_command(ctx: BuilderContext):
             process_esptool_reverse_patching(ctx)
             exit(1)
 
-    if command in ['erase', 'flash']:
+    if command == 'full-flash':
+
+        process_esptool_patching(ctx)
+
+        flash_cmd_args = '-b 460800 --before=default_reset ' + \
+            '--after=hard_reset write_flash'
+        with open(f'{build_dir}/flash_args', 'r') as f:
+            file_content = f.read()
+            for line in file_content.split('\n'):
+                pair = re.match(r'^(0x[0-9a-fA-F]+)\s\b(.+)$', line)
+                print('pair={}'.format(pair))
+                if not pair:
+                    flash_cmd_args += ' ' + line.strip()
+            pass
+            flash_cmd_args += f' {'0x0'} {build_dir}/{'bootloader/bootloader.bin'}'
+            for line in file_content.split('\n'):
+                pair = re.match(r'^(0x[0-9a-fA-F]+)\s\b(.+)$', line)
+                print('pair={}'.format(pair))
+                if pair:
+                    flash_cmd_args += \
+                        f' {pair.group(1)} {build_dir}/{pair.group(2)}'
+            pass
+        cmd_seq = []
+        for p in ports:
+            flash_cmd = f'esptool.py -p {p} {flash_cmd_args}'
+            cmd_seq.extend([flash_cmd])
+        print('cmd_seq = {}'.format(cmd_seq))
+        try:
+            for cmd in cmd_seq:
+                log('STEP(' + str(counter) + ')>> ' + cmd, CYAN)
+                counter += 1
+                #print('cmd={}'.format(cmd))
+                subprocess.run(cmd, shell=True, check=True)
+        except:
+            log(command + ' failed!', RED)
+            process_esptool_reverse_patching(ctx)
+            exit(1)
+
+    if command in ['erase', 'flash', 'full-flash']:
         process_esptool_reverse_patching(ctx)
 
     pass

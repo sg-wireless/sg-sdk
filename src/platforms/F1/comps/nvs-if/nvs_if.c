@@ -38,6 +38,10 @@
 #include "utils_units.h"
 #include "nvs_if.h"
 
+#include "esp_log.h"
+
+static const char *TAG = "nvs_if";
+
 /* --- macros --------------------------------------------------------------- */
 
 #define __total_w   100
@@ -67,25 +71,45 @@ static const char* get_nvs_type_name(uint32_t type)
     do {                                                            \
         esp_err_t e = __api(args);                                  \
         if(e != ESP_OK) {                                           \
+            ESP_ERROR_CHECK_WITHOUT_ABORT(e);                       \
             __log_output(__red__"err "#__api": %d"__default__, e);  \
         }                                                           \
     } while(0)
 
 static void init_nvs_partitions(void)
 {
+    //esp_log_level_set(TAG, ESP_LOG_VERBOSE);
     static bool initialized = false;
 
     if(initialized)
     {
+        ESP_LOGD(TAG, "Already initialized!");
         return;
     }
+
+#ifdef CONFIG_NVS_ENCRYPTION
+    const esp_partition_t *key_part = esp_partition_find_first(
+        ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_DATA_NVS_KEYS,
+        "nvs_keys");
+    nvs_sec_cfg_t sec_cfg;
+    __esp_call(nvs_flash_read_security_cfg, key_part, &sec_cfg);
+    ESP_LOGD(TAG, "Dumping sec_cfg.eky");
+    ESP_LOG_BUFFER_HEXDUMP(TAG, sec_cfg.eky, NVS_KEY_SIZE, ESP_LOG_DEBUG);
+    ESP_LOGD(TAG, "Dumping sec_cfg.tky");
+    ESP_LOG_BUFFER_HEXDUMP(TAG, sec_cfg.tky, NVS_KEY_SIZE, ESP_LOG_DEBUG);
+#endif    
 
     esp_partition_iterator_t it = esp_partition_find(
         ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_DATA_NVS, NULL);
     while(it)
     {
         const esp_partition_t* part = esp_partition_get(it);
+
+#ifdef CONFIG_NVS_ENCRYPTION
+        __esp_call(nvs_flash_secure_init_partition, part->label, &sec_cfg);
+#else
         __esp_call(nvs_flash_init_partition_ptr, part);
+#endif
         it = esp_partition_next(it);
     }
     esp_partition_iterator_release(it);
