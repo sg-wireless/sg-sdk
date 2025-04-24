@@ -60,7 +60,7 @@ c _mpmodfun0(can, recv)(void)
 - **Usage**:
 python can.recv()
 ## Example
-python
+```python
 
 from machine import Pin,UART,Timer,I2C,WDT
 from micropython import const
@@ -144,4 +144,4 @@ if __name__=="__main__":
     setup()
     machine.lightsleep(10)
     loop()
-
+```
