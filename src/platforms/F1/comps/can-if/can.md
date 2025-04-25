@@ -8,10 +8,10 @@ This document describes the CAN API functions
 
 Initializes the CAN interface with the specified parameters.
 - **Parameters**:
-  - `RxPin` (default: `RX_GPIO_NUM`): Receive pin number.
-  - `TxPin` (default: `TX_GPIO_NUM`): Transmit pin number.
-  - `Baud` (default: `DEFAULT_BAUD`): Baud rate.
-  - `Mode` (default: `DEFAULT_MODE`): CAN mode  (e.g., 0-NORMAL, 1-NO ACK，2-LISTEN_ONLY).
+  - `RxPin` (default: 1): Receive pin number.
+  - `TxPin` (default: 2): Transmit pin number.
+  - `Baud` (default: 250000): Baud rate.(2500,50000,1000000,125000,250000,500000,800000,1000000).
+  - `Mode` (default: 0): CAN mode  (e.g., 0-NORMAL, 1-NO ACK，2-LISTEN_ONLY).
 
 - **Usage**:
 python can.init(RxPin, TxPin, Baud, Mode)
