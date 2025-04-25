@@ -7,8 +7,6 @@
 
 #include "can.h"
 
-#define NORMAL  0
-#define LOOPBACK 1
 
 __mp_mod_fun_var_between(can, init,0,4)(size_t __arg_n, const mp_obj_t * __arg_v)
 {
