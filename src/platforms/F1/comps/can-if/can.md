@@ -10,7 +10,7 @@ Initializes the CAN interface with the specified parameters.
 - **Parameters**:
   - `RxPin` (default: 1): Receive pin number.
   - `TxPin` (default: 2): Transmit pin number.
-  - `Baud` (default: 250000): Baud rate.(25000,50000,1000000,125000,250000,500000,800000,1000000).
+  - `Baud` (default: 250000): Baud rate.(25000,50000,100000,125000,250000,500000,800000,1000000).
   - `Mode` (default: 0): CAN mode  (e.g., 0-NORMAL, 1-NO ACK，2-LISTEN_ONLY).
 
 - **Usage**:
