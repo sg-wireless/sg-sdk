@@ -7,25 +7,22 @@ This document describes the CAN API functions
 ### `can.init`
 
 Initializes the CAN interface with the specified parameters.
-c _mpmodfunvarbetween(can, init, 0, 4)(sizet _argn, const mpobjt * _argv)
 - **Parameters**:
   - `RxPin` (default: `RX_GPIO_NUM`): Receive pin number.
   - `TxPin` (default: `TX_GPIO_NUM`): Transmit pin number.
   - `Baud` (default: `DEFAULT_BAUD`): Baud rate.
-  - `Mode` (default: `DEFAULT_MODE`): CAN mode (e.g., `NORMAL`, `LOOPBACK`).
+  - `Mode` (default: `DEFAULT_MODE`): CAN mode  (e.g., 0-NORMAL, 1-NO ACK，2-LISTEN_ONLY).
 
 - **Usage**:
 python can.init(RxPin, TxPin, Baud, Mode)
 ### `can.deinit`
 
 Deinitializes the CAN interface.
-c _mpmodfun0(can, deinit)(void)
 - **Usage**:
 python can.deinit()
 ### `can.send`
 
 Sends a CAN message.
-c _mpmodfun3(can, send)(mpobjt flags, mpobjt id, mpobjt dat)
 - **Parameters**:
   - `flags`: Message flags.
   - `id`: Message identifier.
@@ -36,7 +33,6 @@ python can.send(flags, id, dat)
 ### `can.filter`
 
 Sets a CAN filter.
-c _mpmodfun2(can, filter)(mpobjt dat, mpobjt single_filter)
 - **Parameters**:
   - `dat`: Filter data (string or bytes).
   - `single_filter`: Boolean indicating if a single filter is used.
@@ -46,7 +42,6 @@ python can.filter(dat, single_filter)
 ### `can.any`
 
 Checks if any CAN messages are available.
-c _mpmodfun0(can, any)(void)
 - **Returns**: Integer indicating the presence of messages.
 
 - **Usage**:
@@ -54,7 +49,6 @@ python can.any()
 ### `can.recv`
 
 Receives a CAN message.
-c _mpmodfun0(can, recv)(void)
 - **Returns**: Bytes representing the received message.
 
 - **Usage**:
