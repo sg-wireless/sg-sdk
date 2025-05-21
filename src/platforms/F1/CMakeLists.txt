@@ -53,6 +53,7 @@ __sdk_add_comp_dirs(
     ${__dir_platform_comps}/fuota
     ${__dir_platform_comps}/nvs-if
     ${__dir_platform_comps}/can-if
+    ${__dir_platform_comps}/cbor2-lib
 
     ${__dir_platform}/mpy-hooks
     ${__dir_sdk_drivers}/common
