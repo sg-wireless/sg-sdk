@@ -134,6 +134,14 @@ bool config_set_ctrl_ztp_url(uint8_t *ctrl_ztp_url) {
     return nvs_write_str(rw_ctrl_handle, "ztp_url", (char *)ctrl_ztp_url);
 }
 
+bool config_get_ctrl_claim_token(uint8_t *ctrl_claim_token) {
+    return nvs_read_str(ro_ctrl_handle, rw_ctrl_handle, "claim_token",
+                        (char *)ctrl_claim_token);
+}
+
+bool config_set_ctrl_claim_token(uint8_t *ctrl_claim_token) {
+    return nvs_write_str(rw_ctrl_handle, "claim_token", (char *)ctrl_claim_token);
+}
 
 bool config_set_wifi_sta_ssid(const uint8_t *wifi_ssid, bool update_flash) {
     return nvs_write_str(rw_ctrl_handle, "wifi_sta_ssid", (char *)wifi_ssid);
