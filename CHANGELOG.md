@@ -1,5 +1,5 @@
 <!------------------------------------------------------------------------------
- ! @copyright Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+ ! @copyright Copyright (c) 2023-2025 SG Wireless - All Rights Reserved
  !
  ! Permission is hereby granted, free of charge, to any person obtaining a copy
  ! of this software and associated documentation files(the “Software”), to deal
@@ -34,6 +34,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+<!------------------------------------------------------------------------------
+ ! v1.3.0
+ !----------------------------------------------------------------------------->
+## [1.3.0] - 2025-05-23
+### Added
+
+- CBOR2 library to support Control Platform Ctrl-1.5
+
+### Changes and Fixes
+
+- SG Wireless Control Platform Client
+  - Migrate to support Control Platform Ctrl-1.5
+  - Add API to support new provisioning routine  
 
 <!------------------------------------------------------------------------------
  ! v1.2.0
