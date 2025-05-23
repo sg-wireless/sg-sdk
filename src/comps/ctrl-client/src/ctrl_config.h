@@ -72,6 +72,10 @@ bool config_set_ctrl_ztp_url(uint8_t *ctrl_ztp_url);
 
 bool config_get_ctrl_ztp_url(uint8_t *ctrl_ztp_url);
 
+bool config_set_ctrl_claim_token(uint8_t *ctrl_claim_token);
+
+bool config_get_ctrl_claim_token(uint8_t *ctrl_claim_token);
+
 bool config_set_wifi_sta_ssid(const uint8_t *wifi_ssid, bool update_flash);
 
 bool config_get_wifi_sta_ssid(uint8_t *wifi_ssid);

@@ -352,6 +352,29 @@ __mp_mod_fun_var_between(ctrl_cfg, ztp_url, 0, 1)(size_t arg_n,
     }
 }
 
+__mp_mod_fun_var_between(ctrl_cfg, claim_token, 0, 1)(size_t arg_n,
+                                                  const mp_obj_t *arg_v) {
+    if (arg_n) {
+        uint8_t *token_ptr;
+        token_ptr = (uint8_t *)mp_obj_str_get_str(arg_v[0]);
+
+        if (!config_set_ctrl_claim_token(token_ptr)) {
+            nlr_raise(mp_obj_new_exception_msg(&mp_type_OSError,
+                                               "Failed to write Claim Token!"));
+        }
+
+        return mp_const_none;
+    } else {
+        uint8_t ctrl_claim_token[256];
+        if (config_get_ctrl_claim_token(ctrl_claim_token)) {
+            return mp_obj_new_str((const char *)ctrl_claim_token,
+                                  strlen((const char *)ctrl_claim_token));
+        } else {
+            return mp_const_none;
+        }
+    }
+}
+
 __mp_mod_fun_var_between(ctrl_cfg, mqttServiceAddress, 0,
                          1)(size_t arg_n, const mp_obj_t *arg_v) {
     uint8_t ctrl_mqttServiceAddress[39];
