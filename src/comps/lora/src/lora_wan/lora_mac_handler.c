@@ -212,6 +212,10 @@ void lmh_init( void )
 
 void lmh_reset(bool purge_nvm)
 {
+    // Save user-configured ADR state before re-initialization resets it
+    // to the hardcoded default (LORAMAC_HANDLER_ADR_ON).
+    bool saved_adr = lmh_get_adr();
+
     lora_stub_timers_stop_all();
 
     if( LoRaMacDeInitialization() != LORAMAC_STATUS_OK ) {
@@ -225,6 +229,9 @@ void lmh_reset(bool purge_nvm)
     }
 
     lmh_init();
+
+    // Restore the ADR state the user had configured prior to reset.
+    lmh_set_adr(saved_adr);
 }
 
 void lmh_process(void)
@@ -301,6 +308,25 @@ bool lmh_get_adr(void)
     mib.Type = MIB_ADR;
     LoRaMacMibGetRequestConfirm( &mib );
     return mib.Param.AdrEnable;
+}
+
+void lmh_set_datarate(int8_t dr)
+{
+    MibRequestConfirm_t mib;
+    mib.Type = MIB_CHANNELS_DEFAULT_DATARATE;
+    mib.Param.ChannelsDefaultDatarate = dr;
+    LoRaMacMibSetRequestConfirm( &mib );
+    mib.Type = MIB_CHANNELS_DATARATE;
+    mib.Param.ChannelsDatarate = dr;
+    LoRaMacMibSetRequestConfirm( &mib );
+}
+
+int8_t lmh_get_datarate(void)
+{
+    MibRequestConfirm_t mib;
+    mib.Type = MIB_CHANNELS_DATARATE;
+    LoRaMacMibGetRequestConfirm( &mib );
+    return mib.Param.ChannelsDatarate;
 }
 
 uint32_t lmh_get_last_network_rx_ms(void)

@@ -80,6 +80,7 @@ To display the current settings of the lora RAW, use `lora.stats()`,
     rx params
         rx_timeout     : 6000 msec
         rx_iq          : False
+        public_network : False
 ```
 
 Here is the meaning of each displayed parameter:
@@ -114,6 +115,9 @@ Here is the meaning of each displayed parameter:
 - **`rx params`**: the current rx settings;
     - `rx_timeout` the rx window time in non continuous reception
     - `rx_iq` indicates whether inverted IQ polarity feature is enabled or not
+    - `public_network` if `True`, the radio uses the public LoRaWAN sync word
+        (`0x3444`), allowing reception of packets from LoRaWAN nodes. If `False`
+        (default), the private LoRa sync word (`0x1424`) is used.
 
 To reset all parameters to the region defaults, provide `reset_all` flag like:
 ```
@@ -151,6 +155,9 @@ parameters as in the following BNF formatted description:
     | preamble    "=" <integer-value>         ; preamble length
     | bandwidth   "=" <bw-value>              ; band-width
     | tx_iq       "=" <bool-value>            ; inverted IQ feature
+    | rx_iq       "=" <bool-value>            ; inverted IQ feature
+    | crc_on      "=" <bool-value>            ; enable payload CRC
+    | public_network "=" <bool-value>         ; True = LoRaWAN public sync word
 
 <bool-value> ::= "True" | "False"
 
@@ -212,6 +219,19 @@ lora.radio_params(sf = 8, bandwidth = lora._bw.BW_250KHZ, coding_rate = lora._cr
     #     sf             : 8
     #     bandwidth      : 250
     #     coding_rate    : 4_6
+
+# nanogateway / LoRaWAN sniffer use case: enable the public LoRaWAN sync word
+# so the radio can receive packets from LoRaWAN nodes (sync word 0x3444).
+# Without this, the SX126x defaults to the private sync word (0x1424) and
+# silently discards all LoRaWAN packets.
+lora.radio_params(
+    frequency=868100000,
+    sf=12,
+    bandwidth=lora._bw.BW_125KHZ,
+    coding_rate=lora._cr.CODING_4_5,
+    public_network=True,    # accept LoRaWAN public sync word (0x3444)
+)
+lora.recv_cont_start()
 
 # setting wrong values will be regected and the whole parameters will be ignored
 lora.radio_params(bandwidth=9, tx_power=44, sf=90) # gived the following reported errors

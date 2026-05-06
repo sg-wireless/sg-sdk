@@ -492,7 +492,11 @@ static void display_region_channels_list(
 
     for(int i = 0; i < REGION_NVM_MAX_NB_CHANNELS; i++) {
         // |idx|def-msk|msk|freq|rx1-req|dr-min|dr-max|band-idx|
-        if(((p_def_masks[i/16]>>(i%16)) & 1) == 0) {
+        /* Show any channel that has a configured frequency, regardless of
+           mask state.  This ensures dynamically added channels (e.g. via
+           lora.add_channel()) appear even before they are reflected in the
+           default mask. */
+        if(p_ch[i].Frequency == 0) {
             continue;
         }
         __log_output("\t");
