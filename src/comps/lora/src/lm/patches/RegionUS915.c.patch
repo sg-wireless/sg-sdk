@@ -1,5 +1,5 @@
---- /home/ehlers/sg-sdk/ext/LoRaMac-node/src/mac/region/RegionUS915.c	2026-04-14 16:29:52.190703234 +0200
-+++ ./modified_sources/RegionUS915.c	2026-05-06 14:37:46.486240880 +0200
+--- ext/LoRaMac-node/src/mac/region/RegionUS915.c	2026-04-14 16:29:52.190703234 +0200
++++ src/comps/lora/src/lm/modified_sources/RegionUS915.c	2026-05-06 14:39:41.049421794 +0200
 @@ -67,7 +67,7 @@
      return txPowerResult;
  }

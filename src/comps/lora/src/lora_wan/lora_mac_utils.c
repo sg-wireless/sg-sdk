@@ -330,9 +330,36 @@ static void display_region_channels_list(
 static RegionNvmDataGroup1_t s_grp1;
 static RegionNvmDataGroup2_t s_grp2;
 static Band_t s_bands[REGION_NVM_MAX_NB_BANDS] = {0};
+/* Backup buffers used to save/restore live MAC state around the display call */
+static RegionNvmDataGroup2_t s_grp2_saved;
+static Band_t s_bands_saved[REGION_NVM_MAX_NB_BANDS];
+
+extern Band_t* LoRaMacGetRegionBands(void);
+
 void lora_list_region_params(lora_region_t region)
 {
     LoRaMacRegion_t mac_region = get_lora_mac_region_enum_value(region);
+
+    /*
+     * Save live MAC context before we call RegionInitDefaults().
+     * RegionInitDefaults(INIT_TYPE_DEFAULTS) sets the region-local
+     * RegionNvmGroup2 / RegionBands global pointers to our temporary static
+     * buffers s_grp2 / s_bands.  If the live MAC happens to be running the
+     * same region as the one we are displaying, those globals are permanently
+     * clobbered until the next lmh_init() – breaking channel selection,
+     * CFList channel persistence, and the ChannelsMask seen by the user.
+     * We therefore snapshot the live data and restore everything afterwards.
+     */
+    MibRequestConfirm_t live_mib;
+    live_mib.Type = MIB_NVM_CTXS;
+    LoRaMacMibGetRequestConfirm(&live_mib);
+    LoRaMacNvmData_t* live_nvm = (LoRaMacNvmData_t*)live_mib.Param.Contexts;
+    Band_t* live_bands = LoRaMacGetRegionBands();
+    LoRaMacRegion_t live_mac_region = live_nvm->MacGroup2.Region;
+
+    memcpy(&s_grp2_saved, &live_nvm->RegionGroup2, sizeof(s_grp2_saved));
+    memcpy(s_bands_saved, live_bands,
+           sizeof(Band_t) * REGION_NVM_MAX_NB_BANDS);
 
     InitDefaultsParams_t params = {
         .NvmGroup1 = &s_grp1,
@@ -350,12 +377,30 @@ void lora_list_region_params(lora_region_t region)
     __log_output(" # Masks Max    : "__blue__"%d\n",
         REGION_NVM_CHANNELS_MASK_SIZE);
 
+    /* Populate s_grp2/s_bands with region defaults – clobbers RegionNvmGroup2
+     * and RegionBands pointers inside the region module. */
     RegionInitDefaults(mac_region, &params);
 
     display_region_bands_list(region, s_bands, REGION_NVM_MAX_NB_BANDS);
 
     display_region_channels_list(region, s_grp2.Channels,
         s_grp2.ChannelsDefaultMask, s_grp2.ChannelsMask);
+
+    /*
+     * Restore the live MAC region pointers.
+     * A second INIT_TYPE_DEFAULTS call with the live buffers re-points
+     * RegionNvmGroup2 and RegionBands back to the live MAC state.
+     * The call also overwrites the live buffers with region defaults, so
+     * we restore the saved content immediately afterwards.
+     */
+    params.NvmGroup1 = &live_nvm->RegionGroup1;
+    params.NvmGroup2 = &live_nvm->RegionGroup2;
+    params.Bands = live_bands;
+    RegionInitDefaults(live_mac_region, &params);
+
+    memcpy(&live_nvm->RegionGroup2, &s_grp2_saved, sizeof(s_grp2_saved));
+    memcpy(live_bands, s_bands_saved,
+           sizeof(Band_t) * REGION_NVM_MAX_NB_BANDS);
 }
 
 void lora_list_mac_channels_status(void)
