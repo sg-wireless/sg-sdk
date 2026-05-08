@@ -1,0 +1,265 @@
+name: Build and Release Firmware
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    name: Build Firmware
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake make gcc g++ libncurses5-dev libusb-1.0-0 \
+            flex bison gperf python3-serial python3 python3-pip python3-venv zip wget \
+            python-is-python3 python3-toml colorized-logs
+      - name: Install toolchain
+        run: |
+          echo "Fetching external submodule ext/esp-idf"
+          git submodule update --init ext/esp-idf
+          echo "Installing toolchain for esp32s3"
+          python3 tools/builder/scripts/esp_idf-install.py esp32s3
+      - name: Build firmware
+        env:
+          # Suppress progress output from IDF installation
+          TERM: vt100
+        run: |
+          # Extract custom version string from tag if it contains a dash
+          VERSION_STRING_ARG=""
+          TAG_NAME="${{ github.ref_name }}"
+          if [[ "$TAG_NAME" == *-* ]]; then
+            # Extract everything after the first dash
+            # e.g., v1.4.0-rc1 -> rc1
+            # e.g., v1.4.0-rc1-with-new_LTE_component -> rc1-with-new_LTE_component
+            CUSTOM_VERSION="${TAG_NAME#*-}"
+            VERSION_STRING_ARG="--custom-version-string $CUSTOM_VERSION"
+            echo "Using custom version string: $CUSTOM_VERSION"
+          fi
+          PATH=$HOME/.local/bin:$PATH IDF_PATH=$(pwd)/ext/esp-idf \
+            ./fw_builder.sh --board SGW3501-F1-StarterKit --install-target esp32s3 $VERSION_STRING_ARG build
+      
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: build/sdk-default/F1/SGW3501-F1-StarterKit/micropython/log
+      
+      - name: Upload firmware artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware
+          path: |
+            build/sdk-default/F1/SGW3501-F1-StarterKit/micropython/SGW3501-F1-StarterKit-*.tar.gz
+            build/sdk-default/F1/SGW3501-F1-StarterKit/micropython/application.elf
+      
+      - name: Copy ESP-IDF tools needed for packaging
+        run: |
+          mkdir -p tools/esp-idf-components/nvs_flash/nvs_partition_tool
+          mkdir -p tools/esp-idf-components/partition_table
+          
+          # Copy NVS parser (needed for internal package)
+          if [ -f ext/esp-idf/components/nvs_flash/nvs_partition_tool/nvs_parser.py ]; then
+            cp ext/esp-idf/components/nvs_flash/nvs_partition_tool/nvs_parser.py \
+               tools/esp-idf-components/nvs_flash/nvs_partition_tool/
+          fi
+          
+          # Copy partition table tools (needed for internal package)
+          if [ -f ext/esp-idf/components/partition_table/parttool.py ]; then
+            cp ext/esp-idf/components/partition_table/parttool.py \
+               tools/esp-idf-components/partition_table/
+          fi
+          if [ -f ext/esp-idf/components/partition_table/gen_esp32part.py ]; then
+            cp ext/esp-idf/components/partition_table/gen_esp32part.py \
+               tools/esp-idf-components/partition_table/
+          fi
+      
+      - name: Upload build artifacts for release job
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: |
+            build/*/*/*/*/application.bin
+            build/*/*/*/*/ota_data_initial.bin
+            build/*/*/*/*/partition_table/partition-table.bin
+            build/*/*/*/*/bootloader/bootloader.bin
+            build/*/*/*/*/*.tar.gz
+            tools
+  
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for commit comparisons
+      
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-output
+      
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y zip python3 python3-pip colorized-logs
+      
+      - name: Setup SSH for private repo access
+        if: vars.INTERNAL_RELEASE != ''
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SG_CTRL_CLIENT_DEPLOY_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+      
+      - name: Prepare release assets
+        env:
+          INTERNAL_RELEASE: ${{ vars.INTERNAL_RELEASE }}
+        run: |
+          # Debug: Show if INTERNAL_RELEASE is set
+          echo "INTERNAL_RELEASE variable: '${INTERNAL_RELEASE}'"
+          if [[ -z "$INTERNAL_RELEASE" ]]; then
+            echo "WARNING: INTERNAL_RELEASE is not set - skipping internal package"
+          fi
+          
+          # Create a release directory
+          mkdir -p release-assets
+          
+          # Find the firmware tar.gz package (created by build_handler.py)
+          FIRMWARE_PACKAGE=$(find build -name "SGW3501-F1-StarterKit-*.tar.gz" -type f | head -1)
+          
+          if [[ -n "$FIRMWARE_PACKAGE" && -f "$FIRMWARE_PACKAGE" ]]; then
+            echo "Found firmware package: $FIRMWARE_PACKAGE"
+            # Copy the firmware package to release assets
+            cp "$FIRMWARE_PACKAGE" release-assets/
+            
+            # Extract version info from filename for release notes
+            PACKAGE_NAME=$(basename "$FIRMWARE_PACKAGE")
+            echo "PACKAGE_NAME=$PACKAGE_NAME" >> $GITHUB_ENV
+            
+            # Check if INTERNAL_RELEASE is set to create production package
+            if [[ -n "$INTERNAL_RELEASE" ]]; then
+              echo "INTERNAL_RELEASE is set to: $INTERNAL_RELEASE"
+              echo "Creating internal production release package..."
+              
+              # Clone sg-ctrl-client repository using SSH and checkout matching branch/tag
+              cd /tmp
+              GIT_SSH_COMMAND="ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" git clone "git@github.com:${INTERNAL_RELEASE}.git" sg-ctrl-client
+              cd sg-ctrl-client
+              
+              # Try to checkout the same tag first, fallback to branch name
+              if git rev-parse "${{ github.ref_name }}" >/dev/null 2>&1; then
+                echo "Checking out tag: ${{ github.ref_name }}"
+                git checkout "${{ github.ref_name }}"
+              elif git rev-parse "origin/${{ github.ref_name }}" >/dev/null 2>&1; then
+                echo "Checking out branch: ${{ github.ref_name }}"
+                git checkout "${{ github.ref_name }}"
+              else
+                echo "WARNING: Tag/branch ${{ github.ref_name }} not found in sg-ctrl-client, using default branch"
+              fi
+              
+              # Run the internal release script
+              bash tools/ci-internal-release.sh "$GITHUB_WORKSPACE" "${{ github.ref_name }}" "$GITHUB_WORKSPACE/release-assets"
+              
+              # Check if package was created successfully
+              cd "$GITHUB_WORKSPACE"
+              if ls release-assets/SGW3501-F1-StarterKit-*.zip 1> /dev/null 2>&1; then
+                echo "Internal release package created successfully"
+              else
+                echo "WARNING: Internal release package creation failed"
+              fi
+            else
+              echo "INTERNAL_RELEASE not set, skipping internal production package"
+            fi
+            
+            # List what we're about to release
+            echo "Release assets prepared:"
+            ls -lah "$GITHUB_WORKSPACE/release-assets/"
+            echo "Firmware package size: $(du -h "$FIRMWARE_PACKAGE" | cut -f1)"
+            
+            # Cleanup SSH key
+            rm -f ~/.ssh/deploy_key
+          else
+            echo "ERROR: No firmware package found matching pattern SGW3501-F1-StarterKit-*.tar.gz"
+            echo "Available files in build directory:"
+            find build -name "*.tar.gz" -type f
+            exit 1
+          fi
+      
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          RELEASE_TAG="${{ github.ref_name }}"
+          FIRMWARE_BASENAME="${{ env.PACKAGE_NAME }}"
+          
+          # Find previous tag for commit history
+          PREVIOUS_TAG=$(git tag -l 'v*' --sort=-version:refname | grep -A1 "^${RELEASE_TAG}$" | tail -1)
+          
+          # Start building release notes
+          cat > release_notes.md <<EOF
+          Automated firmware release created by GitHub Actions
+          
+          ## Firmware Package
+          - **File**: \`$FIRMWARE_BASENAME\`
+          - **Board**: SGW3501-F1-StarterKit
+          - **Target**: ESP32-S3
+          - **Commit**: ${{ github.sha }}
+          - **Build Date**: $(date)
+          
+          ## Package Contents
+          The tar.gz package contains all necessary firmware components:
+          - application.bin: Main application firmware
+          - bootloader.bin: Bootloader firmware  
+          - partition-table.bin: Partition table
+          - ota_data_initial.bin: OTA data
+          - flash_args: Flash arguments for esptool
+          
+          ## Installation
+          Use the SG Wireless flashing tools for automated installation.
+          EOF
+          
+          # Add internal package notes if available
+          if [[ -f release-assets/SGW3501-F1-StarterKit-*.zip ]]; then
+            INTERNAL_PACKAGE=$(basename release-assets/SGW3501-F1-StarterKit-*.zip)
+            cat >> release_notes.md <<EOF
+          
+          ## Internal Production Package
+          - **File**: \`$INTERNAL_PACKAGE\`
+          - **Type**: Production flasher with Python dependencies
+          - **Contents**: Includes flasher.py, requirements.txt, and all necessary tools
+          
+          This package is for internal use and includes the production flasher tool.
+          EOF
+          fi
+          
+          # Add commit history if we found a previous tag
+          if [[ -n "$PREVIOUS_TAG" && "$PREVIOUS_TAG" != "$RELEASE_TAG" ]]; then
+            echo "" >> release_notes.md
+            echo "## Commits since previous tag ($RELEASE_TAG ← $PREVIOUS_TAG)" >> release_notes.md
+            echo "" >> release_notes.md
+            
+            # Get commits between tags
+            git log --pretty=format:"### [\`%h\`](https://github.com/${{ github.repository }}/commit/%H)%n%s%n" "${PREVIOUS_TAG}..${RELEASE_TAG}" >> release_notes.md
+          fi
+          
+          echo "Release notes generated"
+      
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-assets/*
+          body_path: release_notes.md
+          draft: false
+          prerelease: false

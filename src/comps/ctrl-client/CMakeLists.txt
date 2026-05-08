@@ -1,6 +1,6 @@
 
 # ---------------------------------------------------------------------------- #
-# Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+# Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files(the “Software”), to deal
@@ -21,6 +21,7 @@
 # THE SOFTWARE.
 #
 # Author    Ahmed Sabry (SG Wireless)
+# Maintainer  Christian Ehlers (SG Wireless)
 #
 # Desc      Control platform client
 # ---------------------------------------------------------------------------- #
@@ -39,6 +40,10 @@ __sdk_add_component( ctrl_client
 
     REQUIRED_ESP_LIBS
         spi_flash    nvs_flash bootloader_support
+        esp_driver_i2s
+        esp_driver_spi
+        esp_driver_gpio
+        esp_wifi
 
     MENU_CONFIG     ${CMAKE_CURRENT_LIST_DIR}/cfg/ctrl_client.config
     MENU_PROMPT     "Ctrl Client"

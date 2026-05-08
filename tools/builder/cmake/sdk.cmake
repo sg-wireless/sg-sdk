@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------- #
-# Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+# Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files(the “Software”), to deal
@@ -644,7 +644,9 @@ function(__sdk_patch_collect_final_files __entity __out_var)
             log_dbg("    orig file  ${__cyan__}${__orig_file}${__default__}")
             log_dbg("    final dir  ${__cyan__}${__final_dir}${__default__}")
 
-            get_filename_component(__orig_filename ${__orig_file} NAME)
+            # Apply the patch to generate the patched file
+            __sdk_process_patching(${__patch_file} ${__orig_file} ${__final_dir} __final_file)
+            list(APPEND __final_files_list ${__final_file})
             list(APPEND __final_files_list ${__final_dir}/${__orig_filename})
         endif()
     endforeach()

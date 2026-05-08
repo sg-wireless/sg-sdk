@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------- #
-# Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+# Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files(the “Software”), to deal
@@ -20,6 +20,7 @@
 # THE SOFTWARE.
 #
 # Author    Ahmed Sabry (SG Wireless)
+# Maintainer  Christian Ehlers (SG Wireless)
 #
 # Desc      This plugs the mpy-hook component into the build system
 # ---------------------------------------------------------------------------- #
@@ -48,6 +49,23 @@ __sdk_add_patch(
     FINAL_DIR       ${CMAKE_CURRENT_LIST_DIR}/modified_sources
 )
 
+if(__feature_lte)
+__sdk_add_patch(
+    ENTITY_NAME     micropython
+    ORIGINAL_FILE   ${__dir_micropython}/ports/esp32/machine_uart.c
+    PATCH_FILE      ${CMAKE_CURRENT_LIST_DIR}/patches/machine_uart.c.patch
+    FINAL_DIR       ${CMAKE_CURRENT_LIST_DIR}/modified_sources
+    EXTRA_INCLUDES  ${CMAKE_CURRENT_LIST_DIR}
+)
+
+__sdk_add_patch(
+    ENTITY_NAME     micropython
+    ORIGINAL_FILE   ${__dir_micropython}/ports/esp32/network_ppp.c
+    PATCH_FILE      ${CMAKE_CURRENT_LIST_DIR}/patches/network_ppp.c.patch
+    FINAL_DIR       ${CMAKE_CURRENT_LIST_DIR}/modified_sources
+)
+endif()
+
 __sdk_add_patch(
     ENTITY_NAME     micropython
     ORIGINAL_FILE   ${__dir_micropython}/ports/esp32/machine_pin.c
@@ -64,31 +82,58 @@ __sdk_add_patch(
 
 __sdk_add_patch(
     ENTITY_NAME     micropython
-    ORIGINAL_FILE   ${__dir_micropython}/shared/runtime/pyexec.c
-    PATCH_FILE      ${CMAKE_CURRENT_LIST_DIR}/patches/pyexec.c.patch
+    ORIGINAL_FILE   ${__dir_micropython}/ports/esp32/machine_sdcard.c
+    PATCH_FILE      ${CMAKE_CURRENT_LIST_DIR}/patches/machine_sdcard.c.patch
     FINAL_DIR       ${CMAKE_CURRENT_LIST_DIR}/modified_sources
 )
 
 __sdk_add_patch(
     ENTITY_NAME     micropython
-    ORIGINAL_FILE   ${__dir_micropython}/ports/esp32/machine_sdcard.c
-    PATCH_FILE      ${CMAKE_CURRENT_LIST_DIR}/patches/machine_sdcard.c.patch
+    ORIGINAL_FILE   ${__dir_micropython}/ports/esp32/mpthreadport.c
+    PATCH_FILE      ${CMAKE_CURRENT_LIST_DIR}/patches/mpthreadport.c.patch
     FINAL_DIR       ${CMAKE_CURRENT_LIST_DIR}/modified_sources
 )
+
+# Collect source files
+set(MPY_HOOKS_SRCS
+    "${CMAKE_CURRENT_LIST_DIR}/i2c_ioexp_hooks.c"
+    "${CMAKE_CURRENT_LIST_DIR}/machine_timers_hooks.c"
+    "${CMAKE_CURRENT_LIST_DIR}/uart_irq_hooks.c"
+)
+
+# Add UART hooks only if LTE feature is enabled
+if(__feature_lte)
+    list(APPEND MPY_HOOKS_SRCS "${CMAKE_CURRENT_LIST_DIR}/machine_uart_hooks.c")
+    set(UART_GUARD_DEP f1_uart_guard)
+else()
+    set(UART_GUARD_DEP "")
+endif()
 
 __sdk_add_component( f1_mpy_hooks
 
     MPY_MODS
         "${CMAKE_CURRENT_LIST_DIR}/*.c"
 
+    MPY_EXCLUDE_FILES
+        ${__dir_micropython}/ports/esp32/mpthreadport.c
+
     LOGS_DEFS
         ${CMAKE_CURRENT_LIST_DIR}/machine_timers_hooks.c
 
     SRCS
-        "${CMAKE_CURRENT_LIST_DIR}/*.c"
+        ${MPY_HOOKS_SRCS}
 
     INCS_IF
         ${CMAKE_CURRENT_LIST_DIR}
+
+    REQUIRED_SDK_LIBS
+        ${UART_GUARD_DEP}
+
+    REQUIRED_ESP_LIBS
+        esp_driver_i2s
+        esp_wifi
+        esp_driver_spi
+        esp_driver_gpio
 
     MENU_CONFIG     ${CMAKE_CURRENT_LIST_DIR}/mpy_hooks.config
     MENU_PROMPT     "micropython hooks"
@@ -98,3 +143,4 @@ __sdk_add_component( f1_mpy_hooks
 endif() # __build_variant == micropython
 
 # --- end of file ------------------------------------------------------------ #
+

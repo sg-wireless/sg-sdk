@@ -49,6 +49,9 @@
 |[`lora.duty_stop()`](#duty_cycle)|stop duty-cycle operation|
 |[`lora.enable_rx_listening()`](#rx_listening)|perform class-a cycle to fetch pending DL msg|
 |[`lora.disable_rx_listening()`](#rx_listening)|if no pending UL msg, discard class-a cycle|
+|[`lora.mode(adr=)`](#adr)|enable or disable Adaptive Data Rate (ADR)|
+|[`lora.tx_airtime()`](#tx_airtime)|get last TX time-on-air in milliseconds|
+|[`lora.last_rx_at()`](#last_rx_at)|get timestamp (ms since boot) of last network reception|
 
 <!------------------------------------------------------------------------------
  ! LoRa WAN Stats
@@ -397,5 +400,114 @@ lora.enable_rx_listening()      # enable listening
 lora.disable_rx_listening()     # disable listening
                                 # the device will listen only when there is a
                                 # real planned UL TX message.
+```
+
+<!------------------------------------------------------------------------------
+ ! Adaptive Data Rate
+ !----------------------------------------------------------------------------->
+<div id="adr"></div>
+
+### Adaptive Data Rate (ADR)
+
+Adaptive Data Rate allows the LoRaWAN network server to optimise each device's
+data rate and transmission power based on the observed link quality.  ADR is
+**enabled by default** when switching to WAN mode.
+
+Disable ADR when the device is mobile or the RF environment is expected to vary
+frequently, so the network server does not lock the device to a data rate that
+may become unsuitable.
+
+The `adr` keyword argument is accepted by `lora.mode()` when switching to WAN
+mode, and can also be changed at any time while the stack is running.
+
+Example:
+
+```python
+import lora
+
+# switch to WAN mode with ADR disabled from the start
+lora.mode(lora._mode.WAN, adr=False)
+
+# re-enable ADR later (e.g. once the device is stationary)
+lora.mode(lora._mode.WAN, adr=True)
+```
+
+<!------------------------------------------------------------------------------
+ ! TX airtime
+ !----------------------------------------------------------------------------->
+<div id="tx_airtime"></div>
+
+### TX Airtime — `lora.tx_airtime()`
+
+Returns the time-on-air (in milliseconds) of the most recently transmitted
+LoRaWAN packet.  The value is updated immediately after each successful
+transmission, before the RX windows open.
+
+The returned value is `0` until the first packet has been sent in the current
+session.
+
+This is useful for duty-cycle management: by knowing the exact airtime of the
+last frame you can compute the minimum off-time required by regional regulations
+before the next transmission.
+
+Example:
+
+```python
+import lora
+import time
+
+lora.send('hello')
+
+# after the send callback fires:
+airtime_ms = lora.tx_airtime()
+print('last TX airtime: {} ms'.format(airtime_ms))
+
+# simple 1%-duty-cycle guard (EU868 default sub-band)
+min_off_time_ms = airtime_ms * 99
+time.sleep_ms(min_off_time_ms)
+```
+
+<!------------------------------------------------------------------------------
+ ! Last network RX timestamp
+ !----------------------------------------------------------------------------->
+<div id="last_rx_at"></div>
+
+### Last Network RX Timestamp — `lora.last_rx_at()`
+
+Returns the value of the monotonic millisecond timer (`utime.ticks_ms()`
+compatible) at the moment the most recent downlink frame was received from the
+network.
+
+The timestamp is updated on:
+- Any application-layer downlink (port 1–223)
+- Any MAC-only downlink (port 0 / network commands)
+- An uplink ACK (`AckReceived`) returned by the network server in response to
+  a confirmed uplink
+
+The returned value is `0` until the first downlink (or ACK) has been received
+in the current session.
+
+This is useful for implementing a network-connectivity watchdog: if
+`utime.ticks_diff(utime.ticks_ms(), lora.last_rx_at())` exceeds a threshold,
+the device can decide to re-join or perform a reset.
+
+Example:
+
+```python
+import lora
+import utime
+
+WATCHDOG_TIMEOUT_MS = 10 * 60 * 1000   # 10 minutes without any network contact
+
+def check_network_health():
+    last_rx = lora.last_rx_at()
+    if last_rx == 0:
+        print('no downlink received yet')
+        return False
+    elapsed = utime.ticks_diff(utime.ticks_ms(), last_rx)
+    if elapsed > WATCHDOG_TIMEOUT_MS:
+        print('no network contact for {} ms — triggering rejoin'.format(elapsed))
+        return False
+    return True
 ```
 <!--- end of file ------------------------------------------------------------->

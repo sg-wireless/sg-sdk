@@ -1,5 +1,5 @@
 /** -------------------------------------------------------------------------- *
- * @copyright Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+ * @copyright Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files(the “Software”), to deal
@@ -59,7 +59,7 @@ static bool s_mpy_ctrl_c_enable = true;
 static bool s_mpy_kb_intr_enable = true;
 __opt_paste(__soft_reset__, y, static bool s_mpy_ctrl_f_enable = true;)
 
-void hook_mpy_uart_irq_custom_char_handler(char c)
+IRAM_ATTR void hook_mpy_uart_irq_custom_char_handler(char c)
 {
     if (c == mp_interrupt_char && s_mpy_kb_intr_enable)
     {

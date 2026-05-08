@@ -1,5 +1,5 @@
 /** -------------------------------------------------------------------------- *
- * @copyright Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+ * @copyright Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files(the “Software”), to deal
@@ -19,9 +19,10 @@
  * OUT OF OR IN  CONNECTION WITH  THE SOFTWARE OR  THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  * 
- * @author  Ahmed Sabry (SG Wireless)
+ * @author      Ahmed Sabry (SG Wireless)
+ * @maintainer  Christian Ehlers (SG Wireless)
  * 
- * @brief   RGB-LED interfacing component
+ * @brief       RGB-LED interfacing component
  * --------------------------------------------------------------------------- *
  */
 
@@ -29,15 +30,13 @@
  * includes and externs
  * --------------------------------------------------------------------------- *
  */
-#include "driver/periph_ctrl.h"
-#include "driver/rmt.h"
+#include "esp_clk_tree.h"
+#include "driver/gpio.h"
 #include "esp_event.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
 #include "freertos/timers.h"
-
-#include "ws2812_control.h"
 
 #include "state_machine.h"
 #include "rgbled.h"
@@ -47,8 +46,21 @@
 #include "log_lib.h"
 __log_component_def(F1, rgbled, blue, 1, 0);
 
-extern void periph_module_clk_disable(periph_module_t periph);
-extern void periph_module_clk_enable(periph_module_t periph);
+// MicroPython bitstream function (from machine_bitstream.c)
+// Declare the function directly to avoid MicroPython header dependencies
+extern void machine_bitstream_high_low(int pin, uint32_t *timing_ns, const uint8_t *buf, size_t len);
+
+/** -------------------------------------------------------------------------- *
+ * constants and configurations 
+ * --------------------------------------------------------------------------- *
+ */
+
+// WS2812 RGB LED pin (GPIO 21 on SGW3501-F1-StarterKit)
+#define RGBLED_GPIO_PIN         21
+
+// WS2812 timing (in nanoseconds) - matching neopixel module
+// Format: [T0H, T0L, T1H, T1L] = [high_0, low_0, high_1, low_1]
+static uint32_t ws2812_timing_ns[4] = {400, 850, 800, 450};
 
 /** -------------------------------------------------------------------------- *
  * macros
@@ -97,25 +109,55 @@ extern void periph_module_clk_enable(periph_module_t periph);
  */
 
 /** -------------------------------------------------------------------------- *
+ * WS2812 data conversion and transmission
+ * --------------------------------------------------------------------------- *
+ */
+
+/**
+ * @brief Convert RGB values to WS2812 data buffer (GRB format)
+ * @param red Red component (0-255)
+ * @param green Green component (0-255) 
+ * @param blue Blue component (0-255)
+ * @param buf Output buffer (3 bytes minimum)
+ */
+static void rgb_to_ws2812_buffer(uint8_t red, uint8_t green, uint8_t blue, uint8_t *buf)
+{
+    // WS2812 uses GRB order (Green, Red, Blue)
+    buf[0] = green;
+    buf[1] = red; 
+    buf[2] = blue;
+}
+
+/**
+ * @brief Write WS2812 data using MicroPython's bitstream interface
+ * @param red Red component (0-255)
+ * @param green Green component (0-255)
+ * @param blue Blue component (0-255)
+ */
+static void ws2812_write_rgb(uint8_t red, uint8_t green, uint8_t blue)
+{
+    uint8_t led_buffer[3];
+    rgb_to_ws2812_buffer(red, green, blue, led_buffer);
+    
+    // Use MicroPython's bitstream interface with our timing
+    machine_bitstream_high_low(RGBLED_GPIO_PIN, ws2812_timing_ns, led_buffer, sizeof(led_buffer));
+}
+
+/** -------------------------------------------------------------------------- *
  * power management
  * --------------------------------------------------------------------------- *
  */
 /**
- * TODO: to check gpio power consumption later on
+ * Power management is handled by MicroPython's bitstream implementation
  */
 static void rmt_power_down(void)
 {
-    periph_module_clk_disable(PERIPH_RMT_MODULE);
-    // __esp_call(gpio_reset_pin(CONFIG_WS2812_LED_RMT_TX_GPIO),
-    //     "failed to reset gpio pin",);
+    // No-op: MicroPython handles RMT power management
 }
 
 static void rmt_power_up(void)
 {
-    // __esp_call(rmt_set_gpio(CONFIG_WS2812_LED_RMT_TX_CHANNEL,
-    //     RMT_MODE_TX, CONFIG_WS2812_LED_RMT_TX_GPIO, false),
-    //     "failed to set the gpio again",);
-    periph_module_clk_enable(PERIPH_RMT_MODULE);
+    // No-op: MicroPython handles RMT power management
 }
 
 /** -------------------------------------------------------------------------- *
@@ -124,21 +166,19 @@ static void rmt_power_up(void)
  */
 static void led_ctrl_set_color(uint32_t color)
 {
-    // the color hex content is XX_RR_GG_BB, but the actual rgb led
-    // considers this sequence GG_RR_BB
-    uint8_t *p = (uint8_t*)&color;
-    struct led_state new_state;
-    new_state.leds[0] = (uint32_t)p[0] | ((uint32_t)p[2] << 8)
-        | ((uint32_t)p[1] << 16);
+    // Extract RGB components from color value (format: 0xXXRRGGBB)
+    uint8_t blue  = (color & 0x000000FF) >> 0;
+    uint8_t green = (color & 0x0000FF00) >> 8;
+    uint8_t red   = (color & 0x00FF0000) >> 16;
 
     __log_info("set color"
         " R:"__red__"%02x"__default__
         ", G: "__green__"%02x"__default__
         ", B: "__blue__"%02x"__default__,
-        p[2], p[1], p[0]);
+        red, green, blue);
 
     rmt_power_up();
-    ws2812_write_leds(new_state);
+    ws2812_write_rgb(red, green, blue);
     rmt_power_down();
 }
 
@@ -522,7 +562,17 @@ void rgbled_init(void)
 
     esp_event_loop_create_default();
 
-    ws2812_control_init();
+    // Initialize RGB LED GPIO pin
+    gpio_config_t gpio_conf = {
+        .pin_bit_mask = (1ULL << RGBLED_GPIO_PIN),
+        .mode = GPIO_MODE_OUTPUT,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+    gpio_config(&gpio_conf);
+    gpio_set_level(RGBLED_GPIO_PIN, 0);  // Start with LED off
+
     service_ctor();
     s_is_initialized = true;
 }
@@ -531,7 +581,8 @@ void rgbled_deinit(void)
 {
     service_stop();
     service_dtor();
-    rmt_driver_uninstall(CONFIG_WS2812_LED_RMT_TX_CHANNEL);
+    // Reset GPIO pin to input mode
+    gpio_reset_pin(RGBLED_GPIO_PIN);
     s_is_initialized = false;
     s_heartbeat_is_running = false;
 }

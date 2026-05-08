@@ -1,0 +1,114 @@
+--- ../../../../ext/micropython/ports/esp32/network_ppp.c	2025-11-15 20:45:10.593099250 +0100
++++ ./modified_sources/network_ppp.c	2025-11-25 02:29:37.544626905 +0100
+@@ -38,9 +38,12 @@
+ #if defined(CONFIG_ESP_NETIF_TCPIP_LWIP) && defined(CONFIG_LWIP_PPP_SUPPORT)
+ 
+ #include "lwip/dns.h"
++#include "lwip/sys.h"
++#include "lwip/timeouts.h"
+ #include "netif/ppp/ppp.h"
+ #include "netif/ppp/pppapi.h"
+ #include "netif/ppp/pppos.h"
++#include "driver/uart.h"
+ 
+ // Includes for port-specific changes compared to network_ppp_lwip.c
+ #include "shared/netutils/netutils.h"
+@@ -49,6 +52,16 @@
+ // Enable this to see the serial data going between the PPP layer.
+ #define PPP_TRACE_IN_OUT (0)
+ 
++// Periodic polling interval in milliseconds for PPP RX
++#define PPP_POLL_INTERVAL_MS (20)
++
++// Forward declare machine_uart_obj_t to access uart_num
++typedef struct {
++    mp_obj_base_t base;
++    uart_port_t uart_num;
++    // ...rest of fields not needed
++} machine_uart_obj_t;
++
+ typedef enum {
+     STATE_INACTIVE,
+     STATE_ACTIVE,
+@@ -64,11 +77,32 @@
+     mp_obj_t stream;
+     ppp_pcb *pcb;
+     struct netif netif;
++    bool poll_timer_active;
++    uart_port_t uart_num;  // UART port number for direct access
+ } network_ppp_obj_t;
+ 
+ const mp_obj_type_t esp_network_ppp_lwip_type;
+ 
+ static mp_obj_t network_ppp___del__(mp_obj_t self_in);
++static mp_obj_t network_ppp_poll(size_t n_args, const mp_obj_t *args);
++
++// lwIP timer callback - reads directly from UART and feeds to PPP
++static void network_ppp_poll_timer_cb(void *arg) {
++    network_ppp_obj_t *self = (network_ppp_obj_t *)arg;
++    
++    if (self->state >= STATE_ACTIVE && self->poll_timer_active && self->pcb != NULL) {
++        // Read directly from UART without going through MicroPython
++        uint8_t buf[256];
++        int len = uart_read_bytes(self->uart_num, buf, sizeof(buf), 0);  // Non-blocking
++        if (len > 0) {
++            // Feed data directly to PPP stack (thread-safe)
++            pppos_input(self->pcb, (u8_t *)buf, len);
++        }
++        
++        // Re-schedule the timer
++        sys_timeout(PPP_POLL_INTERVAL_MS, network_ppp_poll_timer_cb, self);
++    }
++}
+ 
+ static void network_ppp_stream_uart_irq_disable(network_ppp_obj_t *self) {
+     if (self->stream == mp_const_none) {
+@@ -117,6 +151,14 @@
+     self->state = STATE_INACTIVE;
+     self->stream = stream;
+     self->pcb = NULL;
++    self->poll_timer_active = false;
++    self->uart_num = UART_NUM_MAX;  // Invalid initially
++    
++    // Extract UART number from stream object (cast to access uart_num field)
++    if (stream != mp_const_none) {
++        machine_uart_obj_t *uart_obj = MP_OBJ_TO_PTR(stream);
++        self->uart_num = uart_obj->uart_num;
++    }
+ 
+     return MP_OBJ_FROM_PTR(self);
+ }
+@@ -177,10 +219,12 @@
+     }
+ 
+     // Enable UART IRQ to call PPP.poll() when incoming data is ready.
++    // Use both IRQ_RX (fires on data arrival) and IRQ_RXIDLE (fires after line idle)
++    // IRQ_RX = 1, IRQ_RXIDLE = 0x1000, combined = 0x1001
+     mp_obj_t dest[4];
+     mp_load_method(self->stream, MP_QSTR_irq, dest);
+     dest[2] = mp_obj_new_bound_meth(MP_OBJ_FROM_PTR(&network_ppp_poll_obj), MP_OBJ_FROM_PTR(self));
+-    dest[3] = mp_load_attr(self->stream, MP_QSTR_IRQ_RXIDLE);
++    dest[3] = MP_OBJ_NEW_SMALL_INT(0x1001); // IRQ_RX | IRQ_RXIDLE
+     mp_call_method_n_kw(2, 0, dest);
+ }
+ 
+@@ -456,11 +500,19 @@
+             self->state = STATE_ACTIVE;
+ 
+             network_ppp_stream_uart_irq_enable(self);
++            
++            // Start periodic polling timer (reads directly from UART)
++            self->poll_timer_active = true;
++            sys_timeout(PPP_POLL_INTERVAL_MS, network_ppp_poll_timer_cb, self);
+         } else {
+             if (self->state < STATE_ACTIVE) {
+                 return mp_const_false;
+             }
+ 
++            // Stop polling timer
++            self->poll_timer_active = false;
++            sys_untimeout(network_ppp_poll_timer_cb, self);
++            
+             network_ppp___del__(MP_OBJ_FROM_PTR(self));
+         }
+     }

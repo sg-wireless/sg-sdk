@@ -1,0 +1,58 @@
+{
+  "name": "Basic MicroPython Functionality Test",
+  "description": "Quick test suite for basic MicroPython functionality and system health",
+  "version": "1.0",
+  "author": "sg-sdk automated testing framework",
+  "date": "October 2025",
+  "commands": [
+    {
+      "command": "import machine",
+      "description": "Import machine module",
+      "timeout": 2.0,
+      "expected_not_contains": ["Error", "Traceback"],
+      "should_succeed": true
+    },
+    {
+      "command": "import gc",
+      "description": "Import garbage collector module",
+      "timeout": 2.0,
+      "expected_not_contains": ["Error", "Traceback"],
+      "should_succeed": true
+    },
+    {
+      "command": "print('System frequency:', machine.freq())",
+      "description": "Check system frequency",
+      "timeout": 2.0,
+      "expected_contains": ["System frequency:"],
+      "should_succeed": true
+    },
+    {
+      "command": "print('Free memory:', gc.mem_free())",
+      "description": "Check available memory",
+      "timeout": 2.0,
+      "expected_contains": ["Free memory:"],
+      "should_succeed": true
+    },
+    {
+      "command": "print('Reset cause:', machine.reset_cause())",
+      "description": "Check reset cause",
+      "timeout": 2.0,
+      "expected_contains": ["Reset cause:"],
+      "should_succeed": true
+    },
+    {
+      "command": "print('Unique ID:', machine.unique_id().hex())",
+      "description": "Check device unique ID",
+      "timeout": 2.0,
+      "expected_contains": ["Unique ID:"],
+      "should_succeed": true
+    },
+    {
+      "command": "print('Basic functionality test completed')",
+      "description": "Test completion marker",
+      "timeout": 2.0,
+      "expected_contains": ["Basic functionality test completed"],
+      "should_succeed": true
+    }
+  ]
+}

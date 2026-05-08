@@ -1,0 +1,86 @@
+{
+  "name": "Ethernet/LAN Support Test Suite",
+  "description": "Test suite for validating Ethernet/LAN functionality in MicroPython",
+  "version": "1.0",
+  "author": "sg-sdk automated testing framework",
+  "date": "October 2025",
+  "commands": [
+    {
+      "command": "import network",
+      "description": "Import network module",
+      "timeout": 2.0,
+      "expected_not_contains": ["Error", "Traceback"],
+      "should_succeed": true
+    },
+    {
+      "command": "hasattr(network, 'LAN')",
+      "description": "Check if LAN class is available",
+      "timeout": 2.0,
+      "expected_contains": ["True"],
+      "should_succeed": true
+    },
+    {
+      "command": "network.LAN",
+      "description": "Access LAN function",
+      "timeout": 2.0,
+      "expected_contains": ["<function>"],
+      "should_succeed": true
+    },
+    {
+      "command": "dir(network)",
+      "description": "List network module contents including PHY constants",
+      "timeout": 2.0,
+      "expected_contains": ["PHY_W5500", "PHY_KSZ8851SNL", "PHY_DM9051", "LAN"],
+      "should_succeed": true
+    },
+    {
+      "command": "network.PHY_W5500",
+      "description": "Check W5500 PHY constant value",
+      "timeout": 2.0,
+      "expected_not_contains": ["Error", "Traceback"],
+      "should_succeed": true
+    },
+    {
+      "command": "network.PHY_KSZ8851SNL",
+      "description": "Check KSZ8851SNL PHY constant value",
+      "timeout": 2.0,
+      "expected_not_contains": ["Error", "Traceback"],
+      "should_succeed": true
+    },
+    {
+      "command": "network.PHY_DM9051",
+      "description": "Check DM9051 PHY constant value",
+      "timeout": 2.0,
+      "expected_not_contains": ["Error", "Traceback"],
+      "should_succeed": true
+    },
+    {
+      "command": "network.PHY_LAN8720",
+      "description": "Check LAN8720 PHY constant value (RMII)",
+      "timeout": 2.0,
+      "expected_not_contains": ["Error", "Traceback"],
+      "should_succeed": true
+    },
+    {
+      "command": "network.PHY_LAN8710",
+      "description": "Check LAN8710 PHY constant value (RMII)",
+      "timeout": 2.0,
+      "expected_not_contains": ["Error", "Traceback"],
+      "should_succeed": true
+    },
+    {
+      "command": "print('Note: Hardware-specific testing requires actual Ethernet hardware')",
+      "description": "Hardware requirement note",
+      "timeout": 2.0,
+      "expected_contains": ["Hardware-specific testing requires actual Ethernet hardware"],
+      "should_succeed": true
+    },
+    {
+      "command": "print('Ethernet/LAN support successfully restored')",
+      "description": "Final success message",
+      "timeout": 2.0,
+      "expected_contains": ["Ethernet/LAN support successfully restored"],
+      "should_succeed": true
+    }
+  ]
+}

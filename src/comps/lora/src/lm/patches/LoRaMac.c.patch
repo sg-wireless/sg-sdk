@@ -1,6 +1,6 @@
---- ../../../../../ext/LoRaMac-node/src/mac/LoRaMac.c	2024-10-01 14:57:12
-+++ ./modified_sources/LoRaMac.c	2024-10-31 16:04:00
-@@ -48,6 +48,23 @@
+--- ../../../../../ext/LoRaMac-node/src/mac/LoRaMac.c	2026-03-06 22:07:10.575837458 +0100
++++ ./modified_sources/LoRaMac.c	2026-03-08 00:57:39.525336106 +0100
+@@ -48,6 +48,24 @@
  
  #include "LoRaMac.h"
  
@@ -9,6 +9,7 @@
 +#include "log_lib.h"
 +
 +void lw_rxwin_set_last_tx_done_timestamp(uint32_t timestamp);
++void lw_mac_notify_tx_airtime(uint32_t airtime_ms);
 +uint32_t lm_rxwin_get_delay(uint32_t win_act_delay);
 +void lm_rxwin_set_rx_state(int state);
 +void lm_rxwin_time_ctrl_align(void);
@@ -24,7 +25,7 @@
  /*!
   * Maximum PHY layer payload size
   */
-@@ -743,7 +760,12 @@
+@@ -743,7 +761,13 @@
  
  static void OnRadioTxDone( void )
  {
@@ -33,12 +34,13 @@
 +    TxDoneParams.CurTime = radio_get_irq_timestamp( );
 +
 +    lw_rxwin_set_last_tx_done_timestamp(TxDoneParams.CurTime);
++    lw_mac_notify_tx_airtime(MacCtx.TxTimeOnAir);
 +
 +    // TxDoneParams.CurTime = TimerGetCurrentTime( );
      MacCtx.LastTxSysTime = SysTimeGet( );
  
      LoRaMacRadioEvents.Events.TxDone = 1;
-@@ -753,7 +775,10 @@
+@@ -753,7 +777,10 @@
  
  static void OnRadioRxDone( uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr )
  {
@@ -50,7 +52,7 @@
      RxDoneParams.Payload = payload;
      RxDoneParams.Size = size;
      RxDoneParams.Rssi = rssi;
-@@ -774,6 +799,9 @@
+@@ -774,6 +801,9 @@
  
  static void OnRadioRxError( void )
  {
@@ -60,7 +62,7 @@
      LoRaMacRadioEvents.Events.RxError = 1;
  
      OnMacProcessNotify( );
-@@ -781,6 +809,9 @@
+@@ -781,6 +811,9 @@
  
  static void OnRadioRxTimeout( void )
  {
@@ -70,7 +72,7 @@
      LoRaMacRadioEvents.Events.RxTimeout = 1;
  
      OnMacProcessNotify( );
-@@ -810,12 +841,19 @@
+@@ -810,12 +843,19 @@
      }
  
      // Setup timers
@@ -86,16 +88,16 @@
 +    // TimerSetValue( &MacCtx.RxWindowTimer1, MacCtx.RxWindow1Delay - offset );
 +    // TimerStart( &MacCtx.RxWindowTimer1 );
 +    TimerStartWithPeriod(&MacCtx.RxWindowTimer1,
-+        lm_rxwin_get_delay(MacCtx.RxWindow1Delay - MacCtx.RxWindow1Config.WindowOffset));
++        lm_rxwin_get_delay(MacCtx.RxWindow1Delay));
 +    // TimerSetValue( &MacCtx.RxWindowTimer2, MacCtx.RxWindow2Delay - offset );
 +    // TimerStart( &MacCtx.RxWindowTimer2 );
 +    // TimerStartWithPeriod(&MacCtx.RxWindowTimer2, MacCtx.RxWindow2Delay - offset);
 +    TimerStartWithPeriod(&MacCtx.RxWindowTimer2,
-+        lm_rxwin_get_delay(MacCtx.RxWindow2Delay - MacCtx.RxWindow2Config.WindowOffset));
++        lm_rxwin_get_delay(MacCtx.RxWindow2Delay));
      CRITICAL_SECTION_END( );
  
      if( MacCtx.NodeAckRequested == true )
-@@ -1929,7 +1967,7 @@
+@@ -1929,7 +1969,7 @@
      }
  }
  
@@ -104,7 +106,7 @@
  {
      MacCtx.RxWindow1Config.Channel = MacCtx.Channel;
      MacCtx.RxWindow1Config.DrOffset = Nvm.MacGroup2.MacParams.Rx1DrOffset;
-@@ -1938,10 +1976,17 @@
+@@ -1938,10 +1978,17 @@
      MacCtx.RxWindow1Config.RxSlot = RX_SLOT_WIN_1;
      MacCtx.RxWindow1Config.NetworkActivation = Nvm.MacGroup2.NetworkActivation;
  
@@ -115,7 +117,7 @@
 +{
 +    lw_radio_process_rxwin_timer_expire(
 +        OnRxWindow1TimerEvent_process,
-+        MacCtx.RxWindow1Delay - MacCtx.RxWindow1Config.WindowOffset, 1);
++        MacCtx.RxWindow1Delay, 1);
 +}
  
 -static void OnRxWindow2TimerEvent( void* context )
@@ -123,7 +125,7 @@
  {
      // Check if we are processing Rx1 window.
      // If yes, we don't setup the Rx2 window.
-@@ -1958,6 +2003,12 @@
+@@ -1958,6 +2005,12 @@
  
      RxWindowSetup( &MacCtx.RxWindowTimer2, &MacCtx.RxWindow2Config );
  }
@@ -131,12 +133,12 @@
 +{
 +    lw_radio_process_rxwin_timer_expire(
 +        OnRxWindow2TimerEvent_process,
-+        MacCtx.RxWindow2Delay - MacCtx.RxWindow2Config.WindowOffset, 2);
++        MacCtx.RxWindow2Delay, 2);
 +}
  
  static void OnRetransmitTimeoutTimerEvent( void* context )
  {
-@@ -2566,7 +2617,9 @@
+@@ -2566,7 +2619,9 @@
                      // Copy received GPS Epoch time into system time
                      sysTime = gpsEpochTime;
                      // Add Unix to Gps epoch offset. The system time is based on Unix time.
@@ -147,7 +149,7 @@
  
                      // Compensate time difference between Tx Done time and now
                      sysTimeCurrent = SysTimeGet( );
-@@ -3249,7 +3302,9 @@
+@@ -3249,7 +3304,9 @@
  
      if( RegionRxConfig( Nvm.MacGroup2.Region, rxConfig, ( int8_t* )&MacCtx.McpsIndication.RxDatarate ) == true )
      {
@@ -158,7 +160,7 @@
          MacCtx.RxSlot = rxConfig->RxSlot;
      }
  }
-@@ -3270,11 +3325,13 @@
+@@ -3270,11 +3327,13 @@
  
      // At this point the Radio should be idle.
      // Thus, there is no need to set the radio in standby mode.
@@ -172,7 +174,7 @@
  }
  
  LoRaMacStatus_t PrepareFrame( LoRaMacHeader_t* macHdr, LoRaMacFrameCtrl_t* fCtrl, uint8_t fPort, void* fBuffer, uint16_t fBufferSize )
-@@ -3395,7 +3452,9 @@
+@@ -3395,7 +3454,9 @@
      txConfig.AntennaGain = Nvm.MacGroup2.MacParams.AntennaGain;
      txConfig.PktLen = MacCtx.PktBufferLen;
  
@@ -182,7 +184,7 @@
  
      MacCtx.McpsConfirm.Status = LORAMAC_EVENT_INFO_STATUS_ERROR;
      MacCtx.McpsConfirm.Datarate = Nvm.MacGroup1.ChannelsDatarate;
-@@ -3440,14 +3499,18 @@
+@@ -3440,14 +3501,18 @@
      MacCtx.ResponseTimeoutStartTime = 0;
  
      // Send now
@@ -201,7 +203,7 @@
  
      MacCtx.MacState |= LORAMAC_TX_RUNNING;
  
-@@ -3509,7 +3572,9 @@
+@@ -3509,7 +3574,9 @@
          // The public/private network flag may change upon reloading MacGroup2
          // from NVM and we thus need to synchronize the radio. The same function
          // is invoked in LoRaMacInitialization.
@@ -211,7 +213,7 @@
      }
  
      // Secure Element
-@@ -3903,7 +3968,9 @@
+@@ -3903,7 +3970,9 @@
      MacCtx.RadioEvents.RxError = OnRadioRxError;
      MacCtx.RadioEvents.TxTimeout = OnRadioTxTimeout;
      MacCtx.RadioEvents.RxTimeout = OnRadioRxTimeout;
@@ -221,7 +223,7 @@
  
      // Initialize the Secure Element driver
      if( SecureElementInit( &Nvm.SecureElement ) != SECURE_ELEMENT_SUCCESS )
-@@ -3930,10 +3997,12 @@
+@@ -3930,10 +3999,12 @@
      }
  
      // Random seed initialization
@@ -234,7 +236,7 @@
  
      LoRaMacEnableRequests( LORAMAC_REQUEST_HANDLING_ON );
  
-@@ -4683,7 +4752,9 @@
+@@ -4683,7 +4754,9 @@
          case MIB_PUBLIC_NETWORK:
          {
              Nvm.MacGroup2.PublicNetwork = mibSet->Param.EnablePublicNetwork;
@@ -244,7 +246,7 @@
              break;
          }
          case MIB_RX2_CHANNEL:
-@@ -5245,11 +5316,8 @@
+@@ -5245,11 +5318,8 @@
   */
  static void AbpJoinPendingStart( void )
  {
@@ -257,3 +259,19 @@
          TimerInit( &MacCtx.AbpJoinPendingTimer, OnAbpJoinPendingTimerEvent );
      }
  
+@@ -5725,3 +5795,15 @@
+     // Inform application layer
+     OnMacProcessNotify( );
+ }
++
++void lm_mac_force_stop( void )
++{
++    // Put radio to sleep so no new RX events can be queued.
++    Radio.Sleep();
++    // Force the state machine into IDLE and clear all pending radio events
++    // so that LoRaMacIsBusy() returns false and LoRaMacDeInitialization()
++    // succeeds when called during teardown (e.g. on a soft reset).
++    MacCtx.MacState = LORAMAC_IDLE;
++    MacCtx.AllowRequests = LORAMAC_REQUEST_HANDLING_ON;
++    LoRaMacRadioEvents.Value = 0;
++}

@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------- #
-# Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+# Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files(the “Software”), to deal
@@ -20,6 +20,7 @@
 # THE SOFTWARE.
 #
 # Author    Ahmed Sabry (SG Wireless)
+# Maintainer  Christian Ehlers (SG Wireless)
 #
 # Desc      It supports the build of the lib_adt
 # ---------------------------------------------------------------------------- #
@@ -43,6 +44,12 @@ __sdk_add_component( adt_lib
     
     REQUIRED_SDK_LIBS
         utils_lib
+
+    REQUIRED_ESP_LIBS
+        esp_driver_i2s
+        esp_driver_spi
+        esp_driver_gpio
+        esp_wifi
 )
 
 __sdk_menu_config_group_add(MAIN.DEMO.CLIBS "Common C-Libraries Demos")

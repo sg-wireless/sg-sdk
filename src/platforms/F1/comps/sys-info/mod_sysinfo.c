@@ -1,5 +1,5 @@
 /** -------------------------------------------------------------------------- *
- * Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+ * Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files(the “Software”), to deal
@@ -34,6 +34,7 @@
 #include "py/objstr.h"
 #include "sysinfo.h"
 #include "fw_version.h"
+#include "esp_heap_caps.h"
 
 /* --- module functions definitions ----------------------------------------- */
 
@@ -84,6 +85,13 @@ __mp_mod_fun_0(sysinfo, show_flash) (void) {
 __mp_mod_fun_0(sysinfo, show_spiram) (void) {
 
     sysinfo_spiram_stats();
+
+    return mp_const_none;
+}
+
+__mp_mod_fun_0(sysinfo, show_memory) (void) {
+
+    sysinfo_memory_stats();
 
     return mp_const_none;
 }
@@ -181,10 +189,101 @@ __mp_mod_fun_0(sysinfo, show_all) (void) {
     sysinfo_board();
     sysinfo_version();
     sysinfo_efuses();
-    sysinfo_flash_stats();
+    sysinfo_memory_stats();
     sysinfo_spiram_stats();
 
     return mp_const_none;
+}
+
+__mp_mod_fun_0(sysinfo, memory) (void) {
+
+    static const qstr memory_dict_keys[] = {
+        MP_QSTR_total_heap,
+        MP_QSTR_free_heap,
+        MP_QSTR_used_heap,
+        MP_QSTR_total_internal,
+        MP_QSTR_free_internal,
+        MP_QSTR_used_internal,
+        MP_QSTR_total_psram,
+        MP_QSTR_free_psram,
+        MP_QSTR_used_psram,
+        MP_QSTR_total_dma,
+        MP_QSTR_free_dma,
+        MP_QSTR_used_dma,
+        MP_QSTR_largest_free_heap,
+        MP_QSTR_largest_free_internal,
+        MP_QSTR_largest_free_psram,
+        MP_QSTR_largest_free_dma,
+        MP_QSTR_internal_usage_percent,
+        MP_QSTR_psram_usage_percent,
+        MP_QSTR_dma_usage_percent,
+    };
+
+    static mp_obj_dict_t memory_dict_obj;
+    static mp_map_elem_t memory_dict_table[MP_ARRAY_SIZE(memory_dict_keys)];
+    static bool initialized = false;
+
+    if (!initialized) {
+        memory_dict_obj.base.type = &mp_type_dict;
+        memory_dict_obj.map.alloc = MP_ARRAY_SIZE(memory_dict_table);
+        memory_dict_obj.map.used = MP_ARRAY_SIZE(memory_dict_table);
+        memory_dict_obj.map.table = memory_dict_table;
+
+        for (size_t i = 0; i < MP_ARRAY_SIZE(memory_dict_keys); i++) {
+            memory_dict_obj.map.table[i].key = MP_OBJ_NEW_QSTR(memory_dict_keys[i]);
+        }
+
+        initialized = true;
+    }
+
+    // Get current memory stats
+    size_t total_heap = heap_caps_get_total_size(MALLOC_CAP_DEFAULT);
+    size_t free_heap = heap_caps_get_free_size(MALLOC_CAP_DEFAULT);
+    size_t used_heap = total_heap - free_heap;
+    
+    size_t total_internal = heap_caps_get_total_size(MALLOC_CAP_INTERNAL);
+    size_t free_internal = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
+    size_t used_internal = total_internal - free_internal;
+    
+    size_t total_spiram = heap_caps_get_total_size(MALLOC_CAP_SPIRAM);
+    size_t free_spiram = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
+    size_t used_spiram = total_spiram - free_spiram;
+    
+    size_t total_dma = heap_caps_get_total_size(MALLOC_CAP_DMA);
+    size_t free_dma = heap_caps_get_free_size(MALLOC_CAP_DMA);
+    size_t used_dma = total_dma - free_dma;
+    
+    size_t largest_free_heap = heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT);
+    size_t largest_free_internal = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL);
+    size_t largest_free_spiram = heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM);
+    size_t largest_free_dma = heap_caps_get_largest_free_block(MALLOC_CAP_DMA);
+
+    float internal_usage = (used_internal * 100.0f) / total_internal;
+    float spiram_usage = total_spiram > 0 ? (used_spiram * 100.0f) / total_spiram : 0.0f;
+    float dma_usage = (used_dma * 100.0f) / total_dma;
+
+    // Update dictionary values
+    memory_dict_obj.map.table[0].value = MP_ROM_INT(total_heap);
+    memory_dict_obj.map.table[1].value = MP_ROM_INT(free_heap);
+    memory_dict_obj.map.table[2].value = MP_ROM_INT(used_heap);
+    memory_dict_obj.map.table[3].value = MP_ROM_INT(total_internal);
+    memory_dict_obj.map.table[4].value = MP_ROM_INT(free_internal);
+    memory_dict_obj.map.table[5].value = MP_ROM_INT(used_internal);
+    memory_dict_obj.map.table[6].value = MP_ROM_INT(total_spiram);
+    memory_dict_obj.map.table[7].value = MP_ROM_INT(free_spiram);
+    memory_dict_obj.map.table[8].value = MP_ROM_INT(used_spiram);
+    memory_dict_obj.map.table[9].value = MP_ROM_INT(total_dma);
+    memory_dict_obj.map.table[10].value = MP_ROM_INT(free_dma);
+    memory_dict_obj.map.table[11].value = MP_ROM_INT(used_dma);
+    memory_dict_obj.map.table[12].value = MP_ROM_INT(largest_free_heap);
+    memory_dict_obj.map.table[13].value = MP_ROM_INT(largest_free_internal);
+    memory_dict_obj.map.table[14].value = MP_ROM_INT(largest_free_spiram);
+    memory_dict_obj.map.table[15].value = MP_ROM_INT(largest_free_dma);
+    memory_dict_obj.map.table[16].value = mp_obj_new_float(internal_usage);
+    memory_dict_obj.map.table[17].value = mp_obj_new_float(spiram_usage);
+    memory_dict_obj.map.table[18].value = mp_obj_new_float(dma_usage);
+
+    return MP_OBJ_FROM_PTR(&memory_dict_obj);
 }
 
 /* --- end of file ---------------------------------------------------------- */

@@ -1,5 +1,5 @@
---- ../../../../../ext/LoRaMac-node/src/mac/LoRaMacClassB.c	2024-10-01 14:57:12
-+++ ./modified_sources/LoRaMacClassB.c	2024-10-31 16:31:27
+--- ../../../../../ext/LoRaMac-node/src/mac/LoRaMacClassB.c	2026-03-06 22:07:10.583038706 +0100
++++ ./modified_sources/LoRaMacClassB.c	2026-03-05 23:39:56.516350589 +0100
 @@ -31,6 +31,8 @@
  
  #ifdef LORAMAC_CLASSB_ENABLED

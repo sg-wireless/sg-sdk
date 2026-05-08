@@ -1,5 +1,5 @@
 /** -------------------------------------------------------------------------- *
- * @copyright Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+ * @copyright Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files(the “Software”), to deal
@@ -257,6 +257,9 @@ typedef enum {
     __LORA_WAN_PARAM_CAL_RXWIN_EXTENSION,
                             /**< rx-window time-extension calibration param */
     __LORA_WAN_PARAM_CAL_ENABLE,/**< rx-window calibration param enable */
+    __LORA_WAN_PARAM_ADR,       /**< adaptive data rate enable/disable */
+    __LORA_WAN_PARAM_TX_AIRTIME,/**< last TX time-on-air in ms (read-only) */
+    __LORA_WAN_PARAM_LAST_NETWORK_RX, /**< ms since boot of last network RX (read-only) */
 } lora_wan_param_type_t;
 
 /**
@@ -273,6 +276,9 @@ typedef struct {
         bool        cal_enable;         /**< fine tune calibration enable */
         int32_t     cal_time_shift;     /**< calibration time-shift */
         int32_t     cal_time_extension; /**< calibration time-extension */
+        bool        adr_enable;         /**< adaptive data rate enable */
+        uint32_t    tx_airtime_ms;       /**< last TX time-on-air in ms */
+        uint32_t    last_network_rx_ms;  /**< ms since boot of last network RX */
     } param;
 } lora_wan_param_t;
 

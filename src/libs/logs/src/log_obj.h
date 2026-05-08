@@ -135,6 +135,8 @@ typedef struct _log_info_base_s {
     __opt_paste(__opt_log_header_filename, y, const char* file;);
     __opt_paste(__opt_log_header_line_num, y, int         line;);
     __opt_paste(__opt_log_header_func_name, y, const char* func;);
+    const char* dyn_subsys_name; /**< dynamic subsystem name override (NULL=static) */
+    const char* dyn_comp_name;   /**< dynamic component name override (NULL=static) */
 } log_info_base_t;
 
 /* -- end of file ----------------------------------------------------------- */

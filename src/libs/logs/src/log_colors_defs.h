@@ -1,5 +1,5 @@
 /** -------------------------------------------------------------------------- *
- * @copyright Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+ * @copyright Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files(the “Software”), to deal
@@ -45,6 +45,7 @@ extern "C" {
 #define __log_color_cyan            6
 #define __log_color_white           7
 #define __log_color_default         0
+#define __log_color_espmodem        2   // green color for ESP modem
 
 #define __log_color_str_black       "\033[39m"
 #define __log_color_str_red         "\033[31m"

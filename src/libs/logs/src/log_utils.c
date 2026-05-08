@@ -1,5 +1,5 @@
 /** -------------------------------------------------------------------------- *
- * @copyright Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+ * @copyright Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files(the “Software”), to deal
@@ -20,6 +20,7 @@
  * THE SOFTWARE.
  * 
  * @author  Ahmed Sabry (SG Wireless)
+ * @maintainer  Christian Ehlers (SG Wireless)
  * 
  * @brief   This file represents the logging utilities implementation for Pycom
  *          specific Firmware components
@@ -218,8 +219,8 @@ void log_field(log_util_info_t* p_info, const char* str, uint32_t width,
         log_fill(p_info, prefix_w, fill_char, 0, is_output);
     }
 
-    char fmt[10];
-    snprintf(fmt, 10, "%%%ds", str_len);
+    char fmt[20];
+    snprintf(fmt, sizeof(fmt), "%%%ds", str_len);
 
     if(is_output)
     {

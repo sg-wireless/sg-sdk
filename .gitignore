@@ -12,3 +12,6 @@ output.txt
 __pycache__
 **/modified_sources
 test-results
+defaults.sdk
+src/platforms/F1/managed_components/
+secure_boot_signing_key.pem

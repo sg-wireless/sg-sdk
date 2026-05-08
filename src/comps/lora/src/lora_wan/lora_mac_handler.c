@@ -1,5 +1,5 @@
 /** -------------------------------------------------------------------------- *
- * Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+ * Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files(the “Software”), to deal
@@ -172,9 +172,17 @@ static LmHandlerParams_t s_lmh_params = {
 
 static void lmh_set_sys_rx_error_impl(uint32_t rx_error);
 
+static lmh_cb_on_mac_tx_t * on_mac_tx;
+static lmh_cb_on_mac_rx_t * on_mac_rx;
+static uint32_t s_last_network_rx_ms = 0;
+
 void lmh_init( void )
 {
     __log_info("start lmh re-init");
+
+    s_last_network_rx_ms = 0;
+    extern void lw_mac_reset_tx_airtime(void);
+    lw_mac_reset_tx_airtime();
 
     lora_wan_handle_app_nvm_data_change();
     s_lmh_params.Region = s_lora_wan_app_nvm_data.region;
@@ -231,11 +239,14 @@ bool lmh_is_busy(void)
 
 void lmh_join( void )
 {
+    // A new join starts a fresh network session — reset telemetry so stale
+    // values from a previous session (e.g. after a soft reset) are not visible.
+    s_last_network_rx_ms = 0;
+    extern void lw_mac_reset_tx_airtime(void);
+    lw_mac_reset_tx_airtime();
+
     LmHandlerJoin();
 }
-
-static lmh_cb_on_mac_tx_t * on_mac_tx;
-static lmh_cb_on_mac_rx_t * on_mac_rx;
 
 void lmh_callbacks(lmh_callbacks_t * p_callbacks)
 {
@@ -274,6 +285,33 @@ void lmh_set_sys_rx_error(uint32_t rx_error_margin)
 uint32_t lmh_get_sys_rx_error(void)
 {
     return s_lora_wan_app_nvm_data.sys_rx_error;
+}
+
+void lmh_set_adr(bool enable)
+{
+    MibRequestConfirm_t mib;
+    mib.Type = MIB_ADR;
+    mib.Param.AdrEnable = enable;
+    LoRaMacMibSetRequestConfirm( &mib );
+}
+
+bool lmh_get_adr(void)
+{
+    MibRequestConfirm_t mib;
+    mib.Type = MIB_ADR;
+    LoRaMacMibGetRequestConfirm( &mib );
+    return mib.Param.AdrEnable;
+}
+
+uint32_t lmh_get_last_network_rx_ms(void)
+{
+    return s_last_network_rx_ms;
+}
+
+uint32_t lmh_get_last_tx_airtime(void)
+{
+    uint32_t lw_mac_get_last_tx_airtime(void);
+    return lw_mac_get_last_tx_airtime();
 }
 
 lora_region_t lmh_get_region(void)
@@ -553,6 +591,9 @@ static void cb_OnTxData( LmHandlerTxParams_t *params )
             .channel = params->Channel,
             .data_rate = params->Datarate
         };
+        if(params->AckReceived) {
+            s_last_network_rx_ms = TimerGetCurrentTime();
+        }
         on_mac_tx(&tx_info);
     }
 }
@@ -583,6 +624,7 @@ static void cb_OnRxData(
 
     if(on_mac_rx)
     {
+        s_last_network_rx_ms = TimerGetCurrentTime();
         lmh_rx_status_params_t rx_info = {
             .status = params->Status,
             .rssi = params->Rssi,

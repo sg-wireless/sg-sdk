@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------- #
-# Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+# Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files(the “Software”), to deal
@@ -20,6 +20,7 @@
 # THE SOFTWARE.
 #
 # Author    Ahmed Sabry (SG Wireless)
+# Maintainer  Christian Ehlers (SG Wireless)
 #
 # Desc      firmware/bootloader interface component amalgement between firmware
 #           and bootloader builds
@@ -73,6 +74,9 @@ else()
         
         INCS_PRIV
             ${__dir_esp_idf}/components/bootloader_support/include
+        
+        REQUIRED_ESP_LIBS
+            esp_event esp_system
     )
 
     __sdk_menu_config_add_component_menu( safeboot_feature

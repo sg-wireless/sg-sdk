@@ -1,17 +1,17 @@
---- ../../../../ext/micropython/ports/esp32/machine_i2c.c	2023-11-14 10:45:09
-+++ ./modified_sources/machine_i2c.c	2023-12-20 14:45:47
-@@ -31,6 +31,7 @@
- #include "modmachine.h"
+--- ../../../../ext/micropython/ports/esp32/machine_i2c.c	2025-11-15 20:45:10.589142841 +0100
++++ ./modified_sources/machine_i2c.c	2025-11-25 02:29:37.536258059 +0100
+@@ -32,6 +32,7 @@
  
  #include "driver/i2c.h"
+ #include "hal/i2c_ll.h"
 +#include "board_hooks.h"
  
- #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 4, 0)
- #include "hal/i2c_ll.h"
-@@ -74,6 +75,21 @@
- STATIC machine_hw_i2c_obj_t machine_hw_i2c_obj[I2C_NUM_MAX];
+ #if MICROPY_PY_MACHINE_I2C || MICROPY_PY_MACHINE_SOFTI2C
  
- STATIC void machine_hw_i2c_init(machine_hw_i2c_obj_t *self, uint32_t freq, uint32_t timeout_us, bool first_init) {
+@@ -59,6 +60,21 @@
+ static machine_hw_i2c_obj_t machine_hw_i2c_obj[I2C_NUM_MAX];
+ 
+ static void machine_hw_i2c_init(machine_hw_i2c_obj_t *self, uint32_t freq, uint32_t timeout_us, bool first_init) {
 +    #ifdef __hook_mpy_machine_hw_i2c_init
 +    bool initialized = false;
 +    bool config_err = false;

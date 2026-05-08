@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------- #
-# Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+# Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files(the “Software”), to deal
@@ -20,6 +20,7 @@
 # THE SOFTWARE.
 #
 # Author    Ahmed Sabry (SG Wireless)
+# Maintainer  Christian Ehlers (SG Wireless)
 #
 # Desc      support the building of the fuel-gauge interface component and its
 #           corresponding driver BQ27421
@@ -30,13 +31,14 @@ __sdk_menu_config_group_add(MAIN.PLATFORM.F1.FUEL_GAUGE "Fuel Gauge")
 __sdk_add_component( f1_fuel_gauge_if
 
     LOGS_DEFS
-        ${CMAKE_CURRENT_LIST_DIR}/src/fuel_gauge.c
+        ${CMAKE_CURRENT_LIST_DIR}/src/fuel_gauge_mp.c
 
     MPY_MODS
         ${CMAKE_CURRENT_LIST_DIR}/src/mod_fuel_gauge.c
 
     SRCS
-        "${CMAKE_CURRENT_LIST_DIR}/src/*.c"
+        "${CMAKE_CURRENT_LIST_DIR}/src/fuel_gauge_mp.c"
+        "${CMAKE_CURRENT_LIST_DIR}/src/mod_fuel_gauge.c"
         "${CMAKE_CURRENT_LIST_DIR}/src/bq27421_stub/*.c"
 
     INCS_PRIV
@@ -45,6 +47,16 @@ __sdk_add_component( f1_fuel_gauge_if
 
     INCS_IF
         ${CMAKE_CURRENT_LIST_DIR}/inc
+
+    REQUIRED_SDK_LIBS
+        mp_i2c_bridge
+    REQUIRED_ESP_LIBS
+        esp_driver_i2s
+        esp_driver_spi
+        esp_driver_gpio
+        esp_driver_i2c
+        driver
+        esp_wifi
 
     MENU_CONFIG     ${CMAKE_CURRENT_LIST_DIR}/cfg/fuel_gauge.config
     MENU_PROMPT     "Fuel Gauge interface component"

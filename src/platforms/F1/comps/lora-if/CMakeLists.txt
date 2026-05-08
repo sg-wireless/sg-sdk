@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------- #
-# Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+# Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files(the “Software”), to deal
@@ -20,6 +20,7 @@
 # THE SOFTWARE.
 #
 # Author    Ahmed Sabry (SG Wireless)
+# Maintainer  Christian Ehlers (SG Wireless)
 #
 # Desc      This file plugs the lora-stack interface component in the build sys
 # ---------------------------------------------------------------------------- #
@@ -33,7 +34,7 @@ __sdk_add_component( lora_if
         ${CMAKE_CURRENT_LIST_DIR}
         ${__dir_ext}/LoRaMac-node/src
         ${__dir_esp_idf}/components/nvs_flash/include
-        ${__dir_esp_idf}/components/freertos/include/freertos
+        ${__dir_esp_idf}/components/freertos/FreeRTOS-Kernel/include/freertos
 
     REQUIRED_SDK_LIBS
         ioexp_if

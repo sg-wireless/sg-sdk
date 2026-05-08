@@ -1,5 +1,5 @@
 /** -------------------------------------------------------------------------- *
- * Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+ * Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files(the “Software”), to deal
@@ -564,6 +564,23 @@ void lw_rxwin_set_last_tx_done_timestamp(uint32_t timestamp)
     s_rxwin_ctrl_ctx.curr_handled_rxwin = __rx_win_none;
     s_rxwin_ctrl_ctx.rx1_state = __rx_state_idle;
     s_rxwin_ctrl_ctx.rx2_state = __rx_state_idle;
+}
+
+static uint32_t s_last_tx_airtime_ms = 0;
+
+void lw_mac_notify_tx_airtime(uint32_t airtime_ms)
+{
+    s_last_tx_airtime_ms = airtime_ms;
+}
+
+void lw_mac_reset_tx_airtime(void)
+{
+    s_last_tx_airtime_ms = 0;
+}
+
+uint32_t lw_mac_get_last_tx_airtime(void)
+{
+    return s_last_tx_airtime_ms;
 }
 
 uint32_t lm_rxwin_get_delay(uint32_t win_act_delay)

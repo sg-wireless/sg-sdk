@@ -583,6 +583,12 @@ lora_port_error_t lora_wan_port_indication(
 lora_port_error_t lora_wan_port_get_ind_params(
     lora_wan_ind_params_t * p_ind_param)
 {
+    if(p_ind_param == NULL)
+    {
+        __log_error("invalid indication params (NULL)");
+        return __PORT_UNNOWN_ERROR;
+    }
+
     lora_wan_port_ind_msg_t ind_msg;
     uint32_t len;
     lora_wan_port_t* p_port;
@@ -629,11 +635,21 @@ lora_port_error_t lora_wan_port_get_ind_params(
     {
         __adt_list_foreach(ports_list, p_port) {
             uint32_t len;
+            if(p_ind_param->buf == NULL || p_ind_param->len == 0)
+            {
+                break;
+            }
             err = buf_mem_chain_read_2(&p_port->rx_buf_chain, (void*)&ind_msg,
                 sizeof(ind_msg), p_ind_param->buf, &len, false);
-            p_ind_param->len = len - sizeof(ind_msg);
             if(err == __BUF_CHAIN_OK)
             {
+                if(len < sizeof(ind_msg))
+                {
+                    __log_error("malformed indication length on port %d: %d",
+                        p_port->port_num, len);
+                    continue;
+                }
+                p_ind_param->len = len - sizeof(ind_msg);
                 p_ind_param->event = __LORA_EVENT_RX_DONE;
                 p_ind_param->port_num = p_port->port_num;
                 p_ind_param->rx.dl_frame_counter =

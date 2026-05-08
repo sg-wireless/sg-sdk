@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------- #
-# Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+# Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files(the “Software”), to deal
@@ -20,6 +20,7 @@
 # THE SOFTWARE.
 #
 # Author    Ahmed Sabry (SGWireless)
+# Maintainer  Christian Ehlers (SG Wireless)
 #
 # Desc      Starting cmake file for F1 platform building.
 # ---------------------------------------------------------------------------- #
@@ -53,7 +54,8 @@ __sdk_add_comp_dirs(
     ${__dir_platform_comps}/fuota
     ${__dir_platform_comps}/nvs-if
     ${__dir_platform_comps}/can-if
-    ${__dir_platform_comps}/cbor2-lib
+    #${__dir_platform_comps}/cbor2-lib
+    ${__dir_platform_comps}/uart-guard
 
     ${__dir_platform}/mpy-hooks
     ${__dir_sdk_drivers}/common
@@ -64,6 +66,7 @@ __sdk_add_comp_dirs(
 
     ${__dir_sdk_comps}/fw-version
     ${__dir_sdk_comps}/ctrl-client
+    ${__dir_sdk_comps}/mp_i2c_bridge
 )
 
 if( __feature_lora )
@@ -74,11 +77,14 @@ if( __feature_lora )
 endif()
 
 if( __feature_lte )
-    __sdk_add_comp_dirs( ${__dir_platform_comps}/lte-poc )
+    __sdk_add_comp_dirs( ${__dir_platform_comps}/lte )
 endif()
 
 if( __feature_rgb_led )
-    __sdk_add_comp_dirs( ${__dir_platform_comps}/rgbled-if)
+    __sdk_add_comp_dirs( 
+        ${__dir_platform_comps}/rgbled-if
+        ${__dir_src}/drivers/ws2812_rmt
+    )
 endif()
 
 if( __feature_fuel_gauge )

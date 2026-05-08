@@ -20,6 +20,7 @@
 # THE SOFTWARE.
 #
 # Author    Ahmed Sabry (SG Wireless)
+# Maintainer  Christian Ehlers (SG Wireless)
 #
 # Desc      platform configuration file
 # ---------------------------------------------------------------------------- #
@@ -50,7 +51,6 @@
     [submodules.features]
 
         lora = [ "LoRaMac-node" ]
-        rgb-led = [ "ESP32-NeoPixel-WS2812-RMT" ]
         fuel-gauge = [ "lib-BQ27421" ]
 
 # ---------------------------------------------------------------------------- #
@@ -76,14 +76,14 @@
     # partition-table-file = "partition_table_16mb.csv"
 
     partition-table = [
-        # Name,     Type,   SubType,    Offset,     Size
-        ["nvs"    , "data"  , "nvs",    "0x11000",    "0xA000", ""          ],
-        ["otadata", "data"  , "ota",    "0x1B000",    "0x2000", "encrypted" ],
-        ["nvs_cfg", "data"  , "nvs",    "0x1D000",    "0x3000", ""          ],
-        ["factory", "app"   , "factory","0x20000",    "2560k",  "encrypted" ],
-        ["ota_0"  , "app"   , "ota_0",  "0x2A0000",   "2560k",  "encrypted" ],
-        ["ota_1"  , "app"   , "ota_1",  "0x520000",   "2560k",  "encrypted" ],
-        ["vfs"    , "data"  , "6",      "0x800000",   "8192k",  "encrypted" ]
+        # Name,     Type,   SubType,      Offset,     Size      Flags
+        ["nvs"    , "data"  , "nvs",      "0x11000",  "0xA000", ""          ],
+        ["otadata", "data"  , "ota",      "0x1B000",  "0x2000", "encrypted" ],
+        ["nvs_keys", "data" , "nvs_keys", "0x1D000",  "0x1000", "encrypted" ],
+        ["factory",  "app"  , "factory",  "0x20000",  "2560k",  "encrypted" ],
+        ["ota_0"  ,  "app"  , "ota_0",    "0x2A0000", "2560k",  "encrypted" ],
+        ["ota_1"  ,  "app"  , "ota_1",    "0x520000", "2560k",  "encrypted" ],
+        ["vfs"    ,  "data" , "0x83",     "0x800000", "8192k",  "encrypted" ]
     ]
 
     # sdkconfig for esp-idf
@@ -94,9 +94,7 @@
         "configs/sdkconfig.usb",
         "configs/sdkconfig.ble",
         "configs/sdkconfig.spiram_sx",
-        "configs/sdkconfig.board",
-        "configs/sdkconfig.wifi",
-        "configs/sdkconfig.network"
+        "configs/sdkconfig.board"
     ]
 
     [configs.sdkconfig]
@@ -108,6 +106,18 @@
     [configs.feature.lora.sdkconfig]
         CONFIG_SDK_BOARD_LORA_WAN_KEYS_ON_EFUSES="y"
         CONFIG_SDK_BOARD_LORA_WAN_KEYS_EFUSE_KEY5="y"
+
+    # ESP modem configuration specific for LTE feature
+    [configs.feature.lte]
+        sdkconfig-files = [
+            "configs/sdkconfig.espmodem",
+            "configs/sdkconfig.wifi_lte_psram"
+        ]
+
+    [configs.secure]
+        sdkconfig-files = [
+            "configs/sdkconfig.secure"
+        ]
 
 
 # --- end of file ------------------------------------------------------------ #

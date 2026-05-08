@@ -129,7 +129,7 @@ config SDK_LOG_LIB_ENABLE
             depends on SDK_LOG_LIB_HEADER_LOG_TYPE
         config SDK_LOG_LIB_HEADER_OS_CONTEXT_INFO_WIDTH
             int "width of log header field 'os_context_info'"
-            default 10
+            default 14
             depends on SDK_LOG_LIB_HEADER_OS_CONTEXT_INFO
         config SDK_LOG_LIB_HEADER_FILENAME_WIDTH
             int "width of log header field 'filename'"

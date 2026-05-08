@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------- #
-# Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+# Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files(the “Software”), to deal
@@ -20,6 +20,7 @@
 # THE SOFTWARE.
 #
 # Author    Ahmed Sabry (SG Wireless)
+# Maintainer  Christian Ehlers (SG Wireless)
 #
 # Desc      CMake list file for micropython main component build description.
 # ---------------------------------------------------------------------------- #
@@ -33,7 +34,9 @@ __sdk_add_component( micropython_main
         ${CMAKE_CURRENT_LIST_DIR}/main.c
 
     SRCS
-        ${CMAKE_CURRENT_LIST_DIR}/main.c
+        set(SRCS 
+    "${PROJECT_SOURCE_DIR}/sdk-main/micropython/main.c"
+)
 
     INCS
         ${__dir_ext}/esp-idf/components/log/include
@@ -44,7 +47,21 @@ __sdk_add_component( micropython_main
         ${CMAKE_CURRENT_LIST_DIR}
         ${__dir_micropython}
         ${__dir_micropython}/ports/esp32
+        ${__dir_micropython}/shared/tinyusb
         ${__dir_platform}
+
+    REQUIRED_ESP_LIBS
+        esp_wifi
+        esp_driver_i2s
+        esp_driver_spi
+        esp_driver_gpio
+        esp_driver_i2c
+        esp_partition
+        esp_psram
+        lwip
+        espressif__mdns
+        espressif__tinyusb
+        espressif__esp_tinyusb
 )
 
 # __sdk_add_kconfig_default(${__dir_board}/sdk-config/sdkconfig.micropython)

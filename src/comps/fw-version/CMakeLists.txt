@@ -1,6 +1,6 @@
 
 # ---------------------------------------------------------------------------- #
-# Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+# Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files(the “Software”), to deal
@@ -21,6 +21,7 @@
 # THE SOFTWARE.
 #
 # Author    Ahmed Sabry (SG Wireless)
+# Maintainer  Christian Ehlers (SG Wireless)
 #
 # Desc      This file plugs the ioexp interface component in the build system
 # ---------------------------------------------------------------------------- #
@@ -35,6 +36,12 @@ __sdk_add_component( sdk_fw_version
 
     INCS_IF
         ${CMAKE_CURRENT_LIST_DIR}
+
+    REQUIRED_ESP_LIBS
+        esp_driver_i2s
+        esp_driver_spi
+        esp_driver_gpio
+        esp_wifi
 )
 
 # --- end of file ------------------------------------------------------------ #

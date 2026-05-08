@@ -74,10 +74,20 @@ lora.initialize()
 ## LoRa Modes
 There are two available modes for lora; *LoRa-RAW* and *LoRa-WAN*.
 ```python
-lora.mode()                 # displays the current operating LoRa mode
-lora.mode(lora._mode.RAW)   # switch mode to LoRa-RAW
-lora.mode(lora._mode.WAN)   # switch mode to LoRa-WAN
+lora.mode()                              # returns the current operating LoRa mode
+lora.mode(lora._mode.RAW)               # switch mode to LoRa-RAW
+lora.mode(lora._mode.WAN)               # switch mode to LoRa-WAN (ADR enabled by default)
+lora.mode(lora._mode.WAN, adr=False)    # switch to LoRa-WAN with ADR disabled
+lora.mode(lora._mode.WAN, adr=True)     # switch to LoRa-WAN with ADR explicitly enabled
 ```
+
+The optional `adr` keyword argument controls Adaptive Data Rate (ADR) when switching
+to WAN mode. ADR allows the network server to optimise the device's data rate and
+transmission power. Disable it when the device is mobile or the RF environment is
+expected to change frequently.
+
+> **NOTE**: The `adr` argument is only meaningful when switching to `lora._mode.WAN`.
+> It has no effect when querying the current mode or switching to `lora._mode.RAW`.
 
 <!------------------------------------------------------------------------------
  ! LoRa Test stub

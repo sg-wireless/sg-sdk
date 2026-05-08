@@ -13,7 +13,9 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_system.h"
-#include "esp_spi_flash.h"
+#include "esp_chip_info.h" 
+#include "esp_flash.h"
+#include "spi_flash_mmap.h"
 
 #include "log_lib.h"
 
@@ -38,11 +40,13 @@ void app_main(void)
             (chip_info.features & CHIP_FEATURE_BT) ? "/BT" : "",
             (chip_info.features & CHIP_FEATURE_BLE) ? "/BLE" : "");
 
-    unsigned major_rev = chip_info.full_revision / 100;
-    unsigned minor_rev = chip_info.full_revision % 100;
+    unsigned major_rev = chip_info.revision / 100;
+    unsigned minor_rev = chip_info.revision % 100;
     __log_output("silicon revision v%d.%d, ", major_rev, minor_rev);
 
-    __log_output("%dMB %s flash\n", spi_flash_get_chip_size() / (1024 * 1024),
+    uint32_t flash_size;
+    esp_flash_get_size(NULL, &flash_size);
+    __log_output("%dMB %s flash\n", flash_size / (1024 * 1024),
             (chip_info.features & CHIP_FEATURE_EMB_FLASH) ? "embedded" : "external");
 
     __log_output("Minimum free heap size: %d bytes\n", esp_get_minimum_free_heap_size());

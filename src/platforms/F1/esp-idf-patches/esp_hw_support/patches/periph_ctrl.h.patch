@@ -1,0 +1,22 @@
+--- ../../../../ext/esp-idf/components/esp_hw_support/include/esp_private/periph_ctrl.h	2024-09-25 12:00:00
++++ ./esp_hw_support/modified_sources/esp_private/periph_ctrl.h	2024-09-25 12:00:00
+@@ -153,6 +153,19 @@
+  */
+ void wifi_module_disable(void);
+ 
++/**
++ * @brief Get peripheral module ID by name
++ * 
++ * @param[in] name Peripheral module name
++ * @return periph_module_t Peripheral module ID, PERIPH_MODULE_MAX if not found
++ */
++periph_module_t periph_module_get_id(const char* name);
++
++/**
++ * @brief List all peripheral modules and their reference counts
++ */
++void periph_module_list(void);
++
+ #undef __PERIPH_CTRL_DEPRECATE_ATTR
+ 
+ #ifdef __cplusplus

@@ -1,5 +1,5 @@
 /** -------------------------------------------------------------------------- *
- * @copyright Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+ * @copyright Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files(the “Software”), to deal
@@ -278,12 +278,20 @@ void pcal6408a_interrupt_trigger_port(void)
     {
         if(mask & int_status)
         {
-            __log_assert(p_pin_config->is_configured,
-                "non-configured ioexp pin interrupt");
-            __log_assert(p_pin_config->io_selection,
-                "non-configured ioexp output pin");
-            __log_assert(p_pin_config->is_active,
-                "non-active ioexp output pin");
+            // Validate pin configuration before processing interrupt
+            if (!p_pin_config->is_configured) {
+                __log_error("Interrupt on non-configured ioexp pin %d", pins_count);
+                continue;
+            }
+            if (!p_pin_config->io_selection) {
+                __log_error("Interrupt on non-input ioexp pin %d", pins_count);
+                continue;
+            }
+            if (!p_pin_config->is_active) {
+                __log_warn("Interrupt on inactive ioexp pin %d", pins_count);
+                // Don't skip - inactive pins can still have valid interrupts
+            }
+            
             __log_debug("signal interrupt [ %-20s ] [sig-handler-addr: %p]",
                 p_pin_config->name ? p_pin_config->name : "",
                 p_pin_config->p_interrupt_handler);

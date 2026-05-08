@@ -1,5 +1,5 @@
 /** -------------------------------------------------------------------------- *
- * Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+ * Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files(the “Software”), to deal
@@ -20,6 +20,7 @@
  * THE SOFTWARE.
  * 
  * @author  Ahmed Sabry (SG Wireless)
+ * @maintainer  Christian Ehlers (SG Wireless)
  * 
  * @brief   nvs interface implementation to the ESP nvs library
  * --------------------------------------------------------------------------- *
@@ -28,7 +29,7 @@
 /* --- include -------------------------------------------------------------- */
 
 #include "esp_flash.h"
-#include "spiram.h"
+#include "esp_psram.h"
 #include "esp_heap_caps.h"
 #include "esp_partition.h"
 #include "nvs_flash.h"
@@ -125,7 +126,7 @@ static void nvs_if_stat_partition(
     bool disp_blob_data)
 {
     nvs_iterator_t it;
-    it = nvs_entry_find(part_name, NULL, NVS_TYPE_ANY);
+    esp_err_t err = nvs_entry_find(part_name, NULL, NVS_TYPE_ANY, &it);
 
     __log_output("\n---( "__yellow__"%s"__default__, part_name);
     __log_output_field(" )",
@@ -134,10 +135,10 @@ static void nvs_if_stat_partition(
     nvs_entry_info_t info;
     nvs_handle_t handle;
 
-    while (it != NULL)
+    while (err == ESP_OK)
     {
         nvs_entry_info(it, &info);
-        it = nvs_entry_next(it);
+        err = nvs_entry_next(&it);
 
         if(namespace)
         {
@@ -239,6 +240,30 @@ static void nvs_if_stat_partition(
     }
 
     nvs_release_iterator(it);
+
+    nvs_stats_t nvs_stats;
+    if (nvs_get_stats(part_name, &nvs_stats) == ESP_OK)
+    {
+        const esp_partition_t* part = esp_partition_find_first(
+            ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_DATA_NVS,
+            part_name);
+        if (part)
+        {
+            uint32_t free_pct = 0;
+            if (nvs_stats.total_entries > 0)
+            {
+                free_pct = (nvs_stats.free_entries * 100)
+                    / nvs_stats.total_entries;
+            }
+            __log_output("\n    partition size : %lu bytes\n", 
+                (unsigned long)part->size);
+            __log_output("    used entries   : %lu / %lu\n",
+                (unsigned long)nvs_stats.used_entries,
+                (unsigned long)nvs_stats.total_entries);
+            __log_output("    free           : %lu%%\n",
+                (unsigned long)free_pct);
+        }
+    }
 }
 
 void nvs_if_stat(
@@ -304,11 +329,12 @@ bool nvs_if_exists(
         return false;
     }
     nvs_entry_info_t info;
-    nvs_iterator_t it = nvs_entry_find(part_name, namespace, NVS_TYPE_ANY);
+    nvs_iterator_t it;
+    esp_err_t err = nvs_entry_find(part_name, namespace, NVS_TYPE_ANY, &it);
 
     bool found = false;
 
-    while(it)
+    while(err == ESP_OK)
     {
         nvs_entry_info(it, &info);
         if( strcmp(namespace, info.namespace_name) == 0 )
@@ -324,7 +350,7 @@ bool nvs_if_exists(
                 break;
             }
         }
-        it = nvs_entry_next(it);
+        err = nvs_entry_next(&it);
     }
 
     nvs_release_iterator(it);
@@ -335,18 +361,19 @@ static nvs_iterator_t get_nvs_entry(
     const char* part, const char* namespace, const char* key,
     nvs_entry_info_t *p_info)
 {
-    nvs_iterator_t it = nvs_entry_find(part, namespace, NVS_TYPE_ANY);
+    nvs_iterator_t it;
+    esp_err_t err = nvs_entry_find(part, namespace, NVS_TYPE_ANY, &it);
 
-    while(it)
+    while(err == ESP_OK)
     {
         nvs_entry_info(it, p_info);
         if(strcmp(p_info->key, key) == 0)
         {
-            break;
+            return it;  // Found the key
         }
-        it = nvs_entry_next(it);
+        err = nvs_entry_next(&it);
     }
-    return it;
+    return NULL;  // Key not found
 }
 
 static bool nvs_if_set_impl(

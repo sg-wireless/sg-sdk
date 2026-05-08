@@ -1,0 +1,28 @@
+--- ../../../../ext/micropython/ports/esp32/mpthreadport.c	2025-11-27 16:14:55.816166806 +0100
++++ ./modified_sources/mpthreadport.c	2025-11-27 16:29:12.029298031 +0100
+@@ -35,9 +35,24 @@
+ 
+ #include "esp_task.h"
+ 
++// Ensure ESP-IDF FreeRTOS extension functions are visible
++#ifndef xTaskCreatePinnedToCore
++extern BaseType_t xTaskCreatePinnedToCore(TaskFunction_t pxTaskCode,
++                                          const char * const pcName,
++                                          const uint32_t usStackDepth,
++                                          void * const pvParameters,
++                                          UBaseType_t uxPriority,
++                                          TaskHandle_t * const pxCreatedTask,
++                                          const BaseType_t xCoreID);
++#endif
++
++#ifndef pxTaskGetStackStart
++extern uint8_t *pxTaskGetStackStart(TaskHandle_t xTask);
++#endif
++
+ #if MICROPY_PY_THREAD
+ 
+-#define MP_THREAD_MIN_STACK_SIZE                        (4 * 1024)
++#define MP_THREAD_MIN_STACK_SIZE                        (8 * 1024)
+ #define MP_THREAD_DEFAULT_STACK_SIZE                    (MP_THREAD_MIN_STACK_SIZE + MICROPY_STACK_CHECK_MARGIN)
+ #define MP_THREAD_PRIORITY                              (ESP_TASK_PRIO_MIN + 1)
+ 

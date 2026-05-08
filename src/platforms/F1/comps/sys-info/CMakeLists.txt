@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------- #
-# Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+# Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files(the “Software”), to deal
@@ -20,6 +20,7 @@
 # THE SOFTWARE.
 #
 # Author    Ahmed Sabry (SG Wireless)
+# Maintainer  Christian Ehlers (SG Wireless)
 #
 # Desc      This plugs the sys-info component into the build system
 # ---------------------------------------------------------------------------- #
@@ -31,6 +32,12 @@ __sdk_add_component( f1_sys_info
 
     SRCS
         "${CMAKE_CURRENT_LIST_DIR}/*.c"
+
+    REQUIRED_ESP_LIBS
+        esp_psram esp_hw_support esp_wifi driver esp_partition
+        esp_driver_i2s
+        esp_driver_spi
+        esp_driver_gpio
 
     INCS_IF
         ${CMAKE_CURRENT_LIST_DIR}

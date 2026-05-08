@@ -1,5 +1,5 @@
 /** -------------------------------------------------------------------------- *
- * @copyright Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+ * @copyright Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files(the “Software”), to deal
@@ -20,6 +20,7 @@
  * THE SOFTWARE.
  * 
  * @author  Ahmed Sabry (SG Wireless)
+ * @maintainer  Christian Ehlers (SG Wireless)
  * 
  * @brief   micropython C module for system inspection utilities.
  * --------------------------------------------------------------------------- *
@@ -27,7 +28,7 @@
 
 /* --- includes ------------------------------------------------------------- */
 
-#include "driver/periph_ctrl.h"
+#include "esp_private/periph_ctrl.h"
 
 #include "mp_lite_if.h"
 #include "log_lib.h"

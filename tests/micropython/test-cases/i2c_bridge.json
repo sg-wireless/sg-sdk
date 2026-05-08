@@ -1,0 +1,90 @@
+{
+  "name": "MicroPython I2C Bridge Test",
+  "description": "Test MicroPython I2C interface functionality for driver conversion validation",
+  "commands": [
+    {
+      "command": "import machine",
+      "description": "Import machine module",
+      "timeout": 2.0,
+      "expected_not_contains": ["Error", "Traceback"],
+      "should_succeed": true
+    },
+    {
+      "command": "hasattr(machine, 'I2C')",
+      "description": "Check I2C class availability",
+      "timeout": 2.0,
+      "expected_response": "True",
+      "should_succeed": true
+    },
+    {
+      "command": "i2c = machine.I2C(0, scl=16, sda=15, freq=100000)",
+      "description": "Create I2C instance for fuel gauge bus",
+      "timeout": 3.0,
+      "expected_not_contains": ["Error", "Traceback"],
+      "should_succeed": true
+    },
+    {
+      "command": "i2c.scan()",
+      "description": "Scan I2C bus for devices",
+      "timeout": 5.0,
+      "expected_not_contains": ["Error", "Traceback"],
+      "should_succeed": true
+    },
+    {
+      "command": "hasattr(i2c, 'readfrom')",
+      "description": "Check readfrom method availability",
+      "timeout": 2.0,
+      "expected_response": "True",
+      "should_succeed": true
+    },
+    {
+      "command": "hasattr(i2c, 'writeto')",
+      "description": "Check writeto method availability",
+      "timeout": 2.0,
+      "expected_response": "True",
+      "should_succeed": true
+    },
+    {
+      "command": "hasattr(i2c, 'readfrom_mem')",
+      "description": "Check readfrom_mem method availability",
+      "timeout": 2.0,
+      "expected_response": "True",
+      "should_succeed": true
+    },
+    {
+      "command": "hasattr(i2c, 'writeto_mem')",
+      "description": "Check writeto_mem method availability",
+      "timeout": 2.0,
+      "expected_response": "True",
+      "should_succeed": true
+    },
+    {
+      "command": "i2c2 = machine.I2C(1, scl=22, sda=21, freq=100000)",
+      "description": "Create I2C instance for IO expander bus",
+      "timeout": 3.0,
+      "expected_not_contains": ["Error", "Traceback"],
+      "should_succeed": true
+    },
+    {
+      "command": "i2c2.scan()",
+      "description": "Scan second I2C bus for devices",
+      "timeout": 5.0,
+      "expected_not_contains": ["Error", "Traceback"],
+      "should_succeed": true
+    },
+    {
+      "command": "i2c.deinit()",
+      "description": "Cleanup first I2C instance",
+      "timeout": 2.0,
+      "expected_not_contains": ["Error", "Traceback"],
+      "should_succeed": true
+    },
+    {
+      "command": "i2c2.deinit()",
+      "description": "Cleanup second I2C instance",
+      "timeout": 2.0,
+      "expected_not_contains": ["Error", "Traceback"],
+      "should_succeed": true
+    }
+  ]
+}

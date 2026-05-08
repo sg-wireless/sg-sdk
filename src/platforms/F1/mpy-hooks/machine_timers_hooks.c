@@ -1,5 +1,5 @@
 /** -------------------------------------------------------------------------- *
- * @copyright Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+ * @copyright Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files(the “Software”), to deal
@@ -193,6 +193,7 @@ static const char* get_timer_name(machine_virtual_timer_obj_t* self)
  * Hooks implementations
  * --------------------------------------------------------------------------- *
  */
+
 static void virtual_timer_generic_callback(void* arg)
 {
     machine_virtual_timer_obj_t *self = pvTimerGetTimerID( arg );
@@ -207,6 +208,11 @@ static void virtual_timer_generic_callback(void* arg)
     if(self->callback != mp_const_none)
     {
         mp_sched_schedule(self->callback, self);
+        // NOTE: FreeRTOS timer callbacks run in timer daemon task context (not ISR),
+        // but we should still wake the main task to ensure prompt callback execution.
+        // Hardware timers do this via mp_hal_wake_main_task_from_isr().
+        // However, since we're in task context (not ISR), we can't use the ISR version.
+        // The main task should wake naturally when it processes scheduled callbacks.
     }
     else
     {
@@ -291,6 +297,23 @@ static void virtual_timer_init_helper(
         self->handle = xTimerCreate(
             "virtual-timer", self->period / portTICK_PERIOD_MS,
             self->repeat, self, (void*)virtual_timer_generic_callback);
+        
+        if(self->handle == NULL)
+        {
+            __log_error("failed to create timer: %s", name);
+            goto clean_and_exit;
+        }
+    }
+
+    // Start the timer
+    if( xTimerStart(self->handle, 0) != pdPASS )
+    {
+        __log_error("failed to start timer: %s", name);
+        goto clean_and_exit;
+    }
+    else
+    {
+        self->enabled = true;
     }
 
     virtual_timer_add(self);
