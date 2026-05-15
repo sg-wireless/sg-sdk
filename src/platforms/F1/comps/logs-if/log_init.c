@@ -1,5 +1,5 @@
 /** -------------------------------------------------------------------------- *
- * Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+ * Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files(the “Software”), to deal
@@ -20,6 +20,7 @@
  * THE SOFTWARE.
  * 
  * @author  Ahmed Sabry (SG Wireless)
+ * @maintainer  Christian Ehlers (SG Wireless)
  * 
  * @brief   This file contains the initialization of the log library.
  *          It contains also the hooks definitions of the micropython stdout
@@ -34,7 +35,7 @@
 #include "driver/uart.h"
 
 #include "esp_timer.h"
-#include "hal/cpu_hal.h"
+#include "esp_cpu.h"
 #include "esp_rom_uart.h"
 #include "driver/uart.h"
 #include "soc/uart_periph.h"
@@ -89,8 +90,15 @@ static void log_access_unlock(void)
  */
 static void log_serial_output(uint8_t* str, uint32_t len)
 {
+    #ifdef MICROPYTHON_BUILD
+    // For MicroPython builds, use printf to avoid UART driver conflicts
+    // MicroPython manages its own UART console, so direct UART calls may conflict
+    for (size_t i = 0; i < len; i++) {
+        printf("%c", str[i]);
+    }
+    #else
+    // For non-MicroPython builds, use UART directly
     size_t remaining = len;
-    // TODO add a timeout
     for (;;) {
         int ret = uart_tx_chars(UART_NUM_0, (const char*)str, remaining);
         if (ret == -1) {
@@ -101,11 +109,8 @@ static void log_serial_output(uint8_t* str, uint32_t len)
             break;
         }
         str += ret;
-
-        #ifdef MICROPYTHON_BUILD
-        ulTaskNotifyTake(pdFALSE, 1);
-        #endif
     }
+    #endif
     return;
 }
 
@@ -115,7 +120,7 @@ static const char* get_current_task_name(void)
 }
 static int get_current_core_id(void)
 {
-    return cpu_hal_get_core_id();
+    return esp_cpu_get_core_id();
 }
 
 void init_log_system(void)

@@ -201,7 +201,7 @@ extern "C" {
 #define __opt_log_disp_w_os_info    \
     (CONFIG_SDK_LOG_LIB_HEADER_OS_CONTEXT_INFO_WIDTH)
 #else
-#define __opt_log_disp_w_os_info        (10)
+#define __opt_log_disp_w_os_info        (14)
 #endif
 
 #ifdef CONFIG_SDK_LOG_LIB_HEADER_SUBSYSTEM_WIDTH

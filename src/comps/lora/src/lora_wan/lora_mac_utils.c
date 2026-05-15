@@ -1,5 +1,5 @@
 /** -------------------------------------------------------------------------- *
- * Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+ * Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files(the “Software”), to deal
@@ -20,6 +20,7 @@
  * THE SOFTWARE.
  * 
  * @author  Ahmed Sabry (SG Wireless)
+ * @maintainer  Christian Ehlers (SG Wireless)
  * 
  * @brief   lora-wan mode common utils
  * --------------------------------------------------------------------------- *
@@ -432,14 +433,14 @@ static void display_region_bands_list(
 
     __log_output_field(__cyan__"duty-cycle", __w_c1, ' ', __left__, false);
     for(int i = 0; i < len; i++) {
-        snprintf(str, __max_str_len, "%d", (uint32_t)p_bands[i].DCycle);
+        snprintf(str, __max_str_len, "%lu", (uint32_t)p_bands[i].DCycle);
         __log_output_field(str, __w_cn, ' ', __right__, false);
     }
     __log_output("\n\t");
 
     __log_output_field(__cyan__"tx-power-idx", __w_c1, ' ', __left__,false);
     for(int i = 0; i < len; i++) {
-        snprintf(str, __max_str_len, "%d", (uint32_t)p_bands[i].TxMaxPower);
+        snprintf(str, __max_str_len, "%lu", (uint32_t)p_bands[i].TxMaxPower);
         __log_output_field(str, __w_cn, ' ', __right__, false);
     }
     __log_output("\n\t");

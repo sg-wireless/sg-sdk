@@ -1,5 +1,5 @@
 /** -------------------------------------------------------------------------- *
- * @copyright Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+ * @copyright Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files(the “Software”), to deal
@@ -87,6 +87,11 @@ __mp_mod_class_const(lora, _class, CLASS_C, __LORA_WAN_CLASS_C)
  */
 __mp_mod_init(lora)(void)
 {
+    extern bool lora_is_on(void);
+    if (lora_is_on()) {
+        __log_info("init lora -- already initialized, skipping");
+        return mp_const_none;
+    }
     __log_info("init lora");
     lora_ctor();
     mpy_lora_callback_init();
@@ -103,9 +108,13 @@ __mp_mod_fun_0(lora, callback_stub_disconnect)(void) {
     return mp_const_none;
 }
 
-__mp_mod_fun_var_between(lora, mode, 0, 1)(
-    size_t __arg_n, const mp_obj_t * __arg_v)
+__mp_mod_fun_kw(lora, mode, 0)(
+    size_t __arg_n, const mp_obj_t * __arg_v, mp_map_t* kw_args)
 {
+    static const mp_arg_t allowed_args[] = {
+        { MP_QSTR_adr, MP_ARG_KW_ONLY | MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL}},
+    };
+
     if( __arg_n == 1 )
     {
         mp_obj_t obj = __arg_v[0];
@@ -119,6 +128,18 @@ __mp_mod_fun_var_between(lora, mode, 0, 1)(
             } else {
                 lora_change_mode(mode);
                 mpy_lora_callback_init();
+
+                if(mode == __LORA_MODE_WAN) {
+                    mp_arg_val_t args[MP_ARRAY_SIZE(allowed_args)];
+                    mp_arg_parse_all(__arg_n - 1, __arg_v + 1, kw_args,
+                        MP_ARRAY_SIZE(allowed_args), allowed_args, args);
+                    if(args[0].u_obj != MP_OBJ_NULL) {
+                        lora_wan_param_t param;
+                        param.type = __LORA_WAN_PARAM_ADR;
+                        param.param.adr_enable = mp_obj_is_true(args[0].u_obj);
+                        lora_ioctl(__LORA_IOCTL_SET_PARAM, &param);
+                    }
+                }
             }
         }
         return mp_const_none;
@@ -727,6 +748,20 @@ __mp_mod_fun_0(lora, rxwin_toggle_verbosity)(void) {
 
     lora_ioctl(__LORA_IOCTL_TOGGLE_RXWIN_VERBOSITY, NULL);
     return mp_const_none;
+}
+
+__mp_mod_fun_0(lora, tx_airtime)(void) {
+    lora_wan_param_t param;
+    param.type = __LORA_WAN_PARAM_TX_AIRTIME;
+    lora_ioctl(__LORA_IOCTL_GET_PARAM, &param);
+    return MP_OBJ_NEW_SMALL_INT(param.param.tx_airtime_ms);
+}
+
+__mp_mod_fun_0(lora, last_rx_at)(void) {
+    lora_wan_param_t param;
+    param.type = __LORA_WAN_PARAM_LAST_NETWORK_RX;
+    lora_ioctl(__LORA_IOCTL_GET_PARAM, &param);
+    return MP_OBJ_NEW_SMALL_INT(param.param.last_network_rx_ms);
 }
 
 /** -------------------------------------------------------------------------- *

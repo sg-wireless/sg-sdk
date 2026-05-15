@@ -1,5 +1,5 @@
 /** -------------------------------------------------------------------------- *
- * @copyright Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+ * @copyright Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files(the “Software”), to deal
@@ -124,7 +124,7 @@ __mp_mod_fun_kw(ctrl_cfg, lte_config,
         ARG_mode,
         ARG_bands
     };
-    STATIC const mp_arg_t allowed_args[] = {
+    static const mp_arg_t allowed_args[] = {
         {MP_QSTR_carrier,
          MP_ARG_KW_ONLY | MP_ARG_OBJ,
          {.u_obj = mp_const_none}},
@@ -209,7 +209,7 @@ __mp_mod_fun_kw(ctrl_cfg, lte_config,
     } else {
         nlr_raise(mp_obj_new_exception_msg(
             &mp_type_ValueError,
-            "Error this functionality is not yet supported!"));
+            MP_ERROR_TEXT("Error this functionality is not yet supported!")));
     }
 
     return mp_const_none;
@@ -241,7 +241,7 @@ static void bytes_to_str(uint8_t *bytes, uint32_t len, char *str) {
 __mp_mod_fun_kw(ctrl_cfg, lora_config,
                 0)(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
     enum { ARG_activation, ARG_app_eui, ARG_dev_eui, ARG_app_key, ARG_net_key };
-    STATIC const mp_arg_t allowed_args[] = {
+    static const mp_arg_t allowed_args[] = {
         {MP_QSTR_lora_activation,
          MP_ARG_KW_ONLY | MP_ARG_OBJ,
          {.u_obj = mp_const_none}},
@@ -300,7 +300,7 @@ __mp_mod_fun_kw(ctrl_cfg, lora_config,
     } else {
         nlr_raise(mp_obj_new_exception_msg(
             &mp_type_ValueError,
-            "Error this functionality is not yet supported!"));
+            MP_ERROR_TEXT("Error this functionality is not yet supported!")));
     }
 
     return mp_const_none;
@@ -314,7 +314,7 @@ __mp_mod_fun_var_between(ctrl_cfg, device_token, 0, 1)(size_t arg_n,
 
         if (!config_set_ctrl_device_token(token_ptr)) {
             nlr_raise(mp_obj_new_exception_msg(&mp_type_OSError,
-                                               "Failed to write Device Token"));
+                                               MP_ERROR_TEXT("Failed to write Device Token")));
         }
 
         return mp_const_none;
@@ -337,7 +337,7 @@ __mp_mod_fun_var_between(ctrl_cfg, ztp_url, 0, 1)(size_t arg_n,
 
         if (!config_set_ctrl_ztp_url(token_ptr)) {
             nlr_raise(mp_obj_new_exception_msg(&mp_type_OSError,
-                                               "Failed to write ZTP URL!"));
+                                               MP_ERROR_TEXT("Failed to write ZTP URL!")));
         }
 
         return mp_const_none;
@@ -360,7 +360,7 @@ __mp_mod_fun_var_between(ctrl_cfg, claim_token, 0, 1)(size_t arg_n,
 
         if (!config_set_ctrl_claim_token(token_ptr)) {
             nlr_raise(mp_obj_new_exception_msg(&mp_type_OSError,
-                                               "Failed to write Claim Token!"));
+                                               MP_ERROR_TEXT("Failed to write Claim Token!")));
         }
 
         return mp_const_none;

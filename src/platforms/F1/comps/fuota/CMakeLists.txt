@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------- #
-# Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+# Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files(the “Software”), to deal
@@ -20,6 +20,7 @@
 # THE SOFTWARE.
 #
 # Author    Ahmed Sabry (SG Wireless)
+# Maintainer  Christian Ehlers (SG Wireless)
 #
 # Desc      This plugs the fuota component into the build system for micropython
 #           build only.
@@ -27,18 +28,31 @@
 
 if("${__build_variant}" STREQUAL "micropython")
 
-__sdk_add_component( f1_legacy_fuota
+__sdk_add_component( f1_fuota
+
+    LOGS_DEFS
+        ${CMAKE_CURRENT_LIST_DIR}/mod_fuota.c
 
     MPY_MODS
         ${CMAKE_CURRENT_LIST_DIR}/mod_fuota.c
 
     SRCS
         "${CMAKE_CURRENT_LIST_DIR}/*.c"
+
+    REQUIRED_ESP_LIBS
+        esp_partition spi_flash app_update bootloader_support
+        esp_http_client mbedtls esp_app_format esp_event
+        lwip tcp_transport http_parser
+        esp_driver_i2s
+        esp_driver_spi
+        esp_driver_gpio
+        esp_wifi
     
     INCS_PRIV
         ${__dir_ext}/esp-idf/components/spi_flash/include
         ${__dir_ext}/esp-idf/components/app_update/include
         ${__dir_ext}/esp-idf/components/bootloader_support/include
+        ${__dir_ext}/esp-idf/components/esp_http_client/include
 )
 
 endif() # __build_variant == micropython

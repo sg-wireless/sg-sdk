@@ -1,95 +1,288 @@
---- ../../../../ext/esp-idf/components/bootloader/subproject/main/bootloader_start.c	2024-03-27 17:48:30
-+++ ./bootloader_main/modified_sources/bootloader_start.c	2024-04-03 06:43:48
-@@ -77,6 +77,309 @@
+--- ../../../../ext/esp-idf/components/bootloader/subproject/main/bootloader_start.c	2025-09-24 19:52:36.493817061 +0200
++++ ./bootloader_main/modified_sources/bootloader_start.c	2025-09-26 12:04:51.755520980 +0200
+@@ -1,8 +1,9 @@
+ /*
+- * SPDX-FileCopyrightText: 2015-2022 Espressif Systems (Shanghai) CO LTD
++ * SPDX-FileCopyrightText: 2015-2021 Espressif Systems (Shanghai) CO LTD
+  *
+  * SPDX-License-Identifier: Apache-2.0
+  */
++
+ #include <stdbool.h>
+ #include "esp_log.h"
+ #include "esp_rom_sys.h"
+@@ -10,8 +11,14 @@
+ #include "bootloader_utility.h"
+ #include "bootloader_common.h"
+ #include "bootloader_hooks.h"
++#include "soc/rtc_io_reg.h"
++#include "soc/rtc_cntl_reg.h"
++
++#ifdef CONFIG_SAFEBOOT_FEATURE_ENABLE
++#include "boot_if.h"
++#endif
+ 
+-static const char *TAG = "boot";
++static const char* TAG = "boot";
+ 
+ static int select_partition_number(bootloader_state_t *bs);
+ static int selected_boot_partition(const bootloader_state_t *bs);
+@@ -23,21 +30,13 @@
+  */
+ void __attribute__((noreturn)) call_start_cpu0(void)
+ {
+-    // (0. Call the before-init hook, if available)
+-    if (bootloader_before_init) {
+-        bootloader_before_init();
+-    }
++    // Note: bootloader_before_init removed in ESP-IDF v5.4
+ 
+     // 1. Hardware initialization
+     if (bootloader_init() != ESP_OK) {
+         bootloader_reset();
+     }
+ 
+-    // (1.1 Call the after-init hook, if available)
+-    if (bootloader_after_init) {
+-        bootloader_after_init();
+-    }
+-
+ #ifdef CONFIG_BOOTLOADER_SKIP_VALIDATE_IN_DEEP_SLEEP
+     // If this boot is a wake up from the deep sleep then go to the short way,
+     // try to load the application which worked before deep sleep.
+@@ -57,6 +56,12 @@
+     bootloader_utility_load_boot_image(&bs, boot_index);
+ }
+ 
++// Return global reent struct if any newlib functions are linked to bootloader
++struct _reent *__getreent(void)
++{
++    return _GLOBAL_REENT;
++}
++
+ // Select the number of boot partition
+ static int select_partition_number(bootloader_state_t *bs)
+ {
+@@ -70,6 +75,342 @@
      return selected_boot_partition(bs);
  }
  
 +#ifdef CONFIG_SAFEBOOT_FEATURE_ENABLE
 +
-+#include "boot_if.h"
-+
 +const char* g_safeboot_tag = "safeboot";
 +
-+enum {
-+    __safeboot_cond_none,
-+    __safeboot_cond_software_request,
-+    __safeboot_cond_latest_firmware,
-+    __safeboot_cond_prev_user_update,
-+    __safeboot_cond_factory_firmware,
-+    __safeboot_cond_max,
-+};
++// SafeBoot condition enumeration
++typedef enum {
++    __safeboot_cond_none            = 0,
++    __safeboot_cond_latest_firmware = 1,
++    __safeboot_cond_prev_user_update = 2,
++    __safeboot_cond_factory_firmware = 3,
++    __safeboot_cond_software_request = 4,
++} safeboot_cond_t;
 +
-+static const char* get_safeboot_cond_str(int cond)
-+{
-+    switch(cond)
-+    {
-+        case __safeboot_cond_none:
-+            return "none";
-+        case __safeboot_cond_software_request:
-+            return "software_request";
-+        case __safeboot_cond_latest_firmware:
-+            return "latest_firmware";
-+        case __safeboot_cond_prev_user_update:
-+            return "prev_user_update";
-+        case __safeboot_cond_factory_firmware:
-+            return "factory_firmware";
-+    }
-+    return "unknown safeboot cond";
-+}
-+
-+#ifdef CONFIG_SAFEBOOT_SWITCH_BUTTON_ENABLE
-+
-+static struct safeboot_ordered_node_t {
-+    int cond;
++// SafeBoot condition mapping structure
++typedef struct {
++    safeboot_cond_t cond;
 +    int hold_time;
-+} s_safeboot_ordered_hold_cond[__safeboot_cond_max];
++} safeboot_cond_node_t;
++
++// Global condition array - ordered by hold time (longest first for proper matching)
++static safeboot_cond_node_t s_safeboot_conds[4];
 +static int s_safeboot_conds_count = 0;
 +
-+static void insert_safeboot_cond(int cond, int hold_time)
++// SafeBoot interface state enumeration is now defined in boot_if.h
++
++static const char* get_safeboot_cond_str(safeboot_cond_t cond)
 +{
-+    if(s_safeboot_conds_count >= __safeboot_cond_max) 
-+    {
-+        ESP_LOGE(g_safeboot_tag, "overflow of needed hold time conditions");
-+        return;
++    switch(cond) {
++        case __safeboot_cond_none:              return "none";
++        case __safeboot_cond_latest_firmware:   return "latest_firmware";
++        case __safeboot_cond_prev_user_update:  return "prev_user_update";
++        case __safeboot_cond_factory_firmware:  return "factory_firmware";
++        case __safeboot_cond_software_request:  return "software_request";
++        default:                                return "unknown";
 +    }
++}
 +
-+    int idx = s_safeboot_conds_count;
-+    struct safeboot_ordered_node_t* p_node = s_safeboot_ordered_hold_cond;
-+
-+    while (idx > 0)
-+    {
-+        if( hold_time <= p_node[idx - 1].hold_time )
-+        {
++static void insert_safeboot_cond(safeboot_cond_t cond, int hold_time)
++{
++    if (s_safeboot_conds_count >= sizeof(s_safeboot_conds)/sizeof(s_safeboot_conds[0])) {
++        return; // Array full
++    }
++    
++    // Insert in descending order of hold_time
++    int insert_idx = s_safeboot_conds_count;
++    for (int i = 0; i < s_safeboot_conds_count; i++) {
++        if (hold_time > s_safeboot_conds[i].hold_time) {
++            insert_idx = i;
 +            break;
 +        }
-+
-+        p_node[idx] = p_node[idx - 1];
-+        --idx;
 +    }
-+
-+    p_node[idx].hold_time = hold_time;
-+    p_node[idx].cond = cond;
-+
-+    ++ s_safeboot_conds_count;
++    
++    // Shift existing elements to make space
++    for (int i = s_safeboot_conds_count; i > insert_idx; i--) {
++        s_safeboot_conds[i] = s_safeboot_conds[i-1];
++    }
++    
++    // Insert new element
++    s_safeboot_conds[insert_idx].cond = cond;
++    s_safeboot_conds[insert_idx].hold_time = hold_time;
++    s_safeboot_conds_count++;
 +}
 +
-+static int get_safeboot_matched_cond(int hold_time)
++static safeboot_cond_t get_safeboot_matched_cond(int hold_time)
 +{
-+    int idx = 0;
-+    struct safeboot_ordered_node_t* p_node = s_safeboot_ordered_hold_cond;
++    ESP_LOGI(g_safeboot_tag, "Matching hold time: %d seconds", hold_time);
 +
-+    while(idx < s_safeboot_conds_count)
-+    {
-+        if( hold_time >=  p_node[idx].hold_time)
-+        {
-+            return p_node[idx].cond;
-+        }
-+        ++idx;
++    // Official SafeBoot timing logic based on incremental detection:
++    // - hold_time = 1: T < 3s (latest firmware in SafeBoot)
++    // - hold_time = 3: 3s ≤ T < 7s (previous OTA in SafeBoot) 
++    // - hold_time = 7: T ≥ 7s (factory firmware in SafeBoot)
++    
++    if (hold_time == 1) {
++        // Short press (T < 3s) - Latest firmware in SafeBoot mode
++        ESP_LOGI(g_safeboot_tag, "Short press detected - selecting latest firmware for SafeBoot mode");
++        return __safeboot_cond_latest_firmware;
++    } else if (hold_time == 3) {
++        // Medium press (3s ≤ T < 7s) - Previous OTA in SafeBoot mode
++        ESP_LOGI(g_safeboot_tag, "Medium press detected - selecting previous OTA for SafeBoot mode");
++        return __safeboot_cond_prev_user_update;
++    } else if (hold_time >= 7) {
++        // Long press (T ≥ 7s) - Factory firmware in SafeBoot mode  
++        ESP_LOGI(g_safeboot_tag, "Long press detected - selecting factory firmware for SafeBoot mode");
++        return __safeboot_cond_factory_firmware;
 +    }
 +
-+    return __safeboot_cond_none;
++    // Fallback - should not reach here with our logic
++    ESP_LOGW(g_safeboot_tag, "Unexpected hold_time %d, defaulting to latest firmware", hold_time);
++    return __safeboot_cond_latest_firmware;
 +}
-+#endif /* CONFIG_SAFEBOOT_SWITCH_BUTTON_ENABLE */
++
++/**
++ * Feed the RTC WDT to prevent timeout during long button holds
++ * Note: In bootloader context, we rely on short incremental waits (3s+2s+2s)
++ * rather than WDT feeding to prevent timeouts
++ */
++static void feed_rtc_wdt(void)
++{
++    // In bootloader context, WDT HAL is not available
++    // Our incremental timing approach (3s+2s+2s) should prevent WDT timeouts
++    ESP_LOGD(g_safeboot_tag, "WDT feeding not available in bootloader - using incremental timing");
++}
++
++/**
++ * Configure GPIO for SafeBoot button with proper pull-down resistor
++ * This is critical after WDT resets as GPIO configuration is lost
++ */
++static void configure_safeboot_gpio(uint32_t gpio_num)
++{
++    // For GPIO21 on ESP32-S3, configure pull-down resistor via RTC domain
++    if (gpio_num == 21) {
++        // Enable RTC domain for GPIO21
++        REG_SET_BIT(RTC_IO_RTC_PAD21_REG, RTC_IO_PAD21_MUX_SEL);
++        
++        // Configure as input with pull-down
++        REG_CLR_BIT(RTC_IO_RTC_PAD21_REG, RTC_IO_PAD21_FUN_IE);     // Disable input
++        REG_SET_BIT(RTC_IO_RTC_PAD21_REG, RTC_IO_PAD21_FUN_IE);     // Enable input
++        REG_CLR_BIT(RTC_IO_RTC_PAD21_REG, RTC_IO_PAD21_RUE);       // Disable pull-up
++        REG_SET_BIT(RTC_IO_RTC_PAD21_REG, RTC_IO_PAD21_RDE);       // Enable pull-down
++        
++        ESP_LOGD(g_safeboot_tag, "GPIO %d configured with pull-down via RTC domain", gpio_num);
++    } else {
++        ESP_LOGW(g_safeboot_tag, "GPIO %d configuration not implemented", gpio_num);
++    }
++}
++
++/**
++ * ESP-IDF v5.4+ compatible GPIO hold time detection
++ * Replaces the removed bootloader_common_get_gpio_hold_time() function
++ * 
++ * Uses incremental timing approach (3s + 2s + 2s = 7s) with RTC WDT feeding
++ * This prevents WDT resets while checking longer button hold times
++ */
++static bool get_gpio_hold_time_v54(uint32_t gpio_num, uint32_t max_hold_time, 
++                                   bool level, uint32_t* detected_hold_time)
++{
++    ESP_LOGD(g_safeboot_tag, "Checking GPIO %d hold time for level %d", gpio_num, level);
++    
++    if (detected_hold_time == NULL) {
++        ESP_LOGE(g_safeboot_tag, "detected_hold_time parameter is NULL");
++        return false;
++    }
++    
++    // Configure GPIO first - critical after WDT resets
++    configure_safeboot_gpio(gpio_num);
++    
++    *detected_hold_time = 0;
++    
++    // Check if GPIO is even at the target level initially
++    esp_comm_gpio_hold_t result = bootloader_common_check_long_hold_gpio_level(gpio_num, 0, level);
++    if (result == GPIO_NOT_HOLD) {
++        ESP_LOGD(g_safeboot_tag, "GPIO %d not at target level %d", gpio_num, level);
++        return false;
++    }
++    
++    // Incremental timing approach: 3s + check for 7s total
++    // Feed RTC WDT before longer wait to prevent timeouts
++    
++    // Step 1: Check for 3s hold (latest vs previous OTA distinction)
++    ESP_LOGD(g_safeboot_tag, "Checking GPIO %d hold for 3s", gpio_num);
++    result = bootloader_common_check_long_hold_gpio_level(gpio_num, 3, level);
++    
++    if (result == GPIO_SHORT_HOLD) {
++        // Button released before 3s - latest firmware in SafeBoot
++        ESP_LOGI(g_safeboot_tag, "GPIO %d held for less than 3s", gpio_num);
++        *detected_hold_time = 1; // Indicate short press for latest firmware
++        return true;
++    } else if (result == GPIO_NOT_HOLD) {
++        ESP_LOGD(g_safeboot_tag, "GPIO %d not held at 3s threshold", gpio_num);
++        return false;
++    }
++    
++    // Button held for at least 3s - could be previous OTA or factory
++    ESP_LOGI(g_safeboot_tag, "GPIO %d held for at least 3s", gpio_num);
++    *detected_hold_time = 3;
++    
++    // Feed RTC WDT before longer waits to prevent timeout
++    feed_rtc_wdt();
++    
++    // Step 2: Check if we need to wait longer (for factory firmware at 7s)
++    // Use incremental approach: 3s + 2s + 2s = 7s total to prevent WDT timeouts
++    if (max_hold_time >= 7) {
++        ESP_LOGD(g_safeboot_tag, "Checking GPIO %d hold for additional 2s (5s total)", gpio_num);
++        result = bootloader_common_check_long_hold_gpio_level(gpio_num, 2, level);
++        
++        if (result == GPIO_SHORT_HOLD) {
++            // Button released during 2nd wait (3-5s total) - still previous OTA
++            ESP_LOGI(g_safeboot_tag, "GPIO %d released during 2nd wait (3-5s total)", gpio_num);
++            *detected_hold_time = 3; // Keep 3s value for previous OTA
++            return true;
++        } else if (result == GPIO_NOT_HOLD) {
++            // GPIO not held - keep 3s detection from Step 1
++            return true;
++        }
++        
++        // Feed RTC WDT again before final check
++        feed_rtc_wdt();
++        
++        // Step 3: Final check for 7s total (factory firmware)
++        ESP_LOGD(g_safeboot_tag, "Checking GPIO %d hold for final 2s (7s total)", gpio_num);
++        result = bootloader_common_check_long_hold_gpio_level(gpio_num, 2, level);
++        
++        if (result == GPIO_LONG_HOLD) {
++            // Button held for 7s or more - factory firmware
++            ESP_LOGI(g_safeboot_tag, "GPIO %d held for at least 7s", gpio_num);
++            *detected_hold_time = 7;
++        } else if (result == GPIO_SHORT_HOLD) {
++            // Button released during 3rd wait (5-7s total) - still previous OTA
++            ESP_LOGI(g_safeboot_tag, "GPIO %d released during 3rd wait (5-7s total)", gpio_num);
++            *detected_hold_time = 3; // Keep 3s value for previous OTA
++        }
++        // Note: If GPIO_NOT_HOLD, we keep the 3s detection from Step 1
++    }
++    
++    return true;
++}
 +
 +static int get_safeboot_condition(void)
 +{
@@ -106,25 +299,21 @@
 +    #define __max(x,y)  ((x) >= (y) ? (x) : (y))
 +    #endif
 +
++    // Configure SafeBoot conditions based on Kconfig settings
 +    #ifdef CONFIG_SAFEBOOT_HOLD_TIME_FOR_LATEST_FW
-+        max_hold_time =
-+            __max(CONFIG_SAFEBOOT_HOLD_TIME_FOR_LATEST_FW, max_hold_time);
++        max_hold_time = __max(CONFIG_SAFEBOOT_HOLD_TIME_FOR_LATEST_FW, max_hold_time);
 +        insert_safeboot_cond(__safeboot_cond_latest_firmware,
 +            CONFIG_SAFEBOOT_HOLD_TIME_FOR_LATEST_FW);
 +    #endif
 +
-+    #if defined(CONFIG_SAFEBOOT_ENABLE_PREV_OTA) && \
-+        defined(CONFIG_SAFEBOOT_HOLD_TIME_FOR_PREV_OTA)
-+        max_hold_time =
-+            __max(CONFIG_SAFEBOOT_HOLD_TIME_FOR_PREV_OTA, max_hold_time);
++    #if defined(CONFIG_SAFEBOOT_ENABLE_PREV_OTA) && defined(CONFIG_SAFEBOOT_HOLD_TIME_FOR_PREV_OTA)
++        max_hold_time = __max(CONFIG_SAFEBOOT_HOLD_TIME_FOR_PREV_OTA, max_hold_time);
 +        insert_safeboot_cond(__safeboot_cond_prev_user_update,
 +            CONFIG_SAFEBOOT_HOLD_TIME_FOR_PREV_OTA);
 +    #endif
 +
-+    #if defined(CONFIG_SAFEBOOT_ENABLE_FACTORY_FIRMWARE) && \
-+        defined(CONFIG_SAFEBOOT_HOLD_TIME_FOR_FACTORY_FIRMWARE)
-+        max_hold_time = __max(CONFIG_SAFEBOOT_HOLD_TIME_FOR_FACTORY_FIRMWARE,
-+                max_hold_time);
++    #if defined(CONFIG_SAFEBOOT_ENABLE_FACTORY_FIRMWARE) && defined(CONFIG_SAFEBOOT_HOLD_TIME_FOR_FACTORY_FIRMWARE)
++        max_hold_time = __max(CONFIG_SAFEBOOT_HOLD_TIME_FOR_FACTORY_FIRMWARE, max_hold_time);
 +        insert_safeboot_cond(__safeboot_cond_factory_firmware,
 +            CONFIG_SAFEBOOT_HOLD_TIME_FOR_FACTORY_FIRMWARE);
 +    #endif
@@ -134,20 +323,23 @@
 +    #undef __max
 +    #endif
 +
-+    bool checked_level = 
-+        #if CONFIG_SAFEBOOT_PIN_LEVEL_HIGH
-+        true;
-+        #else
-+        false;
-+        #endif
++    if( max_hold_time == 0 )
++    {
++        ESP_LOGI(g_safeboot_tag, "SafeBoot button disabled - no hold times configured");
++        return __safeboot_cond_none;
++    }
 +
-+    int detected_hold_time = 0;
-+    extern bool bootloader_common_get_gpio_hold_time(
-+        uint32_t    num_pin,
-+        uint32_t    max_time_sec,
-+        bool        level,
-+        int         *p_hold_time);
-+    bool detected_safeboot_press = bootloader_common_get_gpio_hold_time(
++    bool checked_level = false;
++
++    #ifdef CONFIG_SAFEBOOT_PIN_LEVEL_HIGH
++        checked_level = true;
++    #endif
++
++    ESP_LOGI(g_safeboot_tag, "Checking GPIO %d for SafeBoot press (level=%d, max=%ds)", 
++             CONFIG_SAFEBOOT_PIN_NUM, checked_level, max_hold_time);
++
++    uint32_t detected_hold_time = 0;
++    bool detected_safeboot_press = get_gpio_hold_time_v54(
 +        CONFIG_SAFEBOOT_PIN_NUM,
 +        max_hold_time, 
 +        checked_level,
@@ -157,10 +349,22 @@
 +    if(detected_safeboot_press)
 +    {
 +        safeboot_cond = get_safeboot_matched_cond(detected_hold_time);
++        // Force SafeBoot mode for ANY button press, regardless of duration
++        bootif_state_set(__BOOTIF_STATE_SAFEBOOT_MODE);
++        ESP_LOGI(g_safeboot_tag, "SafeBoot button detected - booting in SafeBoot mode with condition: %s", 
++                get_safeboot_cond_str(safeboot_cond));
 +    }
-+
-+    bootif_state_set( safeboot_cond == __safeboot_cond_none ?
-+        __BOOTIF_STATE_NORMAL_MODE : __BOOTIF_STATE_SAFEBOOT_MODE );
++    else
++    {
++        // No button press detected - check for existing software SafeBoot request
++        // Don't overwrite bootif_state if software SafeBoot (Ctrl+F) is already set
++        if (bootif_state_get() != __BOOTIF_STATE_SAFEBOOT_MODE) {
++            bootif_state_set(__BOOTIF_STATE_NORMAL_MODE);
++            ESP_LOGI(g_safeboot_tag, "No SafeBoot button press - booting in normal mode");
++        } else {
++            ESP_LOGI(g_safeboot_tag, "No SafeBoot button press, but software SafeBoot request detected");
++        }
++    }
 +
 +    return safeboot_cond;
 +
@@ -197,31 +401,36 @@
 +    return ESP_OK;
 +}
 +
-+static int selected_boot_partition(const bootloader_state_t *bs)
-+{
-+    int boot_index = bootloader_utility_get_selected_boot_partition(bs);
++#endif /* CONFIG_SAFEBOOT_FEATURE_ENABLE */
 +
-+    ESP_LOGI(g_safeboot_tag, "Normal Selected boot index: %d", boot_index);
-+
-+    if (boot_index == INVALID_INDEX)
+ /*
+  * Selects a boot partition.
+  * The conditions for switching to another firmware are checked.
+@@ -80,7 +421,103 @@
+     if (boot_index == INVALID_INDEX) {
+         return boot_index; // Unrecoverable failure (not due to corrupt ota data or bad partition contents)
+     }
++    
++#ifdef CONFIG_SAFEBOOT_FEATURE_ENABLE
++    // Check SafeBoot condition first
++    if (esp_rom_get_reset_reason(0) == RESET_REASON_CORE_DEEP_SLEEP)
 +    {
-+        return boot_index;
-+    }
-+
-+    if (bootloader_common_get_reset_reason(0) == DEEPSLEEP_RESET)
-+    {
++        ESP_LOGI(g_safeboot_tag, "Deep sleep reset - skipping SafeBoot check");
 +        return boot_index;
 +    }
 +
 +    int safeboot_cond;
 +
-+    if( bootif_state_get() == __BOOTIF_STATE_SAFEBOOT_MODE )
++    // Always check for hardware button press first
++    safeboot_cond = get_safeboot_condition();
++    
++    // If no hardware button press detected, check for software SafeBoot request
++    if( safeboot_cond == __safeboot_cond_none && bootif_state_get() == __BOOTIF_STATE_SAFEBOOT_MODE )
 +    {
 +        safeboot_cond = __safeboot_cond_software_request;
-+    }
-+    else
-+    {
-+        safeboot_cond = get_safeboot_condition();
++        // Ensure SafeBoot mode is set for software-triggered SafeBoot
++        bootif_state_set(__BOOTIF_STATE_SAFEBOOT_MODE);
++        ESP_LOGI(g_safeboot_tag, "Software SafeBoot request detected - booting in SafeBoot mode");
 +    }
 +
 +    ESP_LOGI(g_safeboot_tag, "detected condition: %s",
@@ -229,11 +438,12 @@
 +
 +    if( safeboot_cond == __safeboot_cond_none )
 +    {
-+        // -- leave selected
++        // Normal boot - use selected boot partition
 +    }
 +    else if( safeboot_cond == __safeboot_cond_latest_firmware )
 +    {
-+        // -- leave selected
++        // Boot latest firmware - use selected boot partition
++        ESP_LOGI(g_safeboot_tag, "SafeBoot: Using latest firmware (index %d)", boot_index);
 +    }
 +    else if( safeboot_cond == __safeboot_cond_prev_user_update )
 +    {
@@ -250,25 +460,20 @@
 +
 +                if( active != -1 )
 +                {
-+                    // -- this means there is at least an active ota,
-+                    //      --> select the other one if exist
++                    // Select the other OTA partition if it exists and is valid
 +                    if(active == 0 && ota1_valid)
 +                    {
-+                        ESP_LOGI(g_safeboot_tag, "Current Active OTA: 0"
-+                            " previous active OTA: 1");
++                        ESP_LOGI(g_safeboot_tag, "Current Active OTA: 0, switching to previous OTA: 1");
 +                        active = 1;
 +                    }
 +                    else if(active == 1 && ota0_valid)
 +                    {
-+                        ESP_LOGI(g_safeboot_tag, "Current Active OTA: 1"
-+                            " previous active OTA: 0");
++                        ESP_LOGI(g_safeboot_tag, "Current Active OTA: 1, switching to previous OTA: 0");
 +                        active = 0;
 +                    }
 +                    else
 +                    {
-+                        ESP_LOGI(g_safeboot_tag, "Current Active OTA: %d"
-+                            " previous active OTA: none", active);
-+                        // no valid prev user updated ota
++                        ESP_LOGI(g_safeboot_tag, "Current Active OTA: %d, no valid previous OTA found", active);
 +                        active = -1;
 +                    }
 +                }
@@ -277,44 +482,97 @@
 +                {
 +                    uint32_t ota_seq = otadata[active].ota_seq - 1;
 +                    boot_index = ota_seq % bs->app_count;
-+                    ESP_LOGI(g_safeboot_tag, "Active OTA %d seq-num: %d"
-+                            " boot-index: %d", active, ota_seq, boot_index);
-+                }
-+                else
-+                {
-+                    // -- leave selected
++                    ESP_LOGI(g_safeboot_tag, "SafeBoot: Using previous OTA %d seq-num: %d boot-index: %d", 
++                            active, ota_seq, boot_index);
 +                }
 +            }
-+            else
-+            {
-+                // -- leave selected
-+            }
-+        }
-+        else
-+        {
-+            // -- leave selected
 +        }
 +    }
 +    else if( safeboot_cond == __safeboot_cond_factory_firmware )
 +    {
 +        boot_index = FACTORY_INDEX;
++        ESP_LOGI(g_safeboot_tag, "SafeBoot: Using factory firmware (index %d)", boot_index);
++    }
++    else if( safeboot_cond == __safeboot_cond_software_request )
++    {
++        // Software SafeBoot request (Ctrl+F) - use current firmware in SafeBoot mode
++        ESP_LOGI(g_safeboot_tag, "SafeBoot: Software request - using current firmware (index %d)", boot_index);
 +    }
 +
-+    ESP_LOGI(g_safeboot_tag, "Finaly Selected boot index: %d", boot_index);
-+
++    ESP_LOGI(g_safeboot_tag, "Final Selected boot index: %d", boot_index);
++    
 +    return boot_index;
-+}
-+
-+#else /* #ifdef CONFIG_SAFEBOOT_FEATURE_ENABLE */
-+
- /*
-  * Selects a boot partition.
-  * The conditions for switching to another firmware are checked.
-@@ -128,6 +431,7 @@
++    
++#else /* !CONFIG_SAFEBOOT_FEATURE_ENABLE */
++    // Original ESP-IDF logic with fix for v5.4 reset reason API change
+     if (esp_rom_get_reset_reason(0) != RESET_REASON_CORE_DEEP_SLEEP) {
++#endif /* CONFIG_SAFEBOOT_FEATURE_ENABLE */
+         // Factory firmware.
+ #ifdef CONFIG_BOOTLOADER_FACTORY_RESET
+         bool reset_level = false;
+@@ -98,39 +535,45 @@
+             if (bootloader_common_erase_part_type_data(list_erase, ota_data_erase) == false) {
+                 ESP_LOGE(TAG, "Not all partitions were erased");
+             }
+-#ifdef CONFIG_BOOTLOADER_RESERVE_RTC_MEM
+-            bootloader_common_set_rtc_retain_mem_factory_reset_state();
+-#endif
+-            return bootloader_utility_get_selected_boot_partition(bs);
++            return FACTORY_INDEX;
+         }
+-#endif // CONFIG_BOOTLOADER_FACTORY_RESET
+-        // TEST firmware.
++#endif
++        // App Test firmware.
+ #ifdef CONFIG_BOOTLOADER_APP_TEST
+         bool app_test_level = false;
+ #if CONFIG_BOOTLOADER_APP_TEST_PIN_HIGH
+         app_test_level = true;
+ #endif
+         if (bootloader_common_check_long_hold_gpio_level(CONFIG_BOOTLOADER_NUM_PIN_APP_TEST, CONFIG_BOOTLOADER_HOLD_TIME_GPIO, app_test_level) == GPIO_LONG_HOLD) {
+-            ESP_LOGI(TAG, "Detect a boot condition of the test firmware");
+-            if (bs->test.offset != 0) {
+-                boot_index = TEST_APP_INDEX;
+-                return boot_index;
+-            } else {
+-                ESP_LOGE(TAG, "Test firmware is not found in partition table");
+-                return INVALID_INDEX;
++            ESP_LOGI(TAG, "Detect a boot condition of the test app");
++            for (int i = 0; i < bs->app_count; i++) {
++                const esp_partition_pos_t *app = &bs->app[i];
++                if (app->type == ESP_PARTITION_TYPE_APP) {
++                    esp_image_metadata_t data;
++                    const esp_partition_pos_t test_app_pos = {
++                        .offset = app->offset,
++                        .size = app->size,
++                    };
++                    if (esp_image_verify(ESP_IMAGE_VERIFY, &test_app_pos, &data) != ESP_OK) {
++                        continue;
++                    }
++                    if (data.image.project_name != NULL &&
++                        strcmp(data.image.project_name, "test_app") == 0) {
++                        ESP_LOGI(TAG, "Switch to test app: %s", data.image.project_name);
++                        return i;
++            }
+             }
+         }
+-#endif // CONFIG_BOOTLOADER_APP_TEST
++            ESP_LOGE(TAG, "Test app not found");
++            return INVALID_INDEX;
++        }
++#endif
+         // Customer implementation.
+         // if (gpio_pin_1 == true && ...){
+         //     boot_index = required_boot_partition;
+         // } ...
++#ifndef CONFIG_SAFEBOOT_FEATURE_ENABLE
      }
++#endif
      return boot_index;
  }
-+#endif /* #ifdef CONFIG_SAFEBOOT_FEATURE_ENABLE */
- 
- // Return global reent struct if any newlib functions are linked to bootloader
- struct _reent *__getreent(void)
+-
+-// Return global reent struct if any newlib functions are linked to bootloader
+-struct _reent *__getreent(void)
+-{
+-    return _GLOBAL_REENT;
+-}

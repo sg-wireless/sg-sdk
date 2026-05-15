@@ -1,5 +1,5 @@
 /** -------------------------------------------------------------------------- *
- * Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+ * Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files(the “Software”), to deal
@@ -177,7 +177,7 @@ __mp_mod_fun_var_between(nvs_if, set, 4, 4)
     if(o_type == &mp_type_str)
     {
         const char* str = mp_get_string(__arg_v[3]);
-        ret = nvs_if_set(part, ns, key, str, strlen(str) + 1);
+        ret = nvs_if_set(part, ns, key, str, strlen(str));
     }
     else if(o_type == &mp_type_int)
     {

@@ -1,0 +1,15 @@
+# Example defaults.sdk configuration file
+# Copy this file to 'defaults.sdk' in the sg-sdk root directory
+# and customize the values according to your setup.
+
+# Target board (required if no --board specified on command line)
+board = "SGW3501-F1-StarterKit"
+
+# Serial port for flashing (optional)
+port = "/dev/ttyUSB0"
+
+# Build variant (optional, defaults to 'micropython')
+variant = "micropython"
+
+# Default project directory (optional)
+# project-dir = "./examples/hello_world"

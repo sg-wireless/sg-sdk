@@ -1,0 +1,105 @@
+--- ../../../../ext/esp-idf/components/esp_hw_support/periph_ctrl.c	2025-10-31 22:08:26.738100859 +0100
++++ ./esp_hw_support/modified_sources/periph_ctrl.c	2025-11-02 18:06:28.032150154 +0100
+@@ -7,10 +7,16 @@
+ #include "esp_attr.h"
+ #include "esp_private/periph_ctrl.h"
+ #include "soc/soc_caps.h"
++#include <string.h>
+ #ifdef __PERIPH_CTRL_ALLOW_LEGACY_API
+ #include "hal/clk_gate_ll.h"
+ #endif
+ 
++// For logging - use printf if log_enforce is not available
++#ifndef __log_enforce
++#define __log_enforce printf
++#endif
++
+ #if SOC_MODEM_CLOCK_IS_INDEPENDENT && SOC_MODEM_CLOCK_SUPPORTED
+ #include "esp_private/esp_modem_clock.h"
+ #endif
+@@ -146,3 +152,85 @@
+ #endif
+ }
+ #endif // CONFIG_ESP_WIFI_ENABLED
++
++// Peripheral module names for debugging/inspection
++static const char* s_periph_modules_str[] = {
++    [PERIPH_LEDC_MODULE]            = "LEDC",
++    [PERIPH_UART0_MODULE]           = "UART0",
++    [PERIPH_UART1_MODULE]           = "UART1",
++    [PERIPH_UART2_MODULE]           = "UART2",
++    [PERIPH_USB_MODULE]             = "USB",
++    [PERIPH_I2C0_MODULE]            = "I2C0",
++    [PERIPH_I2C1_MODULE]            = "I2C1",
++    [PERIPH_I2S0_MODULE]            = "I2S0",
++    [PERIPH_I2S1_MODULE]            = "I2S1",
++    [PERIPH_LCD_CAM_MODULE]         = "LCD_CAM",
++    [PERIPH_TIMG0_MODULE]           = "TIMG0",
++    [PERIPH_TIMG1_MODULE]           = "TIMG1",
++    [PERIPH_PWM0_MODULE]            = "PWM0",
++    [PERIPH_PWM1_MODULE]            = "PWM1",
++    [PERIPH_PWM2_MODULE]            = "PWM2",
++    [PERIPH_PWM3_MODULE]            = "PWM3",
++    [PERIPH_UHCI0_MODULE]           = "UHCI0",
++    [PERIPH_UHCI1_MODULE]           = "UHCI1",
++    [PERIPH_RMT_MODULE]             = "RMT",
++    [PERIPH_PCNT_MODULE]            = "PCNT",
++    [PERIPH_SPI_MODULE]             = "SPI",
++    [PERIPH_SPI2_MODULE]            = "SPI2",
++    [PERIPH_SPI3_MODULE]            = "SPI3",
++    [PERIPH_SDMMC_MODULE]           = "SDMMC",
++    [PERIPH_TWAI_MODULE]            = "TWAI",
++    [PERIPH_RNG_MODULE]             = "RNG",
++    [PERIPH_WIFI_MODULE]            = "WIFI",
++    [PERIPH_BT_MODULE]              = "BT",
++    [PERIPH_WIFI_BT_COMMON_MODULE]  = "WIFI_BT_COMMON",
++    [PERIPH_BT_BASEBAND_MODULE]     = "BT_BASEBAND",
++    [PERIPH_BT_LC_MODULE]           = "BT_LC",
++    [PERIPH_AES_MODULE]             = "AES",
++    [PERIPH_SHA_MODULE]             = "SHA",
++    [PERIPH_HMAC_MODULE]            = "HMAC",
++    [PERIPH_DS_MODULE]              = "DS",
++    [PERIPH_RSA_MODULE]             = "RSA",
++    [PERIPH_SYSTIMER_MODULE]        = "SYSTIMER",
++    [PERIPH_GDMA_MODULE]            = "GDMA",
++    [PERIPH_DEDIC_GPIO_MODULE]      = "DEDIC_GPIO",
++    [PERIPH_SARADC_MODULE]          = "SARADC",
++    [PERIPH_TEMPSENSOR_MODULE]      = "TEMPSENSOR",
++};
++
++periph_module_t periph_module_get_id(const char* name)
++{
++    int i;
++    for(i=0; i < PERIPH_MODULE_MAX; ++i)
++    {
++        // Safety check to prevent crashes with missing string entries
++        if (i < sizeof(s_periph_modules_str)/sizeof(s_periph_modules_str[0]) && 
++            s_periph_modules_str[i] && 
++            strcmp(name, s_periph_modules_str[i]) == 0)
++        {
++            return i;
++        }
++    }
++    return PERIPH_MODULE_MAX;
++}
++
++void periph_module_list(void)
++{
++    int i;
++    for(i=0; i < PERIPH_MODULE_MAX; ++i)
++    {
++        // Safety check to prevent crashes with missing string entries
++        const char* name = (i < sizeof(s_periph_modules_str)/sizeof(s_periph_modules_str[0]) && s_periph_modules_str[i]) 
++                          ? s_periph_modules_str[i] 
++                          : "UNKNOWN";
++        
++        if(ref_counts[i])
++        {
++            __log_enforce("%2d %s : %d\n", i, name, ref_counts[i]);
++        }
++        else
++        {
++            __log_enforce("%2d %s : 0\n", i, name);
++        }
++    }
++}

@@ -1,5 +1,5 @@
 /** -------------------------------------------------------------------------- *
- * Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+ * Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files(the “Software”), to deal
@@ -143,6 +143,11 @@ lora_error_t lora_ctor(void)
     is_lora_on = true;
 
     return __LORA_OK;
+}
+
+bool lora_is_on(void)
+{
+    return is_lora_on;
 }
 
 lora_error_t lora_dtor(void)

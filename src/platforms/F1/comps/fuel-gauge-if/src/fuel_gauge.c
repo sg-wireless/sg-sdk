@@ -1,5 +1,5 @@
 /** -------------------------------------------------------------------------- *
- * Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+ * Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files(the “Software”), to deal
@@ -20,6 +20,7 @@
  * THE SOFTWARE.
  *
  * @author  Ahmed Sabry (SG Wireless)
+ * @maintainer  Christian Ehlers (SG Wireless)
  *
  * @brief   Fuel Gauge Interface component implementation
  * --------------------------------------------------------------------------- *
@@ -41,6 +42,7 @@ __log_component_def(F1, fuelgauge, purple, 1, 0)
 #include "driver/i2c.h"         // for i2c transfer
 #include "driver/gpio.h"        // for interrupt and reset pin
 #include "hal/i2c_ll.h"
+#include "soc/soc.h"            // for APB_CLK_FREQ
 
 #include "bq27421.h"
 #include "bq27421_stub.h"
@@ -112,7 +114,7 @@ static void esp32_fuel_gauge_i2c_ctor(void)
     __esp_api_call(i2c_param_config(__esp32_i2c_instance, &i2c_cfg),
         "i2c param config error", );
 
-    int timeout = __time2cycles( __esp32_i2c_timeout, I2C_APB_CLK_FREQ );
+    int timeout = __time2cycles( __esp32_i2c_timeout, APB_CLK_FREQ );
     __log_debug("i2c timeout : %d cycles", timeout);
 
     timeout = timeout > I2C_LL_MAX_TIMEOUT ? I2C_LL_MAX_TIMEOUT : timeout;

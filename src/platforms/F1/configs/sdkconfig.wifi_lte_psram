@@ -1,0 +1,115 @@
+# WiFi + LTE Coexistence with PSRAM Optimization Configuration
+# 
+# This configuration leverages 8MB external PSRAM to eliminate WiFi/LTE conflicts
+# by placing application buffers in external RAM while keeping DMA buffers minimal
+# in internal RAM. This provides better performance than pure memory reduction.
+#
+# Key Strategy:
+# - UART DMA buffers: Small, in internal RAM (hardware requirement)
+# - Application buffers: Large, in external PSRAM (ESP modem, tasks, etc.)
+# - WiFi buffers: Optimized but not severely reduced (benefit from PSRAM)
+
+# Use PSRAM for malloc by default (application level allocations)
+# Keep <32KB in internal RAM
+#CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL=32768
+# Reserve 32KB internal for DMA
+#CONFIG_SPIRAM_MALLOC_RESERVE_INTERNAL=32768
+
+# Enable PSRAM for task stacks
+CONFIG_SPIRAM_ALLOW_STACK_EXTERNAL_MEMORY=y
+
+# Enable PSRAM for BSS (static variables)
+CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY=y
+
+# PSRAM initialization mode
+CONFIG_SPIRAM_IGNORE_NOTFOUND=n
+
+# PSRAM cache configuration for ESP32S3 - Quad Mode
+CONFIG_SPIRAM_FETCH_INSTRUCTIONS=n
+
+# ============================================================================
+# WiFi Configuration - Moderate Optimization
+# ============================================================================
+
+# WiFi buffers - moderate reduction since PSRAM is available
+# Slight reduction from 10
+#CONFIG_ESP_WIFI_STATIC_RX_BUFFER_NUM=6
+# Moderate reduction from 32
+#CONFIG_ESP_WIFI_DYNAMIC_RX_BUFFER_NUM=16
+# Moderate reduction from 32
+#CONFIG_ESP_WIFI_DYNAMIC_TX_BUFFER_NUM=16
+
+# Use dynamic TX buffers to benefit from PSRAM
+# Dynamic (can use PSRAM)
+#CONFIG_ESP_WIFI_TX_BUFFER_TYPE=1
+# Disable static since using dynamic
+#CONFIG_ESP_WIFI_STATIC_TX_BUFFER_NUM=0
+
+# WiFi performance settings
+# Keep reasonable cache size
+#CONFIG_ESP_WIFI_CACHE_TX_BUFFER_NUM=32
+# Slight reduction from 5
+#CONFIG_ESP_WIFI_RX_MGMT_BUF_NUM_DEF=4
+
+# WiFi BA windows - moderate values for good performance
+# Half of default 32
+#CONFIG_ESP_WIFI_RX_BA_WIN=16
+# Half of default 16
+#CONFIG_ESP_WIFI_TX_BA_WIN=8
+
+# Keep WiFi IRAM optimizations
+CONFIG_ESP_WIFI_IRAM_OPT=y
+CONFIG_ESP_WIFI_RX_IRAM_OPT=y
+
+# ============================================================================
+# UART Configuration - Keep DMA Buffers Small (Internal RAM Requirement)
+# ============================================================================
+
+# UART ISR must be in IRAM for DMA, so buffers must be internal
+CONFIG_UART_ISR_IN_IRAM=y
+
+# ============================================================================
+# lwIP Stack Configuration
+# ============================================================================
+
+# Moderate size
+#CONFIG_LWIP_TCPIP_RECVMBOX_SIZE=24  
+# Reasonable socket count
+#CONFIG_LWIP_MAX_SOCKETS=8           
+# Reasonable TCP connections
+#CONFIG_LWIP_MAX_ACTIVE_TCP=8
+
+# TCP window sizes
+CONFIG_LWIP_TCP_WND_DEFAULT=4096    
+CONFIG_LWIP_TCP_SND_BUF_DEFAULT=4096
+
+# ============================================================================
+# Task Stack Configuration - Use PSRAM for Large Stacks
+# ============================================================================
+
+# Main application task can use PSRAM
+# Can be larger with PSRAM
+#CONFIG_ESP_MAIN_TASK_STACK_SIZE=4096
+
+# ============================================================================
+# Memory Management Configuration
+# ============================================================================
+
+# Allow allocation in PSRAM for most components
+CONFIG_RINGBUF_PLACE_FUNCTIONS_INTO_FLASH=y
+CONFIG_FREERTOS_PLACE_FUNCTIONS_INTO_FLASH=y
+CONFIG_HEAP_PLACE_FUNCTION_INTO_FLASH=y
+
+# ROM implementations to save internal RAM
+# Enabling this will cause OTA fw updates to fail!
+# CONFIG_SPI_FLASH_ROM_IMPL=y
+
+# Bluetooth controller optimization if enabled
+CONFIG_BT_CTRL_RUN_IN_FLASH_ONLY=y
+
+# ============================================================================
+# Performance vs Memory Trade-offs
+# ============================================================================
+
+# Heap corruption detection (useful for debugging PSRAM issues)
+CONFIG_HEAP_CORRUPTION_DETECTION=y

@@ -1,0 +1,226 @@
+--- ../../../../ext/micropython/ports/esp32/machine_uart.c	2025-11-15 20:45:10.589142841 +0100
++++ ./modified_sources/machine_uart.c	2025-11-25 02:29:37.540442482 +0100
+@@ -40,6 +40,7 @@
+ #include "py/mphal.h"
+ #include "uart.h"
+ #include "machine_timer.h"
++#include "board_hooks.h"
+ 
+ #if SOC_UART_SUPPORT_XTAL_CLK
+ // Works independently of APB frequency, on ESP32C3, ESP32S3.
+@@ -84,6 +85,7 @@
+     uint16_t timeout;       // timeout waiting for first char (in ms)
+     uint16_t timeout_char;  // timeout waiting between chars (in ms)
+     uint32_t invert;        // lines to invert
++    uint8_t context;        // context ID for UART guard namespace separation
+     TaskHandle_t uart_event_task;
+     QueueHandle_t uart_queue;
+     uint16_t mp_irq_trigger;   // user IRQ trigger mask
+@@ -96,6 +98,21 @@
+ 
+ static const char *_parity_name[] = {"None", "1", "0"};
+ 
++// Forward declarations
++extern const mp_obj_type_t machine_uart_type;
++static void mp_machine_uart_deinit(machine_uart_obj_t *self);
++
++// Ensure xTaskCreatePinnedToCore is visible (ESP-IDF FreeRTOS extension)
++#ifndef xTaskCreatePinnedToCore
++extern BaseType_t xTaskCreatePinnedToCore(TaskFunction_t pxTaskCode,
++                                          const char * const pcName,
++                                          const uint32_t usStackDepth,
++                                          void * const pvParameters,
++                                          UBaseType_t uxPriority,
++                                          TaskHandle_t * const pxCreatedTask,
++                                          const BaseType_t xCoreID);
++#endif
++
+ /******************************************************************************/
+ // MicroPython bindings for UART
+ 
+@@ -222,7 +239,7 @@
+ }
+ 
+ static void mp_machine_uart_init_helper(machine_uart_obj_t *self, size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
+-    enum { ARG_baudrate, ARG_bits, ARG_parity, ARG_stop, ARG_tx, ARG_rx, ARG_rts, ARG_cts, ARG_txbuf, ARG_rxbuf, ARG_timeout, ARG_timeout_char, ARG_invert, ARG_flow };
++    enum { ARG_baudrate, ARG_bits, ARG_parity, ARG_stop, ARG_tx, ARG_rx, ARG_rts, ARG_cts, ARG_txbuf, ARG_rxbuf, ARG_timeout, ARG_timeout_char, ARG_invert, ARG_flow, ARG_context };
+     static const mp_arg_t allowed_args[] = {
+         { MP_QSTR_baudrate, MP_ARG_INT, {.u_int = 0} },
+         { MP_QSTR_bits, MP_ARG_INT, {.u_int = 0} },
+@@ -238,6 +255,7 @@
+         { MP_QSTR_timeout_char, MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = -1} },
+         { MP_QSTR_invert, MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = -1} },
+         { MP_QSTR_flow, MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = -1} },
++        { MP_QSTR_context, MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = 0} },
+     };
+     mp_arg_val_t args[MP_ARRAY_SIZE(allowed_args)];
+     mp_arg_parse_all(n_args, pos_args, kw_args, MP_ARRAY_SIZE(allowed_args), allowed_args, args);
+@@ -399,6 +417,11 @@
+     }
+     uint8_t uart_fifo_len = UART_HW_FIFO_LEN(self->uart_num);
+     check_esp_err(uart_set_hw_flow_ctrl(self->uart_num, self->flowcontrol, uart_fifo_len - uart_fifo_len / 4));
++    
++    // set context (for UART guard namespace separation)
++    if (args[ARG_context].u_int >= 0 && args[ARG_context].u_int <= 255) {
++        self->context = (uint8_t)args[ARG_context].u_int;
++    }
+ }
+ 
+ static mp_obj_t mp_machine_uart_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *args) {
+@@ -410,6 +433,27 @@
+         mp_raise_msg_varg(&mp_type_ValueError, MP_ERROR_TEXT("UART(%d) does not exist"), uart_num);
+     }
+ 
++    // Extract context from kwargs for UART guard (default 0)
++    uint8_t context_id = 0;
++    mp_map_t kw_args;
++    mp_map_init_fixed_table(&kw_args, n_kw, args + n_args);
++    mp_map_elem_t *context_elem = mp_map_lookup(&kw_args, MP_OBJ_NEW_QSTR(MP_QSTR_context), MP_MAP_LOOKUP);
++    if (context_elem != NULL) {
++        context_id = (uint8_t)mp_obj_get_int(context_elem->value);
++    }
++
++    // Check if UART is reserved by LTE or other components
++    #ifdef __hook_mpy_machine_uart_init
++    bool uart_reserved = false;
++    const char *owner_name = NULL;
++    __hook_mpy_machine_uart_init(uart_num, context_id, &uart_reserved, &owner_name);
++    if (uart_reserved) {
++        mp_raise_msg_varg(&mp_type_OSError, 
++            MP_ERROR_TEXT("UART(%d) is in use by %s"), 
++            uart_num, owner_name ? owner_name : "another component");
++    }
++    #endif
++
+     // Defaults
+     uart_config_t uartcfg = {
+         .baud_rate = 115200,
+@@ -435,6 +479,7 @@
+     self->timeout_char = 0;
+     self->invert = 0;
+     self->flowcontrol = 0;
++    self->context = context_id;  // Store context for UART guard
+     self->uart_event_task = NULL;
+     self->uart_queue = NULL;
+     self->rxidle_state = RXIDLE_INACTIVE;
+@@ -478,8 +523,7 @@
+         check_esp_err(uart_driver_install(uart_num, self->rxbuf, self->txbuf, UART_QUEUE_SIZE, &self->uart_queue, 0));
+     }
+ 
+-    mp_map_t kw_args;
+-    mp_map_init_fixed_table(&kw_args, n_kw, args + n_args);
++    // kw_args already initialized earlier for context extraction
+     mp_machine_uart_init_helper(self, n_args - 1, args + 1, &kw_args);
+ 
+     // Make sure pins are connected.
+@@ -495,6 +539,11 @@
+     }
+     check_esp_err(uart_driver_delete(self->uart_num));
+     self->uart_queue = NULL;
++
++    // Release UART reservation when deinitializing
++    #ifdef __hook_mpy_machine_uart_deinit
++    __hook_mpy_machine_uart_deinit(self->uart_num, self->context);
++    #endif
+ }
+ 
+ static mp_int_t mp_machine_uart_any(machine_uart_obj_t *self) {
+@@ -700,3 +749,98 @@
+     }
+     return ret;
+ }
++
++// MicroPython method wrappers and type definition
++
++// UART.init(...)
++static mp_obj_t machine_uart_init(size_t n_args, const mp_obj_t *args, mp_map_t *kw_args) {
++    mp_machine_uart_init_helper(MP_OBJ_TO_PTR(args[0]), n_args - 1, args + 1, kw_args);
++    return mp_const_none;
++}
++static MP_DEFINE_CONST_FUN_OBJ_KW(machine_uart_init_obj, 1, machine_uart_init);
++
++// UART.deinit()
++static mp_obj_t machine_uart_deinit(mp_obj_t self_in) {
++    machine_uart_obj_t *self = MP_OBJ_TO_PTR(self_in);
++    mp_machine_uart_deinit(self);
++    return mp_const_none;
++}
++static MP_DEFINE_CONST_FUN_OBJ_1(machine_uart_deinit_obj, machine_uart_deinit);
++
++// UART.any()
++static mp_obj_t machine_uart_any(mp_obj_t self_in) {
++    machine_uart_obj_t *self = MP_OBJ_TO_PTR(self_in);
++    return MP_OBJ_NEW_SMALL_INT(mp_machine_uart_any(self));
++}
++static MP_DEFINE_CONST_FUN_OBJ_1(machine_uart_any_obj, machine_uart_any);
++
++// UART.txdone()
++static mp_obj_t machine_uart_txdone(mp_obj_t self_in) {
++    machine_uart_obj_t *self = MP_OBJ_TO_PTR(self_in);
++    return mp_obj_new_bool(mp_machine_uart_txdone(self));
++}
++static MP_DEFINE_CONST_FUN_OBJ_1(machine_uart_txdone_obj, machine_uart_txdone);
++
++// UART.sendbreak()
++static mp_obj_t machine_uart_sendbreak(mp_obj_t self_in) {
++    machine_uart_obj_t *self = MP_OBJ_TO_PTR(self_in);
++    mp_machine_uart_sendbreak(self);
++    return mp_const_none;
++}
++static MP_DEFINE_CONST_FUN_OBJ_1(machine_uart_sendbreak_obj, machine_uart_sendbreak);
++
++// UART.irq(handler, trigger, hard)
++static mp_obj_t machine_uart_irq(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
++    mp_arg_val_t args[MP_IRQ_ARG_INIT_NUM_ARGS];
++    mp_arg_parse_all(n_args - 1, pos_args + 1, kw_args, MP_IRQ_ARG_INIT_NUM_ARGS, mp_irq_init_args, args);
++    machine_uart_obj_t *self = MP_OBJ_TO_PTR(pos_args[0]);
++    bool any_args = n_args > 1 || kw_args->used != 0;
++    return MP_OBJ_FROM_PTR(mp_machine_uart_irq(self, any_args, args));
++}
++static MP_DEFINE_CONST_FUN_OBJ_KW(machine_uart_irq_obj, 1, machine_uart_irq);
++
++static const mp_rom_map_elem_t machine_uart_locals_dict_table[] = {
++    { MP_ROM_QSTR(MP_QSTR_init), MP_ROM_PTR(&machine_uart_init_obj) },
++    { MP_ROM_QSTR(MP_QSTR_deinit), MP_ROM_PTR(&machine_uart_deinit_obj) },
++
++    { MP_ROM_QSTR(MP_QSTR_flush), MP_ROM_PTR(&mp_stream_flush_obj) },
++    { MP_ROM_QSTR(MP_QSTR_read), MP_ROM_PTR(&mp_stream_read_obj) },
++    { MP_ROM_QSTR(MP_QSTR_readline), MP_ROM_PTR(&mp_stream_unbuffered_readline_obj) },
++    { MP_ROM_QSTR(MP_QSTR_readinto), MP_ROM_PTR(&mp_stream_readinto_obj) },
++    { MP_ROM_QSTR(MP_QSTR_write), MP_ROM_PTR(&mp_stream_write_obj) },
++
++    { MP_ROM_QSTR(MP_QSTR_any), MP_ROM_PTR(&machine_uart_any_obj) },
++    { MP_ROM_QSTR(MP_QSTR_txdone), MP_ROM_PTR(&machine_uart_txdone_obj) },
++
++    { MP_ROM_QSTR(MP_QSTR_sendbreak), MP_ROM_PTR(&machine_uart_sendbreak_obj) },
++
++    { MP_ROM_QSTR(MP_QSTR_irq), MP_ROM_PTR(&machine_uart_irq_obj) },
++
++    // Constants
++    { MP_ROM_QSTR(MP_QSTR_INV_TX), MP_ROM_INT(UART_INV_TX) },
++    { MP_ROM_QSTR(MP_QSTR_INV_RX), MP_ROM_INT(UART_INV_RX) },
++    { MP_ROM_QSTR(MP_QSTR_INV_RTS), MP_ROM_INT(UART_INV_RTS) },
++    { MP_ROM_QSTR(MP_QSTR_INV_CTS), MP_ROM_INT(UART_INV_CTS) },
++    { MP_ROM_QSTR(MP_QSTR_RTS), MP_ROM_INT(UART_HW_FLOWCTRL_RTS) },
++    { MP_ROM_QSTR(MP_QSTR_CTS), MP_ROM_INT(UART_HW_FLOWCTRL_CTS) },
++    { MP_ROM_QSTR(MP_QSTR_IRQ_RXIDLE), MP_ROM_INT(UART_IRQ_RXIDLE) },
++    { MP_ROM_QSTR(MP_QSTR_IRQ_BREAK), MP_ROM_INT(UART_IRQ_BREAK) },
++};
++static MP_DEFINE_CONST_DICT(machine_uart_locals_dict, machine_uart_locals_dict_table);
++
++static const mp_stream_p_t uart_stream_p = {
++    .read = mp_machine_uart_read,
++    .write = mp_machine_uart_write,
++    .ioctl = mp_machine_uart_ioctl,
++    .is_text = false,
++};
++
++MP_DEFINE_CONST_OBJ_TYPE(
++    machine_uart_type,
++    MP_QSTR_UART,
++    MP_TYPE_FLAG_ITER_IS_STREAM,
++    make_new, mp_machine_uart_make_new,
++    print, mp_machine_uart_print,
++    protocol, &uart_stream_p,
++    locals_dict, &machine_uart_locals_dict
++    );

@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------- #
-# Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+# Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files(the “Software”), to deal
@@ -20,6 +20,7 @@
 # THE SOFTWARE.
 #
 # Author    Ahmed Sabry (SG Wireless)
+# Maintainer  Christian Ehlers (SG Wireless)
 #
 # Desc      This file is responsible for preparing for micropython library build
 #           and integrating the micropython building ecosystem.
@@ -210,22 +211,67 @@ function(__micropython_update_esp_idf_list_file __list_file)
     endforeach()
     string(APPEND __contents "${__ts})\n\n")
 
+    # ARG_MAX fix: Add deduplication for MICROPY_CPP_INC to prevent command line length issues
+    # This must be done AFTER mkrules.cmake appends MICROPY_CPP_INC_EXTRA
+    # We use a CMake variable_watch to intercept when MICROPY_CPP_INC is modified
+    string(APPEND __contents
+        "# ARG_MAX fix: Deduplicate include paths after they're set by mkrules.cmake\n"
+        "# This prevents \"Argument list too long\" errors on systems with long paths\n"
+        "variable_watch(MICROPY_CPP_INC __deduplicate_micropy_cpp_inc)\n"
+        "function(__deduplicate_micropy_cpp_inc variable access value current_list_file stack)\n"
+        "    if(access STREQUAL \"MODIFIED_ACCESS\")\n"
+        "        # Only deduplicate if the variable has been set (not on first access)\n"
+        "        if(DEFINED MICROPY_CPP_INC)\n"
+        "            list(REMOVE_DUPLICATES MICROPY_CPP_INC)\n"
+        "            set(MICROPY_CPP_INC \${MICROPY_CPP_INC} PARENT_SCOPE)\n"
+        "        endif()\n"
+        "    endif()\n"
+        "endfunction()\n\n")
+
+    # Enable TinyUSB for ESP32S2/ESP32S3 targets (matches upstream MicroPython logic)
+    # This must be set BEFORE including main/CMakeLists.txt so that esp32_common.cmake can see it
+    string(APPEND __contents
+        "# Enable TinyUSB for ESP32S2/ESP32S3 targets\n"
+        "if(CONFIG_IDF_TARGET_ESP32S2 OR CONFIG_IDF_TARGET_ESP32S3)\n"
+        "    set(MICROPY_PY_TINYUSB ON)\n"
+        "    # Add managed component directories to the component search path\n"
+        "    # This allows CMake to find mdns, tinyusb, etc. from both locations\n"
+        "    if(NOT EXTRA_COMPONENT_DIRS)\n"
+        "        set(EXTRA_COMPONENT_DIRS)\n"
+        "    endif()\n"
+        "    list(APPEND EXTRA_COMPONENT_DIRS \${MICROPY_PORT_DIR}/managed_components)\n"
+        "    list(APPEND EXTRA_COMPONENT_DIRS \${CMAKE_CURRENT_LIST_DIR}/../managed_components)\n"
+        "    # Add TinyUSB managed components to IDF_COMPONENTS before esp32_common.cmake includes them\n"
+        "    # This replaces the automatic dependency management normally provided by idf_component.yml\n"
+        "    if(NOT IDF_COMPONENTS)\n"
+        "        set(IDF_COMPONENTS)\n"
+        "    endif()\n"
+        "    list(APPEND IDF_COMPONENTS espressif__tinyusb espressif__esp_tinyusb)\n"
+        "    # Add mDNS component for network hostname resolution\n"
+        "    list(APPEND IDF_COMPONENTS espressif__mdns)\n"
+        "    # Add ESP modem component if LTE feature is enabled\n"
+        "    if(__feature_lte)\n"
+        "        list(APPEND IDF_COMPONENTS espressif__esp_modem)\n"
+        "    endif()\n"
+        "    # Add managed component include paths explicitly\n"
+        "    # The managed components should provide these via REQUIRES but we add them explicitly for reliability\n"
+        "    # Note: Reusing MICROPY_INC_TINYUSB to include both TinyUSB and mDNS since we cannot modify the MicroPython submodule\n"
+        "    set(MICROPY_INC_TINYUSB)\n"
+        "    list(APPEND MICROPY_INC_TINYUSB \${MICROPY_PORT_DIR}/managed_components/espressif__tinyusb/src)\n"
+        "    list(APPEND MICROPY_INC_TINYUSB \${MICROPY_PORT_DIR}/managed_components/espressif__mdns/include)\n"
+        "endif()\n\n")
+
     string(APPEND __contents
         "include(${__dir_micropython}/ports/esp32/main/CMakeLists.txt)\n\n")
 
-    # MICROPY_FROZEN_CONTENT dependencies
-    __micropython_get_manifest_python_files(__manifest_python_files)
+    # MICROPY_FROZEN_CONTENT dependencies - temporarily disabled for v1.26.1 compatibility
+    # TODO: Implement proper dependency tracking for manifest Python files
+    # __micropython_get_manifest_python_files(__manifest_python_files)
     string(APPEND __contents "if(NOT CMAKE_SCRIPT_MODE_FILE)\n")
-    if(__manifest_python_files)
-
-        string(APPEND __contents "add_custom_command(\n")
-        string(APPEND __contents "${__ts}OUTPUT \${MICROPY_FROZEN_CONTENT}\n")
-        string(APPEND __contents "${__ts}DEPENDS\n")
-        foreach(__py_file ${__manifest_python_files})
-            string(APPEND __contents "${__ts}${__ts}${__py_file}\n")
-        endforeach()
-        string(APPEND __contents "${__ts}APPEND\n${__ts})\n")
-    endif()
+    # if(__manifest_python_files)
+        # MicroPython v1.26.1 uses add_custom_target BUILD_FROZEN_CONTENT instead of add_custom_command
+        # Need to find alternative approach to add manifest file dependencies
+    # endif()
 
     __entity_find(__libs_with_cmods MPY_CMODS "")
     set(__mpy_gen_files)

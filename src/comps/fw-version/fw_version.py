@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------- #
-# Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+# Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files(the “Software”), to deal
@@ -77,14 +77,16 @@ def get_fw_build_version(custom_str=None):
         # git_hash_full = bytes.fromhex(resp.stdout.decode('utf-8'))
         git_hash_str_full = resp.stdout.decode('utf-8').strip()
     resp = __run_subprocess(['git', 'describe', '--tags', '--dirty',
-                             '--match', 'v[0-9]*.[0-9]*.[0-9]*'])
+                             '--match', 'v[0-9]*.[0-9]*.[0-9]*',
+                             '--match', 'v[0-9]*.[0-9]*.[0-9]*-*'])
     if resp.returncode == 0:
         resp = re.match(r'''
                         (?P<release>v
                             (?P<major>\d+).
                             (?P<minor>\d+).
                             (?P<patch>\d+)
-                        )(?P<extra>-
+                        )(?:-(?P<suffix>[a-zA-Z0-9]+))?
+                        (?P<extra>-
                         (?P<delta>\d+)-
                         g(?P<hash>[0-9a-fA-F]+)
                         (?:-(?P<dirty>dirty))?

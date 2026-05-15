@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------- #
-# Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+# Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files(the “Software”), to deal
@@ -19,9 +19,10 @@
 # OUT OF OR IN  CONNECTION WITH  THE SOFTWARE OR  THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 #
-# @author   Ahmed Sabry (SG Wireless)
+# @author     Ahmed Sabry (SG Wireless)
+# @maintainer Christian Ehlers (SG Wireless)
 #
-# @brief    This file is responsible for building the lora-stack
+# @brief      This file is responsible for building the lora-stack
 # ---------------------------------------------------------------------------- #
 
 # --- integrating Semtech LoRaMac building ----------------------------------- #
@@ -115,7 +116,7 @@ __sdk_add_component( lora_stack
     INCS_PRIV
         ${__lorastack_includes}
         ${__loramac_handler_includes}
-        ${__dir_esp_idf}/components/freertos/include/freertos
+        ${__dir_esp_idf}/components/freertos/FreeRTOS-Kernel/include/freertos
 
     INCS_IF
         ${CMAKE_CURRENT_LIST_DIR}/inc

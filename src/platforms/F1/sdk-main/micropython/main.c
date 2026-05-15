@@ -29,24 +29,25 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
+#include <sys/time.h>
+#include <time.h>
 
+#include "tinyusb_freertos_compat.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/idf_additions.h"
 #include "esp_system.h"
+#include "esp_mac.h"
 #include "nvs_flash.h"
 #include "esp_task.h"
-#include "soc/cpu.h"
+#include "esp_cpu.h"
 #include "esp_log.h"
+#include "esp_event.h"
+#include "esp_flash.h"
 
-#if CONFIG_IDF_TARGET_ESP32
-#include "esp32/spiram.h"
-#elif CONFIG_IDF_TARGET_ESP32S2
-#include "esp32s2/spiram.h"
-#elif CONFIG_IDF_TARGET_ESP32S3
-#include "esp32s3/spiram.h"
-#endif
+#include "esp_psram.h"
 
-#include "py/stackctrl.h"
+#include "py/cstack.h"
 #include "py/nlr.h"
 #include "py/compile.h"
 #include "py/runtime.h"
@@ -54,41 +55,81 @@
 #include "py/repl.h"
 #include "py/gc.h"
 #include "py/mphal.h"
+#include "extmod/modmachine.h"
 #include "shared/readline/readline.h"
 #include "shared/runtime/pyexec.h"
+#include "shared/timeutils/timeutils.h"
+#include "shared/tinyusb/mp_usbd.h"
+
 #include "uart.h"
+#include "uart_resource_guard.h"
 #include "usb.h"
 #include "usb_serial_jtag.h"
+#include "modesp32.h"
 #include "modmachine.h"
 #include "modnetwork.h"
-#include "mpthreadport.h"
 
 #if MICROPY_BLUETOOTH_NIMBLE
 #include "extmod/modbluetooth.h"
+#endif
+
+#if MICROPY_PY_ESPNOW
+#include "modespnow.h"
 #endif
 
 #ifdef CONFIG_SAFEBOOT_FEATURE_ENABLE
 #include "boot_if.h"
 #endif
 #include "log_lib.h"
-#ifdef CONFIG_LORA_LCT_OPERATE_AFTER_RESET
+#if defined(CONFIG_LORA_DEINIT_ON_SOFT_RESET) || defined(CONFIG_LORA_LCT_OPERATE_AFTER_RESET)
 #include "lora.h"
 #endif
 
+// Forward declaration for OTA cancellation on soft reset
+extern void fuota_cancel_on_soft_reset(void);
+extern void fuota_validate_ota_partition(void);
+
+#ifdef CONFIG_SDK_CTRL_CLIENT_BOOT_ENABLE
+static bool ctrl_on_boot_nvs_check(void) {
+    nvs_handle_t handle;
+    uint8_t val;
+    esp_err_t err = nvs_open("ctrl", NVS_READONLY, &handle);
+    if (err != ESP_OK) {
+        return true;
+    }
+    err = nvs_get_u8(handle, "ctrl", &val);
+    nvs_close(handle);
+    if (err != ESP_OK) {
+        return true;
+    }
+    return (bool)val;
+}
+#endif
+
+// Forward declaration for mbedtls platform time function
+extern int mbedtls_platform_set_time(time_t (*time_func)(time_t *time));
+
 // MicroPython runs as a task under FreeRTOS
 #define MP_TASK_PRIORITY        (ESP_TASK_PRIO_MIN + 1)
-#define MP_TASK_STACK_SIZE      (16 * 1024)
 
-// Set the margin for detecting stack overflow, depending on the CPU architecture.
-#if CONFIG_IDF_TARGET_ESP32C3
-#define MP_TASK_STACK_LIMIT_MARGIN (2048)
-#else
-#define MP_TASK_STACK_LIMIT_MARGIN (1024)
-#endif
+typedef struct _native_code_node_t {
+    struct _native_code_node_t *next;
+    uint32_t data[];
+} native_code_node_t;
+
+static native_code_node_t *native_code_head = NULL;
+
+static void esp_native_code_free_all(void);
 
 int vprintf_null(const char *format, va_list ap) {
     // do nothing: this is used as a log target during raw repl mode
     return 0;
+}
+
+// Required by FreeRTOS port - provide a TCB cleanup function
+void vPortCleanUpTCB(void *pxTCB) {
+    // No special cleanup required for this implementation
+    (void)pxTCB;
 }
 
 void set_custom_mac(void)
@@ -128,15 +169,24 @@ static void handle_lora_lct_mode(void)
     #endif /* CONFIG_LORA_LCT_OPERATE_AFTER_RESET */
 }
 
+time_t platform_mbedtls_time(time_t *timer) {
+    // mbedtls_time requires time in seconds from EPOCH 1970
+
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+
+    return tv.tv_sec + TIMEUTILS_SECONDS_1970_TO_2000;
+}
+
 void mp_task(void *pvParameter) {
     volatile uint32_t sp = (uint32_t)esp_cpu_get_sp();
     #if MICROPY_PY_THREAD
-    mp_thread_init(pxTaskGetStackStart(NULL), MP_TASK_STACK_SIZE / sizeof(uintptr_t));
+    mp_thread_init(pxTaskGetStackStart(NULL), MICROPY_TASK_STACK_SIZE / sizeof(uintptr_t));
     #endif
-    #if CONFIG_USB_ENABLED
-    usb_init();
-    #elif CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG
+    #if MICROPY_HW_ESP_USB_SERIAL_JTAG
     usb_serial_jtag_init();
+    #elif MICROPY_HW_ENABLE_USBDEV
+    usb_init();
     #endif
     #if MICROPY_HW_ENABLE_UART_REPL
     uart_stdout_init();
@@ -144,62 +194,35 @@ void mp_task(void *pvParameter) {
     set_custom_mac();
     machine_init();
 
-    size_t mp_task_heap_size;
-    void *mp_task_heap = NULL;
+    // Configure time function, for mbedtls certificate time validation.
+    mbedtls_platform_set_time(platform_mbedtls_time);
 
-    #if CONFIG_SPIRAM_USE_MALLOC
-    // SPIRAM is issued using MALLOC, fallback to normal allocation rules
-    mp_task_heap = NULL;
-    #elif CONFIG_ESP32_SPIRAM_SUPPORT
-    // Try to use the entire external SPIRAM directly for the heap
-    mp_task_heap = (void *)SOC_EXTRAM_DATA_LOW;
-    switch (esp_spiram_get_chip_size()) {
-        case ESP_SPIRAM_SIZE_16MBITS:
-            mp_task_heap_size = 2 * 1024 * 1024;
-            break;
-        case ESP_SPIRAM_SIZE_32MBITS:
-        case ESP_SPIRAM_SIZE_64MBITS:
-            mp_task_heap_size = 4 * 1024 * 1024;
-            break;
-        default:
-            // No SPIRAM, fallback to normal allocation
-            mp_task_heap = NULL;
-            break;
+    esp_err_t err = esp_event_loop_create_default();
+    if (err != ESP_OK) {
+        ESP_LOGE("esp_init", "can't create event loop: 0x%x\n", err);
     }
-    #elif CONFIG_ESP32S2_SPIRAM_SUPPORT || CONFIG_ESP32S3_SPIRAM_SUPPORT
-    // Try to use the entire external SPIRAM directly for the heap
-    size_t esp_spiram_size = esp_spiram_get_size();
-    if (esp_spiram_size > 0) {
-        mp_task_heap = (void *)SOC_EXTRAM_DATA_HIGH - esp_spiram_size;
-        mp_task_heap_size = esp_spiram_size;
-    }
-    #endif
 
+    void *mp_task_heap = MP_PLAT_ALLOC_HEAP(MICROPY_GC_INITIAL_HEAP_SIZE);
     if (mp_task_heap == NULL) {
-        // Allocate the uPy heap using malloc and get the largest available region,
-        // limiting to 1/2 total available memory to leave memory for the OS.
-        #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 1, 0)
-        size_t heap_total = heap_caps_get_total_size(MALLOC_CAP_8BIT);
-        #else
-        multi_heap_info_t info;
-        heap_caps_get_info(&info, MALLOC_CAP_8BIT);
-        size_t heap_total = info.total_free_bytes + info.total_allocated_bytes;
-        #endif
-        //mp_task_heap_size = MIN(heap_caps_get_largest_free_block(MALLOC_CAP_8BIT), heap_total / 2);
-        mp_task_heap_size = MIN(heap_caps_get_largest_free_block(MALLOC_CAP_8BIT), heap_total - (1 * 1024 * 1024));
-        mp_task_heap = malloc(mp_task_heap_size);
+        printf("mp_task_heap allocation failed!\n");
+        esp_restart();
     }
+
+    fuota_validate_ota_partition();
 
 soft_reset:
+    // Cancel any ongoing OTA upgrade before resetting Python environment
+    fuota_cancel_on_soft_reset();
+
+    // Clear dynamic log registrations so MicroPython modules can re-register
+    log_dynamic_registry_clear();
+    
     // initialise the stack pointer for the main thread
-    mp_stack_set_top((void *)sp);
-    mp_stack_set_limit(MP_TASK_STACK_SIZE - MP_TASK_STACK_LIMIT_MARGIN);
-    gc_init(mp_task_heap, mp_task_heap + mp_task_heap_size);
+    mp_cstack_init_with_top((void *)sp, MICROPY_TASK_STACK_SIZE);
+    gc_init(mp_task_heap, mp_task_heap + MICROPY_GC_INITIAL_HEAP_SIZE);
     mp_init();
     mp_obj_list_append(mp_sys_path, MP_OBJ_NEW_QSTR(MP_QSTR__slash_lib));
     readline_init0();
-
-    MP_STATE_PORT(native_code_pointers) = MP_OBJ_NULL;
 
     // initialise peripherals
     machine_pins_init();
@@ -207,10 +230,8 @@ soft_reset:
     machine_i2s_init0();
     #endif
 
-    esp_event_loop_create_default();
-
     // run boot-up scripts
-    pyexec_frozen_module("_boot.py");
+    pyexec_frozen_module("_boot.py", false);
     #if CONFIG_SAFEBOOT_FEATURE_ENABLE
     bootif_safeboot_soft_reset_init();
     if( bootif_state_get() == __BOOTIF_STATE_SAFEBOOT_MODE )
@@ -218,6 +239,12 @@ soft_reset:
         __log_output("== micropython "__green__"safeboot"__default__" mode\n"
             __red__"-- skip 'boot.py', 'main.py'"__default__"\n");
         bootif_state_set(__BOOTIF_STATE_NORMAL_MODE);
+        #ifdef CONFIG_SDK_CTRL_CLIENT_BOOT_ENABLE
+        if (ctrl_on_boot_nvs_check()) {
+            pyexec_file_if_exists("ctrl_client_safeboot.py");
+        }
+        #endif
+
     }
     else
     #endif
@@ -225,7 +252,11 @@ soft_reset:
         __log_output("== micropython "__yellow__"normal"__default__" mode\n");
         pyexec_file_if_exists("boot.py");
         #ifdef CONFIG_SDK_CTRL_CLIENT_BOOT_ENABLE
-        pyexec_file_if_exists("ctrl_client_start.py");
+        if (ctrl_on_boot_nvs_check()) {
+            pyexec_file_if_exists("ctrl_client_start.py");
+        } else {
+            pyexec_file_if_exists("ctrl_client_stubs.py");
+        }
         #endif
         if (pyexec_mode_kind == PYEXEC_MODE_FRIENDLY_REPL) {
             int ret = pyexec_file_if_exists("main.py");
@@ -257,6 +288,11 @@ soft_reset_exit:
     mp_bluetooth_deinit();
     #endif
 
+    #if MICROPY_PY_ESPNOW
+    espnow_deinit(mp_const_none);
+    MP_STATE_PORT(espnow_singleton) = NULL;
+    #endif
+
     #ifdef CONFIG_SDK_MPY_HOOK_MACHINE_VIRTUAL_TIMERS_ENABLE
     void hook_mpy_machine_timer_virtual_deinit_all(void);
     hook_mpy_machine_timer_virtual_deinit_all();
@@ -264,21 +300,22 @@ soft_reset_exit:
 
     machine_timer_deinit_all();
 
+    #if MICROPY_PY_ESP32_PCNT
+    esp32_pcnt_deinit_all();
+    #endif
+
     #if MICROPY_PY_THREAD
     mp_thread_deinit();
     #endif
 
-    // Free any native code pointers that point to iRAM.
-    if (MP_STATE_PORT(native_code_pointers) != MP_OBJ_NULL) {
-        size_t len;
-        mp_obj_t *items;
-        mp_obj_list_get(MP_STATE_PORT(native_code_pointers), &len, &items);
-        for (size_t i = 0; i < len; ++i) {
-            heap_caps_free(MP_OBJ_TO_PTR(items[i]));
-        }
-    }
+    #if MICROPY_HW_ENABLE_USB_RUNTIME_DEVICE
+    mp_usbd_deinit();
+    #endif
 
     gc_sweep_all();
+
+    // Free any native code pointers that point to iRAM.
+    esp_native_code_free_all();
 
     mp_hal_stdout_tx_str("MPY: soft reboot\r\n");
 
@@ -286,12 +323,28 @@ soft_reset_exit:
     machine_pwm_deinit_all();
     // TODO: machine_rmt_deinit_all();
     machine_pins_deinit();
+    #ifdef CONFIG_LORA_DEINIT_ON_SOFT_RESET
+    // Tear down the LoRaWAN MAC stack (preserves NVM join credentials) so its
+    // RX window timers and internal state are cleanly rebuilt on the next boot
+    // via lora_ctor() when the lora module is imported again.
+    lora_dtor();
+    #endif
+    #if MICROPY_PY_MACHINE_I2C_TARGET
+    mp_machine_i2c_target_deinit_all();
+    #endif
     machine_deinit();
-    #if MICROPY_PY_USOCKET_EVENTS
-    usocket_events_deinit();
+
+    #if MICROPY_PY_SOCKET_EVENTS
+    socket_events_deinit();
     #endif
 
     mp_deinit();
+    /*
+     * Release all UART reservations on soft reset to ensure a clean state.
+     * This includes both regular user code (context=0) and LTE.py (context=1).
+     * LTE.py will re-acquire UART1 when reloaded if needed.
+     */
+    uart_release_all();
     fflush(stdout);
     goto soft_reset;
 }
@@ -301,6 +354,33 @@ void boardctrl_startup(void) {
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         nvs_flash_erase();
         nvs_flash_init();
+    }
+
+    // Query the physical size of the SPI flash and store it in the size
+    // variable of the global, default SPI flash handle.
+    esp_flash_get_physical_size(NULL, &esp_flash_default_chip->size);
+
+    // If there is no filesystem partition (no "vfs" or "ffat"), add a "vfs" partition
+    // that extends from the end of the application partition up to the end of flash.
+    if (esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY, "vfs") == NULL
+        && esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY, "ffat") == NULL) {
+        // No "vfs" or "ffat" partition, so try to create one.
+
+        // Find the end of the last partition that exists in the partition table.
+        size_t offset = 0;
+        esp_partition_iterator_t iter = esp_partition_find(ESP_PARTITION_TYPE_ANY, ESP_PARTITION_SUBTYPE_ANY, NULL);
+        while (iter != NULL) {
+            const esp_partition_t *part = esp_partition_get(iter);
+            offset = MAX(offset, part->address + part->size);
+            iter = esp_partition_next(iter);
+        }
+
+        // If we found the application partition and there is some space between the end of
+        // that and the end of flash, create a "vfs" partition taking up all of that space.
+        if (offset > 0 && esp_flash_default_chip->size > offset) {
+            size_t size = esp_flash_default_chip->size - offset;
+            esp_partition_register_external(esp_flash_default_chip, offset, size, "vfs", ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_DATA_FAT, NULL);
+        }
     }
 
     void init_log_system(void);
@@ -325,34 +405,42 @@ void app_main(void) {
     // This defaults to initialising NVS.
     MICROPY_BOARD_STARTUP();
     // Create and transfer control to the MicroPython task.
-    xTaskCreatePinnedToCore(mp_task, "mp_task", MP_TASK_STACK_SIZE / sizeof(StackType_t), NULL, MP_TASK_PRIORITY, &mp_main_task_handle, MP_TASK_COREID);
+    xTaskCreatePinnedToCore(mp_task, "mp_task", MICROPY_TASK_STACK_SIZE / sizeof(StackType_t), NULL, MP_TASK_PRIORITY, &mp_main_task_handle, MP_TASK_COREID);
 }
 
-void nlr_jump_fail(void *val) {
+MP_WEAK void nlr_jump_fail(void *val) {
     printf("NLR jump failed, val=%p\n", val);
     esp_restart();
 }
 
-// modussl_mbedtls uses this function but it's not enabled in ESP IDF
-void mbedtls_debug_set_threshold(int threshold) {
-    (void)threshold;
+static void esp_native_code_free_all(void) {
+    while (native_code_head != NULL) {
+        native_code_node_t *next = native_code_head->next;
+        heap_caps_free(native_code_head);
+        native_code_head = next;
+    }
 }
 
 void *esp_native_code_commit(void *buf, size_t len, void *reloc) {
     len = (len + 3) & ~3;
-    uint32_t *p = heap_caps_malloc(len, MALLOC_CAP_EXEC);
-    if (p == NULL) {
-        m_malloc_fail(len);
+    size_t len_node = sizeof(native_code_node_t) + len;
+    native_code_node_t *node = heap_caps_malloc(len_node, MALLOC_CAP_EXEC);
+    #if CONFIG_IDF_TARGET_ESP32S2
+    // Workaround for ESP-IDF bug https://github.com/espressif/esp-idf/issues/14835
+    if (node != NULL && !esp_ptr_executable(node)) {
+        free(node);
+        node = NULL;
     }
-    if (MP_STATE_PORT(native_code_pointers) == MP_OBJ_NULL) {
-        MP_STATE_PORT(native_code_pointers) = mp_obj_new_list(0, NULL);
+    #endif // CONFIG_IDF_TARGET_ESP32S2
+    if (node == NULL) {
+        m_malloc_fail(len_node);
     }
-    mp_obj_list_append(MP_STATE_PORT(native_code_pointers), MP_OBJ_TO_PTR(p));
+    node->next = native_code_head;
+    native_code_head = node;
+    void *p = node->data;
     if (reloc) {
         mp_native_relocate(reloc, buf, (uintptr_t)p);
     }
     memcpy(p, buf, len);
     return p;
 }
-
-MP_REGISTER_ROOT_POINTER(mp_obj_t native_code_pointers);

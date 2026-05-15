@@ -1,0 +1,132 @@
+{
+  "name": "IO Expander Debug Test",
+  "description": "Test IO expander functionality and debug power management issues",
+  "commands": [
+    {
+      "command": "import ioexp",
+      "description": "Import ioexp module",
+      "timeout": 3.0,
+      "expected_not_contains": ["Error", "Traceback"],
+      "should_succeed": true
+    },
+    {
+      "command": "print('=== Initial IO Expander Status ===')",
+      "description": "Status header",
+      "timeout": 2.0,
+      "expected_contains": ["=== Initial IO Expander Status ==="],
+      "should_succeed": true
+    },
+    {
+      "command": "ioexp.stats()",
+      "description": "Check initial IO expander status",
+      "timeout": 5.0,
+      "expected_not_contains": ["Error", "Traceback"],
+      "should_succeed": true
+    },
+    {
+      "command": "print('=== Testing LTE Power Status ===')",
+      "description": "Power test header",
+      "timeout": 2.0,
+      "expected_contains": ["=== Testing LTE Power Status ==="],
+      "should_succeed": true
+    },
+    {
+      "command": "initial_power = ioexp.lte_power()",
+      "description": "Get initial LTE power status",
+      "timeout": 3.0,
+      "expected_not_contains": ["Error", "Traceback"],
+      "should_succeed": true
+    },
+    {
+      "command": "print('Initial LTE power status:', initial_power)",
+      "description": "Display initial power status",
+      "timeout": 2.0,
+      "expected_contains": ["Initial LTE power status:"],
+      "should_succeed": true
+    },
+    {
+      "command": "print('=== Testing LTE Power OFF ===')",
+      "description": "Power off test header",
+      "timeout": 2.0,
+      "expected_contains": ["=== Testing LTE Power OFF ==="],
+      "should_succeed": true
+    },
+    {
+      "command": "ioexp.lte_power(False)",
+      "description": "Turn LTE power OFF",
+      "timeout": 3.0,
+      "expected_not_contains": ["Error", "Traceback"],
+      "should_succeed": true
+    },
+    {
+      "command": "power_after_off = ioexp.lte_power()",
+      "description": "Check power status after turning OFF",
+      "timeout": 3.0,
+      "expected_not_contains": ["Error", "Traceback"],
+      "should_succeed": true
+    },
+    {
+      "command": "print('LTE power status after OFF:', power_after_off)",
+      "description": "Display power status after OFF",
+      "timeout": 2.0,
+      "expected_contains": ["LTE power status after OFF:"],
+      "should_succeed": true
+    },
+    {
+      "command": "print('=== Testing LTE Power ON ===')",
+      "description": "Power on test header",
+      "timeout": 2.0,
+      "expected_contains": ["=== Testing LTE Power ON ==="],
+      "should_succeed": true
+    },
+    {
+      "command": "ioexp.lte_power(True)",
+      "description": "Turn LTE power ON",
+      "timeout": 3.0,
+      "expected_not_contains": ["Error", "Traceback"],
+      "should_succeed": true
+    },
+    {
+      "command": "power_after_on = ioexp.lte_power()",
+      "description": "Check power status after turning ON",
+      "timeout": 3.0,
+      "expected_not_contains": ["Error", "Traceback"],
+      "should_succeed": true
+    },
+    {
+      "command": "print('LTE power status after ON:', power_after_on)",
+      "description": "Display power status after ON",
+      "timeout": 2.0,
+      "expected_contains": ["LTE power status after ON:"],
+      "should_succeed": true
+    },
+    {
+      "command": "print('=== Final IO Expander Status ===')",
+      "description": "Final status header",
+      "timeout": 2.0,
+      "expected_contains": ["=== Final IO Expander Status ==="],
+      "should_succeed": true
+    },
+    {
+      "command": "ioexp.stats()",
+      "description": "Check final IO expander status",
+      "timeout": 5.0,
+      "expected_not_contains": ["Error", "Traceback"],
+      "should_succeed": true
+    },
+    {
+      "command": "print('=== Power Status Comparison ===')",
+      "description": "Comparison header",
+      "timeout": 2.0,
+      "expected_contains": ["=== Power Status Comparison ==="],
+      "should_succeed": true
+    },
+    {
+      "command": "print('Initial:', initial_power, 'After OFF:', power_after_off, 'After ON:', power_after_on)",
+      "description": "Compare all power status readings",
+      "timeout": 2.0,
+      "expected_contains": ["Initial:", "After OFF:", "After ON:"],
+      "should_succeed": true
+    }
+  ]
+}

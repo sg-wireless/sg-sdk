@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------- #
-# Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+# Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files(the “Software”), to deal
@@ -20,6 +20,7 @@
 # THE SOFTWARE.
 #
 # Author    Ahmed Sabry (SG Wireless)
+# Maintainer  Christian Ehlers (SG Wireless)
 #
 # Desc      This file plugs the ioexp interface component in the build system
 # ---------------------------------------------------------------------------- #
@@ -38,15 +39,28 @@ if(CONFIG_IOEXP_ENABLED)
 
         LOGS_DEFS
             ${CMAKE_CURRENT_LIST_DIR}/ioexp.c
+            ${CMAKE_CURRENT_LIST_DIR}/ioexp_mp.c
 
         SRCS
-            "${CMAKE_CURRENT_LIST_DIR}/*.c"
+            "${CMAKE_CURRENT_LIST_DIR}/ioexp.c"
+            "${CMAKE_CURRENT_LIST_DIR}/ioexp_mp.c"
+            "${CMAKE_CURRENT_LIST_DIR}/mod_ioexp.c"
 
         INCS_IF
             ${CMAKE_CURRENT_LIST_DIR}
 
         REQUIRED_SDK_LIBS
             driver_pcal6408a
+            mp_i2c_bridge
+
+        REQUIRED_ESP_LIBS
+            driver
+            esp_event
+            esp_wifi
+            esp_timer
+            esp_driver_i2s
+            esp_driver_spi
+            esp_driver_gpio
     )
 endif()
 

@@ -1,5 +1,5 @@
 /** -------------------------------------------------------------------------- *
- * @copyright Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+ * @copyright Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files(the “Software”), to deal
@@ -20,6 +20,7 @@
  * THE SOFTWARE.
  * 
  * @author  Ahmed Sabry (SG Wireless)
+ * @maintainer  Christian Ehlers (SG Wireless)
  * 
  * @brief   It implements the main log function implementation. It implements 
  *          the log lib filteration capabilities as well.
@@ -372,6 +373,37 @@ static const char* s_onoff[] = {
     __red__"off"__default__,
     __green__"on"__default__};
 
+/* === forward declarations for dynamic registry ============================ */
+#define LOG_DYN_MAX_SUBSYSTEMS  8
+#define LOG_DYN_MAX_COMPONENTS  32
+#define LOG_DYN_MAX_NAME_LEN    24
+
+typedef struct {
+    char name[LOG_DYN_MAX_NAME_LEN];
+    uint8_t color;
+    bool enabled;
+    bool used;
+} log_dyn_subsystem_t;
+
+typedef struct {
+    char name[LOG_DYN_MAX_NAME_LEN];
+    int subsys_idx;
+    uint8_t color;
+    bool enabled;
+    bool used;
+} log_dyn_component_t;
+
+static log_dyn_subsystem_t s_dyn_subsystems[LOG_DYN_MAX_SUBSYSTEMS];
+static log_dyn_component_t s_dyn_components[LOG_DYN_MAX_COMPONENTS];
+
+static bool log_dyn_filter_subsystem(const char* name, bool state, bool silent,
+    bool get_only);
+static bool log_dyn_filter_component(const char* subsys_name,
+    const char* comp_name, bool state, bool silent, bool get_only);
+static void log_dynamic_filter_list_stats(void);
+
+static volatile bool s_log_is_init = false;
+
 /* === log header filter opertions ========================================== */
 typedef struct {
     const char *    name;
@@ -450,7 +482,7 @@ static void log_header_filter_list_stats(void)
     __log_output("\n");
 }
 
-void log_filter_header(const char* name, bool state)
+void log_filter_header(const char* name, bool state, bool silent)
 {
     int i;
     for(i = 0; i < __opt_log_header_segments_count; ++i)
@@ -459,8 +491,10 @@ void log_filter_header(const char* name, bool state)
         {
             if(s_log_header_seg_info[i].cc == 0)
             {
-                __log_warn(" == log header item '"__red__"%s"__default__
-                    "' is not compiled", name);
+                if (!silent) {
+                    __log_warn(" == log header item '"__red__"%s"__default__
+                        "' is not compiled", name);
+                }
             }
             else
             {
@@ -471,14 +505,18 @@ void log_filter_header(const char* name, bool state)
                         (int)s_log_header_seg_info[i].width;
                 }
                 s_log_header_seg_info[i].en = (state == true);
-                __log_info(" == log header item '"__purple__"%s"__default__
-                    "' becomes '%s'", name, s_onoff[state]);
+                if (!silent) {
+                    __log_info(" == log header item '"__purple__"%s"__default__
+                        "' becomes '%s'", name, s_onoff[state]);
+                }
             }
             return;
         }
     }
-    __log_warn(" == log header does not have the item '"
-        __red__"%s"__default__"'", name);
+    if (!silent) {
+        __log_warn(" == log header does not have the item '"
+            __red__"%s"__default__"'", name);
+    }
 }
 
 void log_filter_header_reorder(const char* name, int new_order)
@@ -542,16 +580,20 @@ static void log_types_filter_list_stats(void)
     __log_output("\n");
 }
 
-void log_filter_type(const char* name, bool state)
+void log_filter_type(const char* name, bool state, bool silent)
 {
     __registry_loop_begin(iter)
         if( strcmp( name, iter->type_name ) == 0 ) {
             if( ! ( iter->flags & __log_type_flag_cc ) ) {
-                __log_warn(" == log type '"__red__"%s"__default__
-                    "' is not compiled", name);
+                if (!silent) {
+                    __log_warn(" == log type '"__red__"%s"__default__
+                        "' is not compiled", name);
+                }
             } else {
-                __log_info(" == log type '"__purple__"%s"__default__
-                    "' becomes '%s'", name, s_onoff[state]);
+                if (!silent) {
+                    __log_info(" == log type '"__purple__"%s"__default__
+                        "' becomes '%s'", name, s_onoff[state]);
+                }
                 iter->flags &= ~__log_type_flag_en;
                 if(state)
                     iter->flags |= __log_type_flag_en;
@@ -559,9 +601,13 @@ void log_filter_type(const char* name, bool state)
             return;
         }
     __registry_loop_end();
-    __log_output("\n");
+    if (!silent) {
+        __log_output("\n");
+    }
 
-    __log_warn(" == non-registered log type '"__red__"%s"__default__"'", name);
+    if (!silent) {
+        __log_warn(" == non-registered log type '"__red__"%s"__default__"'", name);
+    }
 }
 
 /* === filter log subsystems and components operations ====================== */
@@ -602,24 +648,41 @@ static void log_header_filter_subsystems_stats(void)
 
 #define __subsys_set_en(id, val) \
     __bitwise_bit_write(8, s_log_subsystem_info[id], __subsys_on_pos, val)
-void log_filter_subsystem(const char* subsystem_name, bool state)
+void log_filter_subsystem(const char* subsystem_name, bool state, bool silent)
 {
     int sys_id;
     for(sys_id = 0; sys_id < __log_statistics_sybsystems_count; ++ sys_id) {
         if(strcmp( subsystem_name, __subsystem_name(sys_id) ) == 0) {
             if( ! (__subsys_get_cc(sys_id) ) ) {
-                __log_warn(" == non-compiled subsystem '"
-                    __purple__"%s"__default__"'", subsystem_name);
+                if (!silent) {
+                    __log_warn(" == non-compiled subsystem '"
+                        __purple__"%s"__default__"'", subsystem_name);
+                }
             } else {
-                __log_info(" == subsystem '"__purple__"%s"__default__
-                    "' becomes '%s'", subsystem_name, s_onoff[state]);
+                if (!silent) {
+                    __log_info(" == subsystem '"__purple__"%s"__default__
+                        "' becomes '%s'", subsystem_name, s_onoff[state]);
+                }
                 __subsys_set_en(sys_id, state);
             }
             return;
         }
     }
-    __log_warn(" == non-existing subsystem '"__purple__"%s"__default__"'",
-        subsystem_name);
+    /* try dynamic registry */
+    bool found = false;
+    for (int i = 0; i < LOG_DYN_MAX_SUBSYSTEMS; i++) {
+        if (s_dyn_subsystems[i].used &&
+            strcmp(s_dyn_subsystems[i].name, subsystem_name) == 0) {
+            found = true;
+            break;
+        }
+    }
+    if (found) {
+        log_dyn_filter_subsystem(subsystem_name, state, silent, false);
+    } else if (!silent) {
+        __log_warn(" == non-existing subsystem '"__purple__"%s"__default__"'",
+            subsystem_name);
+    }
 }
 
 bool log_filter_subsystem_get_state(const char* subsystem_name)
@@ -632,41 +695,51 @@ bool log_filter_subsystem_get_state(const char* subsystem_name)
             break;
         }
     }
+    /* also check dynamic registry */
+    if (!state) {
+        state = log_dyn_filter_subsystem(subsystem_name, false, true, true);
+    }
     return state;
 }
 
 #define __comp_set_en(id, val) \
     __bitwise_bit_write(16, s_log_component_info[id], __comp_on_pos, val)
 void log_filter_component(const char* subsys_name,
-    const char* component_name, bool state)
+    const char* component_name, bool state, bool silent)
 {
     int sys_id;
     for(sys_id = 0; sys_id < __log_statistics_sybsystems_count; ++ sys_id) {
         if(strcmp( subsys_name, __subsystem_name(sys_id) ) == 0) {
             int cmp_id;
             if( ! (__subsys_get_cc(sys_id) ) ) {
-                __log_warn(" == non-compiled subsystem '"
-                    __purple__"%s"__default__"'",subsys_name);
+                if (!silent) {
+                    __log_warn(" == non-compiled subsystem '"
+                        __purple__"%s"__default__"'",subsys_name);
+                }
             } else {
                 for(cmp_id = 0; cmp_id < __log_statistics_components_count;
                     ++cmp_id) {
                     if( sys_id == __comp_get_ss(cmp_id) && 
                         strcmp(component_name, __component_name(cmp_id)) == 0) {
-                        __log_info(" == component '"__blue__"%s"__default__
-                            "' becomes '%s'", component_name, s_onoff[state]);
+                        if (!silent) {
+                            __log_info(" == component '"__blue__"%s"__default__
+                                "' becomes '%s'", component_name, s_onoff[state]);
+                        }
                         __comp_set_en(cmp_id, state);
                         return;
                     }
                 }
-                __log_warn(" == component '"__blue__"%s"__default__
-                    "' not exist in subsystem '"__purple__"%s"__default__"'",
-                    component_name, subsys_name);
+                if (!silent) {
+                    __log_warn(" == component '"__blue__"%s"__default__
+                        "' not exist in subsystem '"__purple__"%s"__default__"'",
+                        component_name, subsys_name);
+                }
             }
             return;
         }
     }
-    __log_warn(" == non-existing subsystem '"__purple__"%s"__default__"'",
-        subsys_name);
+    /* try dynamic registry before giving up */
+    log_dyn_filter_component(subsys_name, component_name, state, silent, false);
 }
 bool log_filter_component_get_state(const char* subsystem_name,
     const char* component_name)
@@ -691,6 +764,11 @@ bool log_filter_component_get_state(const char* subsystem_name,
             break;
         }
     }
+    /* also check dynamic registry */
+    if (!state) {
+        state = log_dyn_filter_component(subsystem_name, component_name,
+            false, true, true);
+    }
     return state;
 }
 
@@ -703,18 +781,334 @@ void log_filter_save_state(log_filter_save_state_t* p_filter_state
         log_filter_component_get_state(
             p_filter_state->subsystem_name,
             p_filter_state->component_name);
-    log_filter_subsystem(p_filter_state->subsystem_name, new_state);
+    log_filter_subsystem(p_filter_state->subsystem_name, new_state, true);
     log_filter_component(p_filter_state->subsystem_name,
-        p_filter_state->component_name, new_state);
+        p_filter_state->component_name, new_state, true);
 }
 
 void log_filter_restore_state(log_filter_save_state_t* p_filter_state)
 {
     log_filter_subsystem(p_filter_state->subsystem_name,
-        p_filter_state->subsystem_save_state);
+        p_filter_state->subsystem_save_state, true);
     log_filter_component(p_filter_state->subsystem_name,
         p_filter_state->component_name,
-        p_filter_state->component_save_state);
+        p_filter_state->component_save_state, true);
+}
+
+/* === dynamic subsystem/component registration ============================= */
+
+static int log_color_from_name(const char* color_name)
+{
+    if (!color_name) return __log_color_default;
+    if (strcmp(color_name, "red") == 0)     return __log_color_red;
+    if (strcmp(color_name, "green") == 0)   return __log_color_green;
+    if (strcmp(color_name, "yellow") == 0)  return __log_color_yellow;
+    if (strcmp(color_name, "blue") == 0)    return __log_color_blue;
+    if (strcmp(color_name, "purple") == 0)  return __log_color_purple;
+    if (strcmp(color_name, "cyan") == 0)    return __log_color_cyan;
+    if (strcmp(color_name, "white") == 0)   return __log_color_white;
+    if (strcmp(color_name, "black") == 0)   return __log_color_black;
+    return __log_color_default;
+}
+
+void log_dynamic_registry_clear(void)
+{
+    memset(s_dyn_subsystems, 0, sizeof(s_dyn_subsystems));
+    memset(s_dyn_components, 0, sizeof(s_dyn_components));
+}
+
+int log_register_subsystem(const char* name, const char* color_name,
+    bool enabled, bool silent)
+{
+    if (!name || strlen(name) == 0 || strlen(name) >= LOG_DYN_MAX_NAME_LEN) {
+        return -1;
+    }
+
+    /* check for duplicate in dynamic registry */
+    for (int i = 0; i < LOG_DYN_MAX_SUBSYSTEMS; i++) {
+        if (s_dyn_subsystems[i].used &&
+            strcmp(s_dyn_subsystems[i].name, name) == 0) {
+            return -1;  /* already registered */
+        }
+    }
+
+    /* check that name doesn't clash with static subsystems */
+    for (int i = 0; i < __log_statistics_sybsystems_count; i++) {
+        if (strcmp(name, __subsystem_name(i)) == 0) {
+            return -1;  /* clashes with static subsystem */
+        }
+    }
+
+    /* find a free slot */
+    for (int i = 0; i < LOG_DYN_MAX_SUBSYSTEMS; i++) {
+        if (!s_dyn_subsystems[i].used) {
+            strncpy(s_dyn_subsystems[i].name, name, LOG_DYN_MAX_NAME_LEN - 1);
+            s_dyn_subsystems[i].name[LOG_DYN_MAX_NAME_LEN - 1] = '\0';
+            s_dyn_subsystems[i].color = log_color_from_name(color_name);
+            s_dyn_subsystems[i].enabled = enabled;
+            s_dyn_subsystems[i].used = true;
+            if (!silent) {
+                __log_info("dynamic subsystem '"__cyan__"%s"__default__
+                    "' registered", name);
+            }
+            return 0;
+        }
+    }
+    __log_error("dynamic subsystem registry full");
+    return -1;
+}
+
+int log_register_component(const char* subsys_name, const char* comp_name,
+    const char* color_name, bool enabled, bool silent)
+{
+    if (!subsys_name || !comp_name ||
+        strlen(comp_name) == 0 || strlen(comp_name) >= LOG_DYN_MAX_NAME_LEN) {
+        return -1;
+    }
+
+    /* find the dynamic subsystem */
+    int subsys_idx = -1;
+    for (int i = 0; i < LOG_DYN_MAX_SUBSYSTEMS; i++) {
+        if (s_dyn_subsystems[i].used &&
+            strcmp(s_dyn_subsystems[i].name, subsys_name) == 0) {
+            subsys_idx = i;
+            break;
+        }
+    }
+    if (subsys_idx < 0) {
+        __log_error("dynamic subsystem '"__purple__"%s"__default__
+            "' not found", subsys_name);
+        return -1;
+    }
+
+    /* check for duplicate component under this subsystem */
+    for (int i = 0; i < LOG_DYN_MAX_COMPONENTS; i++) {
+        if (s_dyn_components[i].used &&
+            s_dyn_components[i].subsys_idx == subsys_idx &&
+            strcmp(s_dyn_components[i].name, comp_name) == 0) {
+            return -1;  /* already registered */
+        }
+    }
+
+    /* find a free slot */
+    for (int i = 0; i < LOG_DYN_MAX_COMPONENTS; i++) {
+        if (!s_dyn_components[i].used) {
+            strncpy(s_dyn_components[i].name, comp_name,
+                LOG_DYN_MAX_NAME_LEN - 1);
+            s_dyn_components[i].name[LOG_DYN_MAX_NAME_LEN - 1] = '\0';
+            s_dyn_components[i].subsys_idx = subsys_idx;
+            s_dyn_components[i].color = log_color_from_name(color_name);
+            s_dyn_components[i].enabled = enabled;
+            s_dyn_components[i].used = true;
+            if (!silent) {
+                __log_info("dynamic component '"__blue__"%s"__default__
+                    "' registered under '"__cyan__"%s"__default__"'",
+                    comp_name, subsys_name);
+            }
+            return 0;
+        }
+    }
+    __log_error("dynamic component registry full");
+    return -1;
+}
+
+/* === dynamic filter extensions ============================================ */
+
+static bool log_dyn_filter_subsystem(const char* name, bool state, bool silent,
+    bool get_only)
+{
+    for (int i = 0; i < LOG_DYN_MAX_SUBSYSTEMS; i++) {
+        if (s_dyn_subsystems[i].used &&
+            strcmp(s_dyn_subsystems[i].name, name) == 0) {
+            if (get_only) {
+                return s_dyn_subsystems[i].enabled;
+            }
+            s_dyn_subsystems[i].enabled = state;
+            if (!silent) {
+                __log_info(" == dynamic subsystem '"__purple__"%s"__default__
+                    "' becomes '%s'", name, s_onoff[state]);
+            }
+            return state;
+        }
+    }
+    return false;
+}
+
+static bool log_dyn_filter_component(const char* subsys_name,
+    const char* comp_name, bool state, bool silent, bool get_only)
+{
+    int subsys_idx = -1;
+    for (int i = 0; i < LOG_DYN_MAX_SUBSYSTEMS; i++) {
+        if (s_dyn_subsystems[i].used &&
+            strcmp(s_dyn_subsystems[i].name, subsys_name) == 0) {
+            subsys_idx = i;
+            break;
+        }
+    }
+    if (subsys_idx < 0) return false;
+
+    for (int i = 0; i < LOG_DYN_MAX_COMPONENTS; i++) {
+        if (s_dyn_components[i].used &&
+            s_dyn_components[i].subsys_idx == subsys_idx &&
+            strcmp(s_dyn_components[i].name, comp_name) == 0) {
+            if (get_only) {
+                return s_dyn_components[i].enabled;
+            }
+            s_dyn_components[i].enabled = state;
+            if (!silent) {
+                __log_info(" == dynamic component '"__blue__"%s"__default__
+                    "' becomes '%s'", comp_name, s_onoff[state]);
+            }
+            return state;
+        }
+    }
+    return false;
+}
+
+static void log_dynamic_filter_list_stats(void)
+{
+    bool has_dynamic = false;
+    for (int i = 0; i < LOG_DYN_MAX_SUBSYSTEMS; i++) {
+        if (s_dyn_subsystems[i].used) {
+            has_dynamic = true;
+            break;
+        }
+    }
+    if (!has_dynamic) return;
+
+    const char* en_str[] = {
+        __red__ "disabled" __default__,
+        __green__ "enabled" __default__};
+
+    __log_output("==> dynamic subsystems/components stats:\n");
+    __log_output("\t================================\n");
+    for (int i = 0; i < LOG_DYN_MAX_SUBSYSTEMS; i++) {
+        if (!s_dyn_subsystems[i].used) continue;
+        __log_output("\t"__purple__"%-10s"__default__"%-10s\n",
+            s_dyn_subsystems[i].name,
+            en_str[s_dyn_subsystems[i].enabled ? 1 : 0]);
+        __log_output("\t    ----------------------------\n");
+        for (int j = 0; j < LOG_DYN_MAX_COMPONENTS; j++) {
+            if (s_dyn_components[j].used &&
+                s_dyn_components[j].subsys_idx == i) {
+                __log_output("\t    "__blue__"%-13s%s\n",
+                    s_dyn_components[j].name,
+                    s_onoff[s_dyn_components[j].enabled ? 1 : 0]);
+            }
+        }
+        __log_output("\t================================\n");
+    }
+}
+
+/* === dynamic message output =============================================== */
+
+void log_dynamic_message(const char* subsys_name, const char* comp_name,
+    log_type_info_t* p_type_info, const char* msg)
+{
+    if (!s_log_is_init) return;
+    if (!subsys_name || !comp_name || !p_type_info || !msg) return;
+
+    /* check log type enable */
+    if (!(p_type_info->flags & __log_type_flag_en)) return;
+
+    /* find the subsystem */
+    int subsys_idx = -1;
+    for (int i = 0; i < LOG_DYN_MAX_SUBSYSTEMS; i++) {
+        if (s_dyn_subsystems[i].used &&
+            strcmp(s_dyn_subsystems[i].name, subsys_name) == 0) {
+            subsys_idx = i;
+            break;
+        }
+    }
+    if (subsys_idx < 0 || !s_dyn_subsystems[subsys_idx].enabled) return;
+
+    /* find the component */
+    int comp_idx = -1;
+    for (int i = 0; i < LOG_DYN_MAX_COMPONENTS; i++) {
+        if (s_dyn_components[i].used &&
+            s_dyn_components[i].subsys_idx == subsys_idx &&
+            strcmp(s_dyn_components[i].name, comp_name) == 0) {
+            comp_idx = i;
+            break;
+        }
+    }
+    if (comp_idx < 0 || !s_dyn_components[comp_idx].enabled) return;
+
+    /* determine color */
+    int reset_cl = s_dyn_components[comp_idx].color;
+    if (reset_cl == 0) {
+        reset_cl = s_dyn_subsystems[subsys_idx].color;
+    }
+
+    /* set up log info structures */
+    log_info_t log_info = { .p_type_info = p_type_info };
+    log_info_base_t basic_info = {
+        .log_info = &log_info,
+        .comp_id = 0,
+        .subsys_id = 0,
+        .dyn_subsys_name = subsys_name,
+        .dyn_comp_name = comp_name,
+        #if __opt_test(__opt_log_header_filename, y)
+        .file = "mpy",
+        #endif
+        #if __opt_test(__opt_log_header_line_num, y)
+        .line = 0,
+        #endif
+        #if __opt_test(__opt_log_header_func_name, y)
+        .func = "mpy",
+        #endif
+    };
+
+    /* get buffer */
+    basic_info.buf = log_buf_fetch(NULL);
+    basic_info.idx = 0;
+
+    /* set default color */
+    #if __opt_test(__opt_global_log_coloring, y)
+    basic_info.log_color = reset_cl;
+    basic_info.curr_color = reset_cl;
+    basic_info.color_len = 0;
+    #endif
+
+    /* provide header */
+    log_provide_header(&basic_info, false);
+
+    /* provide warn/error color */
+    #if __opt_test(__opt_global_log_coloring, y)
+    if (0) {}
+    __opt_paste( __opt_log_type_warn, y,
+        else if ( &g_log_type_warn == p_type_info ) {
+            int color = __concat(__log_color_, __opt_log_type_color_warn);
+            basic_info.log_color = color;
+            log_provide_color(&basic_info, color);
+        }
+    )
+    __opt_paste( __opt_log_type_error, y,
+        else if ( &g_log_type_error == p_type_info ) {
+            int color = __concat(__log_color_, __opt_log_type_color_error);
+            basic_info.log_color = color;
+            log_provide_color(&basic_info, color);
+        }
+    )
+    #endif
+
+    /* provide message as plain string */
+    int len = strlen(msg);
+    for (int i = 0; i < len; i++) {
+        log_buf_append_char(&basic_info, msg[i]);
+    }
+
+    /* reset color and newline */
+    #if __opt_test(__opt_global_log_coloring, y)
+    log_buf_append_char(&basic_info, 0x1b);
+    log_buf_append_char(&basic_info, '[');
+    log_buf_append_char(&basic_info, 'm');
+    #endif
+
+    log_buf_append_char(&basic_info, '\n');
+    log_buf_append_char(&basic_info, '\r');
+    log_buf_append_char(&basic_info, '\0');
+    log_buf_commit(basic_info.buf);
 }
 
 /* === generic filter operations ============================================ */
@@ -723,13 +1117,13 @@ void log_filter_list_stats(void)
     log_header_filter_list_stats();
     log_types_filter_list_stats();
     log_header_filter_subsystems_stats();
+    log_dynamic_filter_list_stats();
 }
 
 /** -------------------------------------------------------------------------- *
  * logging intialization routine
  * --------------------------------------------------------------------------- *
  */
-static volatile bool s_log_is_init = false;
 static void log_engine_init(log_init_params_t* p_init_params);
 void log_init(log_init_params_t* p_init_params)
 {
@@ -908,7 +1302,6 @@ void log_impl(
     };
     log_info_base_t * p_basic_info = & basic_info;
     const log_type_info_t *  type_info = log_info->p_type_info;
-    log_info->p_basic_info = p_basic_info;
 
     // -- filter out non-enabled logs types
     if(! ( type_info->flags & __log_type_flag_en) ) {
@@ -1009,7 +1402,9 @@ void log_impl(
 
     // -- provide the log message
     if( type_info->p_provider ) {
+        log_info->p_basic_info = p_basic_info;  // Set temporarily for provider
         type_info->p_provider(log_info);
+        log_info->p_basic_info = NULL;  // Clear after use
     }
 
     if( fmt != NULL ) {
@@ -1110,16 +1505,18 @@ static void __log_header_seg_provider_id(os_info  )(log_info_base_t* p_info)
 #if __opt_test(__opt_log_header_subsystem, y)
 static void __log_header_seg_provider_id(subsystem)(log_info_base_t* p_info)
 {
-    log_provide_string(p_info, __subsystem_name(p_info->subsys_id),
-        __opt_log_disp_w_subsystem, 2);
+    const char* name = p_info->dyn_subsys_name ?
+        p_info->dyn_subsys_name : __subsystem_name(p_info->subsys_id);
+    log_provide_string(p_info, name, __opt_log_disp_w_subsystem, 2);
 }
 #endif
 
 #if __opt_test(__opt_log_header_component, y)
 static void __log_header_seg_provider_id(component)(log_info_base_t* p_info)
 {
-    log_provide_string(p_info, __component_name(p_info->comp_id),
-        __opt_log_disp_w_component, 2);
+    const char* name = p_info->dyn_comp_name ?
+        p_info->dyn_comp_name : __component_name(p_info->comp_id);
+    log_provide_string(p_info, name, __opt_log_disp_w_component, 2);
 }
 #endif
 

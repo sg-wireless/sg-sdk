@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------- #
-# Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+# Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files(the “Software”), to deal
@@ -19,10 +19,11 @@
 # OUT OF OR IN  CONNECTION WITH  THE SOFTWARE OR  THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 #
-# Author    Ahmed Sabry (SG Wireless)
+# Author      Ahmed Sabry (SG Wireless)
+# Maintainer  Christian Ehlers (SG Wireless)
 #
-# Desc      support the building of the rgbled interface component and its
-#           corresponding driver WS2812B
+# Desc        support the building of the rgbled interface component and its
+#             corresponding driver WS2812B
 # ---------------------------------------------------------------------------- #
 
 __sdk_menu_config_group_add(MAIN.PLATFORM.F1.RGBLED "RGB-LED")
@@ -41,23 +42,15 @@ __sdk_add_component( f1_rgbled_if
     INCS_IF
         ${CMAKE_CURRENT_LIST_DIR}
 
+    REQUIRED_ESP_LIBS
+        esp_hw_support
+        esp_driver_i2s
+        esp_wifi
+        esp_partition
+        esp_driver_gpio
+
     MENU_CONFIG     ${CMAKE_CURRENT_LIST_DIR}/rgbled.config
     MENU_PROMPT     "RGB LED interface component"
-    MENU_GROUP      MAIN.PLATFORM.F1.RGBLED
-)
-
-set(__dir_driver_ws2812_rmt ${__dir_ext}/ESP32-NeoPixel-WS2812-RMT)
-
-__sdk_add_component( driver_ws2812_rmt
-
-    SRCS
-        ${__dir_driver_ws2812_rmt}/ws2812_control.c
-
-    INCS_IF
-        ${__dir_driver_ws2812_rmt}
-    
-    MENU_CONFIG     ${__dir_driver_ws2812_rmt}/Kconfig
-    MENU_PROMPT     "RGB LED Driver (ESP32-NeoPixel-WS2812-RMT)"
     MENU_GROUP      MAIN.PLATFORM.F1.RGBLED
 )
 

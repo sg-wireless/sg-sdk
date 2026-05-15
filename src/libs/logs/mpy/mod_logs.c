@@ -1,5 +1,5 @@
 /** -------------------------------------------------------------------------- *
- * @copyright Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+ * @copyright Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files(the “Software”), to deal
@@ -66,8 +66,8 @@ __mp_mod_fun_kw(logs, va_list_demo, 0) (
     
     bool subsystem_state = log_filter_subsystem_get_state("default");
     bool component_state = log_filter_component_get_state("default", "default");
-    log_filter_subsystem("default", true);
-    log_filter_component("default", "default", true);
+    log_filter_subsystem("default", true, true);
+    log_filter_component("default", "default", true, true);
 
     const char* tab_str = mp_get_string(args[0].u_obj);
     const char* sep_str = " , ";
@@ -97,8 +97,8 @@ __mp_mod_fun_kw(logs, va_list_demo, 0) (
     }
     __log_endl();
 
-    log_filter_component("default", "default", component_state);
-    log_filter_subsystem("default", subsystem_state);
+    log_filter_component("default", "default", component_state, true);
+    log_filter_subsystem("default", subsystem_state, true);
     return mp_const_none;
 }
 
@@ -107,12 +107,23 @@ __mp_mod_fun_0(logs, filter_stats)(void) {
     return mp_const_none;
 }
 
-__mp_mod_fun_2(logs, filter_subsystem)(mp_obj_t subsys_obj, mp_obj_t state_obj) {
+__mp_mod_fun_kw(logs, filter_subsystem, 2) (
+    size_t n_args, const mp_obj_t *pos_args, mp_map_t* kw_args) {
 
-    const char* subsys_str = mp_get_string(subsys_obj);
+    static const mp_arg_t allowed_args[] = {
+        { MP_QSTR_subsystem, MP_ARG_REQUIRED | MP_ARG_OBJ, {.u_obj = mp_const_none} },
+        { MP_QSTR_state, MP_ARG_REQUIRED | MP_ARG_OBJ, {.u_obj = mp_const_none} },
+        { MP_QSTR_silent, MP_ARG_KW_ONLY | MP_ARG_BOOL, {.u_bool = false} },
+    };
+
+    mp_arg_val_t args[MP_ARRAY_SIZE(allowed_args)];
+    mp_arg_parse_all(n_args, pos_args, kw_args,
+                    MP_ARRAY_SIZE(allowed_args), allowed_args, args);
+
+    const char* subsys_str = mp_get_string(args[0].u_obj);
     if(subsys_str) {
-        if(mp_obj_is_bool(state_obj))
-            log_filter_subsystem(subsys_str, state_obj == mp_const_true);
+        if(mp_obj_is_bool(args[1].u_obj))
+            log_filter_subsystem(subsys_str, args[1].u_obj == mp_const_true, args[2].u_bool);
         else
             __log_error("passing non bool value");
     } else {
@@ -121,15 +132,26 @@ __mp_mod_fun_2(logs, filter_subsystem)(mp_obj_t subsys_obj, mp_obj_t state_obj) 
     return mp_const_none;
 }
 
-__mp_mod_fun_3(logs, filter_component)(
-    mp_obj_t subsys_obj, mp_obj_t comp_obj, mp_obj_t state_obj) {
+__mp_mod_fun_kw(logs, filter_component, 3) (
+    size_t n_args, const mp_obj_t *pos_args, mp_map_t* kw_args) {
 
-    const char* subsys_str = mp_get_string(subsys_obj);
-    const char* comp_str = mp_get_string(comp_obj);
+    static const mp_arg_t allowed_args[] = {
+        { MP_QSTR_subsystem, MP_ARG_REQUIRED | MP_ARG_OBJ, {.u_obj = mp_const_none} },
+        { MP_QSTR_component, MP_ARG_REQUIRED | MP_ARG_OBJ, {.u_obj = mp_const_none} },
+        { MP_QSTR_state, MP_ARG_REQUIRED | MP_ARG_OBJ, {.u_obj = mp_const_none} },
+        { MP_QSTR_silent, MP_ARG_KW_ONLY | MP_ARG_BOOL, {.u_bool = false} },
+    };
+
+    mp_arg_val_t args[MP_ARRAY_SIZE(allowed_args)];
+    mp_arg_parse_all(n_args, pos_args, kw_args,
+                    MP_ARRAY_SIZE(allowed_args), allowed_args, args);
+
+    const char* subsys_str = mp_get_string(args[0].u_obj);
+    const char* comp_str = mp_get_string(args[1].u_obj);
     if(subsys_str && comp_str) {
-        if(mp_obj_is_bool(state_obj))
+        if(mp_obj_is_bool(args[2].u_obj))
             log_filter_component(subsys_str, comp_str,
-                state_obj == mp_const_true);
+                args[2].u_obj == mp_const_true, args[3].u_bool);
         else
             __log_error("passing non bool value");
     } else if(!subsys_str) {
@@ -139,26 +161,46 @@ __mp_mod_fun_3(logs, filter_component)(
     }
     return mp_const_none;
 }
-__mp_mod_fun_2(logs, filter_header)(
-    mp_obj_t header_item_obj, mp_obj_t state_obj) {
+__mp_mod_fun_kw(logs, filter_header, 2) (
+    size_t n_args, const mp_obj_t *pos_args, mp_map_t* kw_args) {
 
-    const char* header_item_str = mp_get_string(header_item_obj);
+    static const mp_arg_t allowed_args[] = {
+        { MP_QSTR_header_item, MP_ARG_REQUIRED | MP_ARG_OBJ, {.u_obj = mp_const_none} },
+        { MP_QSTR_state, MP_ARG_REQUIRED | MP_ARG_OBJ, {.u_obj = mp_const_none} },
+        { MP_QSTR_silent, MP_ARG_KW_ONLY | MP_ARG_BOOL, {.u_bool = false} },
+    };
+
+    mp_arg_val_t args[MP_ARRAY_SIZE(allowed_args)];
+    mp_arg_parse_all(n_args, pos_args, kw_args,
+                    MP_ARRAY_SIZE(allowed_args), allowed_args, args);
+
+    const char* header_item_str = mp_get_string(args[0].u_obj);
     if(header_item_str) {
-        if(mp_obj_is_bool(state_obj))
-            log_filter_header(header_item_str, state_obj == mp_const_true);
+        if(mp_obj_is_bool(args[1].u_obj))
+            log_filter_header(header_item_str, args[1].u_obj == mp_const_true, args[2].u_bool);
         else
             __log_error("passing non bool value");
     } else
         __log_error("passing non header item name string obj");
     return mp_const_none;
 }
-__mp_mod_fun_2(logs, filter_log_type)(
-    mp_obj_t log_type_item_obj, mp_obj_t state_obj) {
+__mp_mod_fun_kw(logs, filter_log_type, 2) (
+    size_t n_args, const mp_obj_t *pos_args, mp_map_t* kw_args) {
 
-    const char* log_type_item_str = mp_get_string(log_type_item_obj);
+    static const mp_arg_t allowed_args[] = {
+        { MP_QSTR_log_type, MP_ARG_REQUIRED | MP_ARG_OBJ, {.u_obj = mp_const_none} },
+        { MP_QSTR_state, MP_ARG_REQUIRED | MP_ARG_OBJ, {.u_obj = mp_const_none} },
+        { MP_QSTR_silent, MP_ARG_KW_ONLY | MP_ARG_BOOL, {.u_bool = false} },
+    };
+
+    mp_arg_val_t args[MP_ARRAY_SIZE(allowed_args)];
+    mp_arg_parse_all(n_args, pos_args, kw_args,
+                    MP_ARRAY_SIZE(allowed_args), allowed_args, args);
+
+    const char* log_type_item_str = mp_get_string(args[0].u_obj);
     if(log_type_item_str) {
-        if(mp_obj_is_bool(state_obj))
-            log_filter_type(log_type_item_str, state_obj == mp_const_true);
+        if(mp_obj_is_bool(args[1].u_obj))
+            log_filter_type(log_type_item_str, args[1].u_obj == mp_const_true, args[2].u_bool);
         else
             __log_error("passing non bool value");
     } else
@@ -179,6 +221,131 @@ __mp_mod_fun_2(logs, header_reorder)(
     } else
         __log_error("passing non log header segment name");
     return mp_const_none;
+}
+
+/* --- dynamic registration and logging functions --------------------------- */
+
+__mp_mod_fun_kw(logs, register_subsystem, 1) (
+    size_t n_args, const mp_obj_t *pos_args, mp_map_t* kw_args) {
+
+    static const mp_arg_t allowed_args[] = {
+        { MP_QSTR_name, MP_ARG_REQUIRED | MP_ARG_OBJ, {.u_obj = mp_const_none} },
+        { MP_QSTR_color, MP_ARG_KW_ONLY | MP_ARG_OBJ,
+            {.u_obj = MP_OBJ_NEW_QSTR(MP_QSTR_default)} },
+        { MP_QSTR_enabled, MP_ARG_KW_ONLY | MP_ARG_BOOL, {.u_bool = true} },
+        { MP_QSTR_silent, MP_ARG_KW_ONLY | MP_ARG_BOOL, {.u_bool = true} },
+    };
+
+    mp_arg_val_t args[MP_ARRAY_SIZE(allowed_args)];
+    mp_arg_parse_all(n_args, pos_args, kw_args,
+                    MP_ARRAY_SIZE(allowed_args), allowed_args, args);
+
+    const char* name = mp_get_string(args[0].u_obj);
+    const char* color = mp_get_string(args[1].u_obj);
+    bool enabled = args[2].u_bool;
+    bool silent = args[3].u_bool;
+
+    if (!name) {
+        mp_raise_ValueError(MP_ERROR_TEXT("name must be a string"));
+    }
+
+    int ret = log_register_subsystem(name, color, enabled, silent);
+    if (ret != 0) {
+        mp_raise_ValueError(
+            MP_ERROR_TEXT("subsystem registration failed (full or duplicate)"));
+    }
+    return mp_const_none;
+}
+
+__mp_mod_fun_kw(logs, register_component, 2) (
+    size_t n_args, const mp_obj_t *pos_args, mp_map_t* kw_args) {
+
+    static const mp_arg_t allowed_args[] = {
+        { MP_QSTR_subsystem, MP_ARG_REQUIRED | MP_ARG_OBJ,
+            {.u_obj = mp_const_none} },
+        { MP_QSTR_component, MP_ARG_REQUIRED | MP_ARG_OBJ,
+            {.u_obj = mp_const_none} },
+        { MP_QSTR_color, MP_ARG_KW_ONLY | MP_ARG_OBJ,
+            {.u_obj = MP_OBJ_NEW_QSTR(MP_QSTR_default)} },
+        { MP_QSTR_enabled, MP_ARG_KW_ONLY | MP_ARG_BOOL, {.u_bool = true} },
+        { MP_QSTR_silent, MP_ARG_KW_ONLY | MP_ARG_BOOL, {.u_bool = true} },
+    };
+
+    mp_arg_val_t args[MP_ARRAY_SIZE(allowed_args)];
+    mp_arg_parse_all(n_args, pos_args, kw_args,
+                    MP_ARRAY_SIZE(allowed_args), allowed_args, args);
+
+    const char* subsys = mp_get_string(args[0].u_obj);
+    const char* comp = mp_get_string(args[1].u_obj);
+    const char* color = mp_get_string(args[2].u_obj);
+    bool enabled = args[3].u_bool;
+    bool silent = args[4].u_bool;
+
+    if (!subsys || !comp) {
+        mp_raise_ValueError(
+            MP_ERROR_TEXT("subsystem and component must be strings"));
+    }
+
+    int ret = log_register_component(subsys, comp, color, enabled, silent);
+    if (ret != 0) {
+        mp_raise_ValueError(
+            MP_ERROR_TEXT("component registration failed"));
+    }
+    return mp_const_none;
+}
+
+static mp_obj_t mod_logs_message(log_type_info_t* p_type,
+    size_t n_args, const mp_obj_t *pos_args, mp_map_t* kw_args) {
+
+    static const mp_arg_t allowed_args[] = {
+        { MP_QSTR_subsystem, MP_ARG_REQUIRED | MP_ARG_OBJ,
+            {.u_obj = mp_const_none} },
+        { MP_QSTR_component, MP_ARG_REQUIRED | MP_ARG_OBJ,
+            {.u_obj = mp_const_none} },
+        { MP_QSTR_message, MP_ARG_REQUIRED | MP_ARG_OBJ,
+            {.u_obj = mp_const_none} },
+    };
+
+    mp_arg_val_t args[MP_ARRAY_SIZE(allowed_args)];
+    mp_arg_parse_all(n_args, pos_args, kw_args,
+                    MP_ARRAY_SIZE(allowed_args), allowed_args, args);
+
+    const char* subsys = mp_get_string(args[0].u_obj);
+    const char* comp = mp_get_string(args[1].u_obj);
+    const char* msg = mp_get_string(args[2].u_obj);
+
+    if (!subsys || !comp || !msg) {
+        mp_raise_ValueError(
+            MP_ERROR_TEXT("subsystem, component and message must be strings"));
+    }
+
+    log_dynamic_message(subsys, comp, p_type, msg);
+    return mp_const_none;
+}
+
+__mp_mod_fun_kw(logs, info, 3) (
+    size_t n_args, const mp_obj_t *pos_args, mp_map_t* kw_args) {
+    return mod_logs_message(&g_log_type_info, n_args, pos_args, kw_args);
+}
+
+__mp_mod_fun_kw(logs, debug, 3) (
+    size_t n_args, const mp_obj_t *pos_args, mp_map_t* kw_args) {
+    return mod_logs_message(&g_log_type_debug, n_args, pos_args, kw_args);
+}
+
+__mp_mod_fun_kw(logs, warn, 3) (
+    size_t n_args, const mp_obj_t *pos_args, mp_map_t* kw_args) {
+    return mod_logs_message(&g_log_type_warn, n_args, pos_args, kw_args);
+}
+
+__mp_mod_fun_kw(logs, error, 3) (
+    size_t n_args, const mp_obj_t *pos_args, mp_map_t* kw_args) {
+    return mod_logs_message(&g_log_type_error, n_args, pos_args, kw_args);
+}
+
+__mp_mod_fun_kw(logs, output, 3) (
+    size_t n_args, const mp_obj_t *pos_args, mp_map_t* kw_args) {
+    return mod_logs_message(&g_log_type_output, n_args, pos_args, kw_args);
 }
 
 /* --- end of file ---------------------------------------------------------- */

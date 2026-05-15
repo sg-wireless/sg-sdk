@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ---------------------------------------------------------------------------- #
-# Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+# Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files(the “Software”), to deal
@@ -21,6 +21,7 @@
 # THE SOFTWARE.
 #
 # Author    Ahmed Sabry (SG Wireless)
+# Maintainer  Christian Ehlers (SG Wireless)
 #
 # Desc      The main builder script
 # ---------------------------------------------------------------------------- #
@@ -134,6 +135,9 @@ class TreeStruct:
     def get_ext_path(self):
         return f'{self.__root_dir}/ext'
     
+    def get_root_dir(self):
+        return self.__root_dir
+    
     def export_tree_paths(self, platform):
         os.environ["__tree_dir_root"]     = self.__root_dir    
         os.environ["__tree_dir_ext"]      = f'{self.__root_dir}/ext'    
@@ -150,6 +154,9 @@ class TreeStruct:
 # ---------------------------------------------------------------------------- #
 class BuilderCli:
     def __init__(self, tree:TreeStruct) -> None:
+
+        # Load defaults from defaults.sdk if it exists
+        defaults = self.__load_defaults_sdk(tree)
 
         cli = pycli.PyCli(
             caption="The Firmware SDK Builder CLI",
@@ -183,7 +190,8 @@ class BuilderCli:
         group_hardware_options = 'hardware options'
 
         cli.add_opt( 'board'
-            , required  = True
+            , required  = (defaults.get('board') is None)
+            , default   = defaults.get('board')
             , options   = tree.get_boards_names()
             , group     = group_hardware_options
             , help      = f''' The target hardware platform board.'''
@@ -193,7 +201,7 @@ class BuilderCli:
         group_software_options = 'software options'
 
         cli.add_opt( 'variant'
-            , default   = 'micropython'
+            , default   = defaults.get('variant', 'micropython')
             , group     = group_software_options
             , required  = False
             , options   = ['micropython', 'native']
@@ -224,7 +232,8 @@ class BuilderCli:
                             'clean',
                             'flash',
                             'erase',
-                            'config'
+                            'config',
+                            'env'
                             ]
             , group     = group_build_options
             , default   = 'build'
@@ -240,12 +249,16 @@ class BuilderCli:
                 , 'config'  : f'''To open the configuration menu. It is the same
                                 menu that is used in the Linux kernel
                                 configuration'''
-            }
+                , 'env'  : f'''To open the environment for idf.py and cmake to run. It is
+                                used for compatibility with the VS Code plugin 
+                                from Espressif'''
+                }
         )
 
         cli.add_arg( 'port'
             , nargs     = '+'
             , required  = False
+            , default   = defaults.get('port')
             , group     = group_build_options
             , help      = f'''The Port to be used for flashing.
                             Specifying more than one port is allowed
@@ -260,6 +273,7 @@ class BuilderCli:
         cli.add_arg( 'project-dir'
             , nargs     = 1
             , required  = False
+            , default   = defaults.get('project-dir')
             , group     = group_build_options
             , help      = f'''To specify the user/example specific project
                             folder'''
@@ -273,12 +287,92 @@ class BuilderCli:
                             build versioning'''
         )
 
+        # -- combination flags for chaining operations
+        cli.add_flag( 'clean'
+            , group     = group_build_options
+            , help      = f'''Clean before building the firmware'''
+        )
+
+        cli.add_flag( 'erase'
+            , group     = group_build_options
+            , help      = f'''Erase the device flash after building'''
+        )
+
+        cli.add_flag( 'flash'
+            , group     = group_build_options
+            , help      = f'''Flash the firmware after building'''
+        )
+        cli.add_arg( 'install-target'
+            , nargs     = '+'
+            , required  = False
+            , group     = group_build_options
+            , help      = f'''Target(s) for ESP-IDF toolchain installation.
+                            Limits which ESP32 targets are installed when ESP-IDF toolchains
+                            are installed (e.g., during first build).
+                            <br>
+                            {COLOR_GREY}Example: {COLOR_BLUE}
+                            --install-target esp32s3
+                            {COLOR_GREY}or{COLOR_BLUE}
+                            --install-target esp32s3 esp32c3
+                            {COLOR_DEFAULT}
+                            <br>
+                            If not specified, all ESP32 targets will be installed.'''
+        )
+
+        cli.add_flag( 'quiet-install'
+            , group     = group_build_options
+            , help      = f'''Suppress verbose output from ESP-IDF installation.
+                            Only errors will be displayed.'''
+        )
+
+        cli.add_flag( 'secure'
+            , group     = group_build_options
+            , help      = f'''Enable secure boot and flash encryption.
+                            This will use the full-flash command instead of flash
+                            to include the bootloader when flashing.'''
+        )
+
         self.__options = cli.parse()
         self.__check_arguments_sanity()
         # log(self.__options)
 
+    def __load_defaults_sdk(self, tree: TreeStruct) -> dict:
+        """Load default values from defaults.sdk file if it exists"""
+        defaults = {}
+        defaults_path = os.path.join(tree.get_root_dir(), 'defaults.sdk')
+        
+        if os.path.exists(defaults_path):
+            try:
+                import toml
+                with open(defaults_path, 'r') as f:
+                    config = toml.load(f)
+                
+                # Extract relevant defaults
+                if 'board' in config:
+                    defaults['board'] = config['board']
+                if 'port' in config:
+                    # Port can be a string or list - pycli will handle wrapping for nargs
+                    defaults['port'] = config['port']
+                if 'variant' in config:
+                    defaults['variant'] = config['variant']
+                if 'project-dir' in config:
+                    # Project-dir expects a single value that pycli will wrap
+                    defaults['project-dir'] = config['project-dir']
+                
+                log(f'-- Loaded defaults from {defaults_path}', COLOR_GREEN)
+                for key, value in defaults.items():
+                    log(f'   {key}: {value}')
+            except ImportError:
+                log(f'-- Warning: toml module not found, cannot load defaults.sdk', RED)
+            except Exception as e:
+                log(f'-- Warning: Failed to load defaults.sdk: {e}', RED)
+        
+        return defaults
+
     def __check_arguments_sanity(self):
         sanity_failed = False
+        command = self.get_build_command()
+        
         project_dir = self.get_project_dir()
         if project_dir != None:
             if not os.path.isdir(project_dir):
@@ -286,27 +380,32 @@ class BuilderCli:
                 sanity_failed = True
             else:
                 self.__options['project-dir'] = os.path.abspath(project_dir)
+        
         ports = self.get_ports()
-        if ports:
-            for p in ports:
-                try:
-                    ser = serial.Serial(p, 115200)
+        
+        # Only check port validity if command requires it
+        if command in ['flash', 'erase'] or self.should_flash() or self.should_erase():
+            if ports is None:
+                log(f'-- error: port must be specified for flash/erase operations', RED)
+                sanity_failed = True
+            else:
+                # Check port availability
+                for p in ports:
                     try:
-                        fcntl.flock(ser.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-                    except IOError:
-                        log(f'-- error: port {COLOR_CYAN}{p}{COLOR_RED} ' + 
-                            'is busy', RED)
-                        sanity_failed = True
-                    ser.close()
+                        ser = serial.Serial(p, 115200)
+                        try:
+                            fcntl.flock(ser.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                        except IOError:
+                            log(f'-- error: port {COLOR_CYAN}{p}{COLOR_RED} ' + 
+                                'is busy', RED)
+                            sanity_failed = True
+                        ser.close()
 
-                except IOError:
-                    log(f'-- error: port {COLOR_CYAN}{p}{COLOR_RED}' +
-                        ' is incorrect or in use', RED)
-                    sanity_failed = True
-        command = self.get_build_command()
-        if command in ['flash', 'erase'] and ports == None:
-            log(f'-- error: port must be specified for {command} command', RED)
-            sanity_failed = True
+                    except IOError:
+                        log(f'-- error: port {COLOR_CYAN}{p}{COLOR_RED}' +
+                            ' is incorrect or in use', RED)
+                        sanity_failed = True
+        
         if sanity_failed:
             exit(1)
 
@@ -342,6 +441,31 @@ class BuilderCli:
         if 'custom-version-string' in self.__options:
             return self.__options['custom-version-string']
         return None
+
+    def should_clean(self):
+        """Check if --clean flag was specified"""
+        return self.__options.get('clean', False)
+
+    def should_erase(self):
+        """Check if --erase flag was specified"""
+        return self.__options.get('erase', False)
+
+    def should_flash(self):
+        """Check if --flash flag was specified"""
+        return self.__options.get('flash', False)
+
+    def should_use_secure(self):
+        """Check if --secure flag was specified for secure boot and flash encryption"""
+        return self.__options.get('secure', False)
+
+    def get_install_targets(self):
+        if 'install-target' in self.__options:
+            return self.__options['install-target']
+        return None
+
+    def should_quiet_install(self):
+        """Check if --quiet-install flag was specified"""
+        return self.__options.get('quiet-install', False)
 
     def __get_max_opt_str_len(self):
         max_len = 0
@@ -513,63 +637,220 @@ def process_prerequisite_tools(ctx: BuilderContext):
 
     for tool in tools:
         if tool == 'esp-idf':
-            process_esp_idf_installation(ctx.tree)
+            process_esp_idf_installation(ctx.tree, ctx.cli)
         else:
             log(f'-- tool install not supported -> {COLOR_CYAN}{tool}', RED)
     pass
 
-def process_esp_idf_installation(tree: TreeStruct):
+def process_esp_idf_installation(tree: TreeStruct, cli: BuilderCli):
     def shell_source(script):
-        # source    https://stackoverflow.com/questions/7040592
-        #           calling-the-source-command-from-subprocess-popen
-        """Sometime you want to emulate the action of "source" in bash,
-        settings some environment variables. Here is a way to do it."""
-        pipe = subprocess.Popen(f'. {script} >/dev/null 2>&1 && env -0'
-                , stdout=subprocess.PIPE, shell=True)
-        output = pipe.communicate()[0]
-        for line in output.decode('utf-8').split('\0'):
-            line = line.split('=', 1)
-            if len(line) > 1:
-                os.environ.update({line[0]:line[1]})
-        return pipe.returncode == 0
+        """Improved shell sourcing function compatible with ESP-IDF v5.4+"""
+        log(f'-- sourcing script: {script}')
+        
+        # Check if debug mode is enabled
+        debug_mode = os.environ.get('ESP_IDF_EXPORT_DEBUG', '0') == '1'
+        redirect = '' if debug_mode else '>/dev/null 2>&1'
+        
+        # Use a more robust approach that works with ESP-IDF v5.4
+        # Instead of env -0, we use a Python script approach through the shell
+        script_cmd = f'''
+        set -e
+        . "{script}" {redirect}
+        python3 -c "import os; [print(f'{{k}}={{v}}') for k, v in os.environ.items() if k.startswith(('IDF_', 'ESP_', 'PATH'))]"
+        '''
+        
+        try:
+            result = subprocess.run(['bash', '-c', script_cmd], 
+                                  capture_output=True, text=True, check=False)
+            
+            if result.returncode != 0:
+                log(f'-- shell sourcing failed with return code {result.returncode}', RED)
+                if result.stderr:
+                    log(f'-- stderr: {result.stderr.strip()}', RED)
+                return False
+            
+            # Parse environment variables
+            for line in result.stdout.strip().split('\n'):
+                if '=' in line and line.strip():
+                    key, value = line.split('=', 1)
+                    if key.strip() and value.strip():
+                        os.environ[key] = value
+                        log(f'-- exported: {key}={value[:50]}{"..." if len(value) > 50 else ""}')
+            
+            return True
+            
+        except Exception as e:
+            log(f'-- shell sourcing exception: {e}', RED)
+            return False
 
-    def esp_idf_install(tree: TreeStruct):
+    def esp_idf_install(tree: TreeStruct, targets=None, quiet=False):
         esp_idf_path = tree.get_submodule_path('esp-idf')
         install_script = f'{esp_idf_path}/install.sh'
+        
+        # Build install command with optional targets
+        if targets:
+            target_args = ' '.join(targets)
+            cmd = f'{install_script} {target_args}'
+            log(f'-- running ESP-IDF installation for targets: {COLOR_CYAN}{target_args}{COLOR_DEFAULT}')
+        else:
+            cmd = install_script
+            log(f'-- running ESP-IDF installation: {install_script}')
+        
+        # Change to ESP-IDF directory for installation
+        original_cwd = os.getcwd()
         try:
-            ret = subprocess.run([install_script])
-        except subprocess.CalledProcessError as e:
-            ret = e
-        if ret.returncode != 0:
-            log(f'error ({ret.returncode}) occurs during esp-idf installation')
-            log(f'please check manually this issue')
+            os.chdir(esp_idf_path)
+            
+            # Run install script with proper environment
+            env = os.environ.copy()
+            env['IDF_PATH'] = esp_idf_path
+            
+            # Suppress output if quiet mode is enabled
+            if quiet:
+                ret = subprocess.run(cmd, shell=True, env=env, cwd=esp_idf_path,
+                                   stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+            else:
+                ret = subprocess.run(cmd, shell=True, env=env, cwd=esp_idf_path)
+            
+            if ret.returncode != 0:
+                log(f'-- error ({ret.returncode}) during esp-idf installation', RED)
+                # Show stderr in quiet mode if there was an error
+                if quiet and ret.stderr:
+                    log(f'-- stderr: {ret.stderr.strip()}', RED)
+                log(f'-- please check ESP-IDF installation manually', RED)
+                exit(1)
+                
+            log('-- esp-idf successfully installed!')
+            
+        except Exception as e:
+            log(f'-- installation exception: {e}', RED)
             exit(1)
-        log('esp-idf successfully installed!')
-        pass
+        finally:
+            os.chdir(original_cwd)
 
-    log('-- setting esp-idf envirnment')
+    def check_python_compatibility(esp_idf_path):
+        """Check if Python version meets ESP-IDF v5.4+ requirements (Python 3.8+)"""
+        detect_script = f'{esp_idf_path}/tools/detect_python.sh'
+        if os.path.exists(detect_script):
+            try:
+                result = subprocess.run(['bash', detect_script], 
+                                      capture_output=True, text=True, check=False)
+                if result.returncode != 0:
+                    log('-- Python version check failed', RED)
+                    log(f'-- ESP-IDF v5.4+ requires Python 3.8 or higher', RED)
+                    if result.stderr:
+                        log(f'-- error: {result.stderr.strip()}', RED)
+                    return False
+                    
+                log('-- Python version compatibility check passed')
+                return True
+            except Exception as e:
+                log(f'-- Python check exception: {e}', RED)
+                return False
+        else:
+            log('-- Python detection script not found, assuming compatibility')
+            return True
+
+    log('-- setting esp-idf environment')
 
     esp_idf_path = tree.get_submodule_path('esp-idf')
+    log(f'-- ESP-IDF path: {esp_idf_path}')
+    
+    # Verify ESP-IDF directory exists
+    if not os.path.exists(esp_idf_path):
+        log(f'-- ESP-IDF directory not found: {esp_idf_path}', RED)
+        exit(1)
+    
+    # Set IDF_PATH environment variable
+    os.environ["IDF_PATH"] = esp_idf_path
     log(f'-- set IDF_PATH = {esp_idf_path}')
-    os.environ.update({"IDF_PATH": esp_idf_path})
 
-    export_filename = f'{esp_idf_path}/export.sh'
-    log(f'-- source {export_filename}')
-    if not os.path.exists(export_filename):
-        log('-- esp-idf/export.sh file does not exist, please check')
+    # Check Python compatibility first
+    if not check_python_compatibility(esp_idf_path):
+        log('-- Python compatibility check failed, aborting', RED)
         exit(1)
 
+    export_filename = f'{esp_idf_path}/export.sh'
+    log(f'-- checking export script: {export_filename}')
+    
+    if not os.path.exists(export_filename):
+        log('-- esp-idf/export.sh file does not exist, please check', RED)
+        exit(1)
+
+    # Try to source the export script
     if not shell_source(export_filename):
-        log('-- esp-idf SDK might not be installed!, try installation', RED)
+        log('-- ESP-IDF environment setup failed, attempting installation', RED)
 
-        esp_idf_install(tree)
+        # Get install targets and quiet mode from CLI if specified
+        install_targets = cli.get_install_targets()
+        quiet_install = cli.should_quiet_install()
+        esp_idf_install(tree, install_targets, quiet_install)
 
+        # Try sourcing again after installation
         if not shell_source(export_filename):
-            log('esp-idf environment set failed after installation!' +
-                ' please check manually!', RED)
+            log('-- ESP-IDF environment setup failed after installation!', RED)
+            log('-- Please check the installation manually', RED)
             exit(1)
-        pass
+    
+    log('-- ESP-IDF environment successfully configured')
+    
+    # Verify critical environment variables are set
+    required_vars = ['IDF_PATH', 'PATH']
+    for var in required_vars:
+        if var not in os.environ or not os.environ[var]:
+            log(f'-- Warning: {var} not properly set after ESP-IDF setup', RED)
     pass
+
+# ---------------------------------------------------------------------------- #
+# secure boot signing key auto-generation
+# ---------------------------------------------------------------------------- #
+def ensure_secure_boot_signing_key(ctx: BuilderContext):
+    """If --secure is used, ensure the signing key PEM exists. If not, generate it.
+
+    This is safe to call only after process_prerequisite_tools() has run, because
+    that step sets up the ESP-IDF environment and places espsecure.py on PATH.
+    """
+    if not ctx.cli.should_use_secure():
+        return
+
+    board = ctx.cli.get_board()
+    platform = ctx.tree.get_platform_name(board)
+    platform_dir = ctx.tree.get_platform_dir(platform)
+
+    # Derive the absolute key path from the sdkconfig.secure entry.
+    sdkconfig_secure = f'{platform_dir}/configs/sdkconfig.secure'
+    key_path = None
+    if os.path.exists(sdkconfig_secure):
+        with open(sdkconfig_secure, 'r') as f:
+            for line in f:
+                if line.startswith('CONFIG_SECURE_BOOT_SIGNING_KEY='):
+                    relative = line.split('=', 1)[1].strip().strip('"')
+                    key_path = os.path.normpath(
+                        os.path.join(platform_dir, relative))
+                    break
+
+    if key_path is None:
+        log(f'-- warning: could not determine signing key path from '
+            f'{sdkconfig_secure}; skipping auto-generation', RED)
+        return
+
+    if os.path.exists(key_path):
+        log(f'-- secure boot signing key found: {COLOR_CYAN}{key_path}{COLOR_DEFAULT}')
+        return
+
+    log(f'-- secure boot signing key not found at: {COLOR_CYAN}{key_path}{COLOR_DEFAULT}')
+    log(f'-- generating a new secure boot signing key ...')
+
+    ret = subprocess.run(
+        ['espsecure.py', 'generate_signing_key', '--version', '2', key_path])
+    if ret.returncode != 0:
+        log(f'-- error: failed to generate secure boot signing key', RED)
+        exit(1)
+
+    log(f'-- secure boot signing key generated: {COLOR_CYAN}{key_path}{COLOR_DEFAULT}')
+    log(f'{COLOR_RED}-- IMPORTANT: Store this private key securely '
+        f'and do not commit it to version control!{COLOR_DEFAULT}')
+
 
 # ---------------------------------------------------------------------------- #
 # main routine
@@ -592,6 +873,7 @@ def main():
     tree = TreeStruct()
     cli = BuilderCli(tree)
     cli.show_options()
+    
     cfg = create_config_mgr_obj(tree, cli)
     ctx = BuilderContext(tree, cli, cfg)
 
@@ -605,17 +887,56 @@ def main():
 
     process_git_submodules(ctx)
     process_prerequisite_tools(ctx)
+    ensure_secure_boot_signing_key(ctx)
 
-    # invoke the build handler at platform side to continue the platform
-    # specific preparation and invoke the build system
-    try:
-        import build_handler
-        build_handler.run(ctx)
+    # Handle combination flags (--clean, --erase, --flash)
+    commands_to_run = []
+    
+    # If --clean flag is set, clean first
+    if cli.should_clean():
+        commands_to_run.append('clean')
+    
+    # Get the main command
+    main_command = cli.get_build_command()
+    
+    # Build is implicit unless command is 'clean' or 'config'
+    if main_command not in ['clean', 'config']:
+        commands_to_run.append('build')
+    elif main_command == 'config':
+        commands_to_run.append('config')
+    elif main_command == 'clean' and not cli.should_clean():
+        # Only clean command, no flags
+        commands_to_run.append('clean')
+    
+    # If --erase flag is set, erase after build
+    if cli.should_erase():
+        commands_to_run.append('erase')
+    
+    # If --flash flag is set or main command is flash, flash after build
+    if cli.should_flash() or main_command == 'flash':
+        commands_to_run.append('flash')
+    elif main_command == 'erase' and not cli.should_erase():
+        # Only erase command, no flags
+        commands_to_run.append('erase')
 
-    except Exception as ex:
-        log('error: could not execute build_handler', RED)
-        log(f'Exception: {ex}', RED)
-        exit(1)
+    # Execute commands in sequence
+    for command in commands_to_run:
+        log(f'\n-- Executing command: {command}', COLOR_CYAN)
+        
+        # Temporarily override the command in context
+        original_command = cli.get_build_command()
+        cli._BuilderCli__options['command'] = command
+        
+        try:
+            import build_handler
+            build_handler.run(ctx)
+        except Exception as ex:
+            log(f'error: could not execute build_handler for {command}', RED)
+            log(f'Exception: {ex}', RED)
+            exit(1)
+        
+        # Restore original command
+        cli._BuilderCli__options['command'] = original_command
 
 if __name__ == "__main__":
     main()

@@ -1,5 +1,5 @@
 /** -------------------------------------------------------------------------- *
- * Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+ * Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files(the “Software”), to deal
@@ -100,6 +100,12 @@ lora_wan_class_t lmh_get_class(void);
 
 void lmh_set_sys_rx_error(uint32_t rx_error_margin);
 uint32_t lmh_get_sys_rx_error(void);
+
+void lmh_set_adr(bool enable);
+bool lmh_get_adr(void);
+
+uint32_t lmh_get_last_tx_airtime(void);
+uint32_t lmh_get_last_network_rx_ms(void);
 
 void lmh_start_class_c_temp_session(void);
 void lmh_stop_class_c_temp_session(void);

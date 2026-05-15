@@ -63,7 +63,11 @@ typedef struct {
     lora_nvm_record_tail_t nvm_record_tail;
 } lora_commissioning_data_t;
 
+static lora_commissioning_data_t s_lora_commissioning_params;
+
 static void lora_commission_handle_data_change(void);
+static void lora_commission_load_defaults(void* p_record_mem, uint32_t size);
+static bool lora_commission_data_is_valid(void);
 
 /** -------------------------------------------------------------------------- *
  * ctor()/dtor()
@@ -72,6 +76,14 @@ static void lora_commission_handle_data_change(void);
 void lora_commission_ctor(void)
 {
     lora_commission_handle_data_change();
+
+    if(!lora_commission_data_is_valid())
+    {
+        __log_warn("invalid commissioning NvM data, reset to defaults");
+        lora_commission_load_defaults(&s_lora_commissioning_params,
+            sizeof(s_lora_commissioning_params));
+        lora_commission_handle_data_change();
+    }
 }
 void lora_commission_dtor(void)
 {
@@ -83,14 +95,24 @@ void lora_commission_dtor(void)
  * --------------------------------------------------------------------------- *
  */
 
-static lora_commissioning_data_t s_lora_commissioning_params;
-
 static const char* s_lora_commission_nvm_key = "lora-commission";
+static bool lora_commission_data_is_valid(void)
+{
+    commission_type_t type = s_lora_commissioning_params.type;
+    lora_wan_version_t version = s_lora_commissioning_params.version;
 
+    bool valid_type =
+        type == __LORA_COMMISSION_OTAA || type == __LORA_COMMISSION_ABP;
+    bool valid_version =
+        version == __LORA_WAN_VERSION_1_0_X
+        || version == __LORA_WAN_VERSION_1_1_X;
+
+    return valid_type && valid_version;
+}
 
 static void lora_commission_load_defaults( void* p_record_mem, uint32_t size )
 {
-    memset(p_record_mem, 0, sizeof(size));
+    memset(p_record_mem, 0, size);
     s_lora_commissioning_params.type = __LORA_COMMISSION_OTAA;
 }
 static void lora_commission_handle_data_change(void)
@@ -113,6 +135,12 @@ bool lora_commission_check(lora_commission_params_t * p_params)
 {
     lora_commissioning_data_t* ptr = & s_lora_commissioning_params;
     bool ret = false;
+
+    if(p_params == NULL)
+    {
+        __log_error("invalid commissioning params (NULL)");
+        return false;
+    }
 
     if(ptr->type == p_params->type && ptr->version == p_params->version)
     {

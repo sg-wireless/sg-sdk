@@ -1,5 +1,5 @@
 /** -------------------------------------------------------------------------- *
- * @copyright Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+ * @copyright Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files(the “Software”), to deal
@@ -20,6 +20,7 @@
  * THE SOFTWARE.
  *
  * @author  Ahmed Sabry (SG Wireless)
+ * @maintainer  Christian Ehlers (SG Wireless)
  *
  * @brief   This file control the firmware versioning
  * --------------------------------------------------------------------------- *
@@ -51,7 +52,7 @@ extern "C" {
 // major: for Incompatible Changes - New features
 #define FW_RELEASE_VERSION_MAJOR            1
 // minor: for Backward compatible new feature
-#define FW_RELEASE_VERSION_MINOR            3
+#define FW_RELEASE_VERSION_MINOR            4
 // patch: Backward compatible bug fix
 #define FW_RELEASE_VERSION_PATCH            0
 

@@ -1,6 +1,14 @@
---- ../../../../ext/esp-idf/components/bootloader_support/src/bootloader_common.c	2024-03-27 17:48:30
-+++ ./bootloader_support/modified_sources/bootloader_common.c	2024-04-03 06:36:35
-@@ -44,6 +44,60 @@
+--- ../../../../ext/esp-idf/components/bootloader_support/src/bootloader_common.c	2025-09-24 19:52:36.502016095 +0200
++++ ./bootloader_support/modified_sources/bootloader_common.c	2025-09-24 22:49:26.841656853 +0200
+@@ -5,6 +5,7 @@
+  */
+ #include <stdbool.h>
+ #include <assert.h>
++#include <inttypes.h>
+ #include "string.h"
+ #include "sdkconfig.h"
+ #include "esp_err.h"
+@@ -33,6 +34,60 @@
  {
      return bootloader_common_check_long_hold_gpio_level(num_pin, delay_sec, false);
  }
@@ -14,8 +22,8 @@
 +{
 +    extern const char* g_safeboot_tag;
 +    ESP_LOGI(g_safeboot_tag, "get hold time"
-+            " gpio( %d ),"
-+            " max_time( %d sec ),"
++            " gpio( %" PRIu32 " ),"
++            " max_time( %" PRIu32 " sec ),"
 +            " gpio-level( %d )",
 +            num_pin, max_time_sec, level);
 +

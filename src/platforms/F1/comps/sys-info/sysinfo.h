@@ -1,5 +1,5 @@
 /** -------------------------------------------------------------------------- *
- * Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+ * Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files(the “Software”), to deal
@@ -57,6 +57,11 @@ void sysinfo_flash_stats(void);
  * @brief   it shows the SPI RAM specs and info
  */
 void sysinfo_spiram_stats(void);
+
+/**
+ * @brief   shows comprehensive memory usage by region (internal, PSRAM, DMA, etc.)
+ */
+void sysinfo_memory_stats(void);
 
 void sysinfo_efuses(void);
 

@@ -1,5 +1,5 @@
---- ../../../../../ext/LoRaMac-node/src/radio/sx126x/radio.c	2024-10-01 14:57:12
-+++ ./modified_sources/radio.c	2024-10-31 16:17:52
+--- ../../../../../ext/LoRaMac-node/src/radio/sx126x/radio.c	2026-03-06 22:07:10.608243075 +0100
++++ ./modified_sources/radio.c	2026-03-05 23:39:56.538350589 +0100
 @@ -30,6 +30,13 @@
  #include "sx126x-board.h"
  #include "board.h"
@@ -279,13 +279,13 @@
 +    /* register the timestamp for accurate time calculation */
 +    // s_irq_fired_timastamp = TimerGetCurrentTime( );
 +    s_irq_fired_timastamp = (uint32_t)context;
- }
- 
++}
++
 +uint32_t radio_get_irq_timestamp(void)
 +{
 +    return s_irq_fired_timastamp;
-+}
-+
+ }
+ 
  void RadioIrqProcess( void )
  {
 +    lm_radio_process_assert();

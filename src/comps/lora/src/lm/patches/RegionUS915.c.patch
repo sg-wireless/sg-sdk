@@ -1,5 +1,5 @@
---- ../../../../../ext/LoRaMac-node/src/mac/region/RegionUS915.c	2024-04-18 13:15:55
-+++ ./modified_sources/RegionUS915.c	2024-04-18 13:18:06
+--- ../../../../../ext/LoRaMac-node/src/mac/region/RegionUS915.c	2026-03-06 22:07:10.590239955 +0100
++++ ./modified_sources/RegionUS915.c	2026-03-05 23:39:56.527350589 +0100
 @@ -67,7 +67,7 @@
      return txPowerResult;
  }
@@ -9,13 +9,13 @@
  {
      // Check radio driver support
      if( Radio.CheckRfFrequency( freq ) == false )
-@@ -82,7 +82,17 @@
+@@ -82,6 +82,16 @@
      {
          return false;
      }
 +    return true;
 +}
- 
++
 +static bool VerifyRfFreq( uint32_t freq )
 +{
 +    // Check radio driver support
@@ -23,10 +23,9 @@
 +    {
 +        return false;
 +    }
-+
+ 
      // Test for frequency range - take RX and TX freqencies into account
      if( ( freq < 902300000 ) ||  ( freq > 927500000 ) )
-     {
 @@ -732,7 +742,7 @@
      uint8_t status = 0x07;
  

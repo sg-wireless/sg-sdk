@@ -1,0 +1,10 @@
+--- a/py/mkrules.cmake
++++ b/py/mkrules.cmake
+@@ -65,6 +65,7 @@ endif()
+ 
+ # Compute MICROPY_CPP_FLAGS for preprocessor
+ list(APPEND MICROPY_CPP_INC ${MICROPY_CPP_INC_EXTRA})
++list(REMOVE_DUPLICATES MICROPY_CPP_INC)
+ list(APPEND MICROPY_CPP_DEF ${MICROPY_CPP_DEF_EXTRA})
+ set(_prefix "-I")
+ foreach(_arg ${MICROPY_CPP_INC})

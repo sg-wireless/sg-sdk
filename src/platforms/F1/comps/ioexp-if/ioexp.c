@@ -1,5 +1,5 @@
 /** -------------------------------------------------------------------------- *
- * Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+ * Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files(the “Software”), to deal
@@ -20,6 +20,7 @@
  * THE SOFTWARE.
  *
  * @author  Ahmed Sabry (SG Wireless)
+ * @maintainer  Christian Ehlers (SG Wireless)
  *
  * @brief   This file represents the firmware interface component to the IO
  *          Expander chip 'PCAL6408A'. It ports the driver component with the
@@ -48,8 +49,9 @@ __log_component_def(F1, ioexp, purple, 1, 0)
 #include "utils_units.h"    // for macros time units macros
 #include "utils_bitwise.h"
 
-#include "driver/i2c.h"         // for i2c transfer
-#include "driver/gpio.h"        // for interrupt and reset pin
+#include "soc/soc.h"           // for APB_CLK_FREQ
+#include "driver/i2c.h"        // for i2c transfer
+#include "driver/gpio.h"       // for interrupt and reset pin
 #include "hal/i2c_ll.h"
 
 #ifdef MICROPYTHON_BUILD
@@ -58,6 +60,7 @@ __log_component_def(F1, ioexp, purple, 1, 0)
 #define config_get_lte_modem_enable_on_boot() false
 #endif
 #include "esp_event.h"
+#include "esp_timer.h"
 
 /* --------------------------------------------------------------------------- *
  * Configuration
@@ -313,7 +316,7 @@ static void esp32_ioexp_i2c_ctor(void)
     __esp_api_call(i2c_param_config(__esp32_ioexp_i2c_port, &i2c_cfg),
         "i2c param config error", );
 
-    int timeout = __time2cycles( __esp32_ioexp_i2c_timeout, I2C_APB_CLK_FREQ );
+    int timeout = __time2cycles( __esp32_ioexp_i2c_timeout, APB_CLK_FREQ );
     __log_debug("i2c timeout : %d cycles", timeout);
 
     timeout = timeout > I2C_LL_MAX_TIMEOUT ? I2C_LL_MAX_TIMEOUT : timeout;
@@ -354,21 +357,25 @@ static SemaphoreHandle_t s_ioexp_sync_sem_handle = NULL;
 static TaskHandle_t s_ioexp_task_handle = NULL;
 static void esp32_ioexp_task(void * arg)
 {
+    __log_info("ioexp.c: interrupt task started and waiting for events");
     while(1)
     {
         if(xSemaphoreTake(s_ioexp_sync_sem_handle, portMAX_DELAY)== pdTRUE)
         {
+            __log_info("ioexp.c: interrupt event received, processing");
             __ioexp_access_lock();
             s_callback_timestamp = s_wakeup_timestamp;
             __log_debug("interrupt event");
             pcal6408a_interrupt_trigger_port();
             __ioexp_access_unlock();
+            __log_info("ioexp.c: interrupt processing completed");
         }
     }
 }
 
 static void esp32_ioexp_task_init(void)
 {
+    __log_info("ioexp.c: esp32_ioexp_task_init() starting");
     s_ioexp_sync_sem_handle = xSemaphoreCreateBinary();
     __log_assert(s_ioexp_sync_sem_handle != NULL,
         "failed to create ioexp sync sem");
@@ -382,6 +389,7 @@ static void esp32_ioexp_task_init(void)
         &s_ioexp_task_handle    // handle to the task
         );
     configASSERT( s_ioexp_task_handle );
+    __log_info("ioexp.c: interrupt task created successfully");
 }
 
 static void esp32_ioexp_int_handler(void * args)
@@ -389,10 +397,13 @@ static void esp32_ioexp_int_handler(void * args)
     (void)args;
     static BaseType_t xHigherPriorityTaskWoken;
     s_wakeup_timestamp = esp_timer_get_time() / 1000U;
+    __log_info("ioexp.c: GPIO interrupt handler triggered");
     if(xSemaphoreGiveFromISR(s_ioexp_sync_sem_handle,
         &xHigherPriorityTaskWoken) != pdTRUE)
     {
         __log_error("ioexp: failed to give sem from isr");
+    } else {
+        __log_info("ioexp.c: semaphore given from ISR");
     }
 }
 
@@ -554,11 +565,15 @@ void ioexp_init(void)
 {
     static bool s_ioexp_initialized = false;
 
+    __log_info("ioexp.c: ioexp_init() called");
+
     if( ! s_ioexp_initialized )
     {
+        __log_info("ioexp.c: initializing IO expander");
         __ioexp_access_guard_init();
 
         __opt_paste(__int__, y,
+            __log_info("ioexp.c: creating interrupt task");
             esp32_ioexp_task_init();
         )
 
@@ -567,6 +582,9 @@ void ioexp_init(void)
         ioexp_manage_power(__IOEXP_I2C_OFF);
 
         s_ioexp_initialized = true;
+        __log_info("ioexp.c: ioexp_init() completed");
+    } else {
+        __log_info("ioexp.c: already initialized");
     }
 }
 

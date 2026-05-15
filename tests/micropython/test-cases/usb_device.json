@@ -1,0 +1,115 @@
+{
+  "name": "USB Runtime Device Test Suite",
+  "description": "Test suite for validating USB Runtime Device functionality in MicroPython",
+  "version": "1.0",
+  "author": "sg-sdk automated testing framework",
+  "date": "October 2025",
+  "commands": [
+    {
+      "command": "import machine",
+      "description": "Import machine module",
+      "timeout": 2.0,
+      "expected_contains": [],
+      "expected_not_contains": ["Error", "Traceback"],
+      "should_succeed": true
+    },
+    {
+      "command": "hasattr(machine, 'USBDevice')",
+      "description": "Check if USBDevice class is available",
+      "timeout": 2.0,
+      "expected_contains": ["True"],
+      "should_succeed": true
+    },
+    {
+      "command": "machine.USBDevice",
+      "description": "Access USBDevice class",
+      "timeout": 2.0,
+      "expected_contains": ["<class 'USBDevice'>"],
+      "should_succeed": true
+    },
+    {
+      "command": "usb = machine.USBDevice()",
+      "description": "Create USB device instance",
+      "timeout": 3.0,
+      "expected_not_contains": ["Error", "Traceback", "OSError"],
+      "should_succeed": true
+    },
+    {
+      "command": "type(usb)",
+      "description": "Verify USB device instance type",
+      "timeout": 2.0,
+      "expected_contains": ["<class 'USBDevice'>"],
+      "should_succeed": true
+    },
+    {
+      "command": "usb.active()",
+      "description": "Check USB device active status",
+      "timeout": 2.0,
+      "expected_contains": ["False"],
+      "should_succeed": true
+    },
+    {
+      "command": "hasattr(usb, 'config')",
+      "description": "Check if config method exists",
+      "timeout": 2.0,
+      "expected_contains": ["True"],
+      "should_succeed": true
+    },
+    {
+      "command": "hasattr(usb, 'submit_xfer')",
+      "description": "Check if submit_xfer method exists",
+      "timeout": 2.0,
+      "expected_contains": ["True"],
+      "should_succeed": true
+    },
+    {
+      "command": "hasattr(usb, 'stall')",
+      "description": "Check if stall method exists",
+      "timeout": 2.0,
+      "expected_contains": ["True"],
+      "should_succeed": true
+    },
+    {
+      "command": "hasattr(usb, 'remote_wakeup')",
+      "description": "Check if remote_wakeup method exists",
+      "timeout": 2.0,
+      "expected_contains": ["True"],
+      "should_succeed": true
+    },
+    {
+      "command": "usb.BUILTIN_CDC",
+      "description": "Check BUILTIN_CDC constant",
+      "timeout": 2.0,
+      "expected_contains": ["<class"],
+      "should_succeed": true
+    },
+    {
+      "command": "usb.BUILTIN_DEFAULT",
+      "description": "Check BUILTIN_DEFAULT constant",
+      "timeout": 2.0,
+      "expected_contains": ["<class"],
+      "should_succeed": true
+    },
+    {
+      "command": "usb.BUILTIN_NONE",
+      "description": "Check BUILTIN_NONE constant",
+      "timeout": 2.0,
+      "expected_contains": ["<class"],
+      "should_succeed": true
+    },
+    {
+      "command": "dir(usb)",
+      "description": "List all USB device methods and attributes",
+      "timeout": 2.0,
+      "expected_contains": ["active", "config", "submit_xfer", "stall", "remote_wakeup", "BUILTIN_CDC"],
+      "should_succeed": true
+    },
+    {
+      "command": "print('USB Runtime Device test completed successfully')",
+      "description": "Final success message",
+      "timeout": 2.0,
+      "expected_contains": ["USB Runtime Device test completed successfully"],
+      "should_succeed": true
+    }
+  ]
+}

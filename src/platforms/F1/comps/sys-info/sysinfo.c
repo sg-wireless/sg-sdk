@@ -1,5 +1,5 @@
 /** -------------------------------------------------------------------------- *
- * Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+ * Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files(the “Software”), to deal
@@ -20,6 +20,7 @@
  * THE SOFTWARE.
  * 
  * @author  Ahmed Sabry (SG Wireless)
+ * @maintainer  Christian Ehlers (SG Wireless)
  * 
  * @brief   System info display
  * --------------------------------------------------------------------------- *
@@ -28,7 +29,7 @@
 /* --- include -------------------------------------------------------------- */
 
 #include "esp_flash.h"
-#include "spiram.h"
+#include "esp_psram.h"
 #include "esp_heap_caps.h"
 #include "esp_partition.h"
 
@@ -40,6 +41,7 @@
 #ifdef MICROPYTHON_BUILD
 #include "genhdr/mpversion.h"
 #include "mpconfigboard.h"
+#include "mpconfigport.h"
 #endif
 
 /* --- macros --------------------------------------------------------------- */
@@ -128,6 +130,8 @@ static const char* flash_get_part_type_name(esp_partition_type_t type)
     case ESP_PARTITION_TYPE_APP:    return "app";
     case ESP_PARTITION_TYPE_DATA:   return "data";
     case ESP_PARTITION_TYPE_ANY:    return "any";
+    case ESP_PARTITION_TYPE_BOOTLOADER: return "bootloader";
+    case ESP_PARTITION_TYPE_PARTITION_TABLE: return "partition_table";
     }
 
     return __red__"unknown"__default__;
@@ -149,6 +153,7 @@ static const char* flash_get_part_subtype_name(esp_partition_subtype_t type)
     case ESP_PARTITION_SUBTYPE_DATA_ESPHTTPD:   return "esp-httpd";
     case ESP_PARTITION_SUBTYPE_DATA_FAT:        return "fat";
     case ESP_PARTITION_SUBTYPE_DATA_SPIFFS:     return "spi-ffs";
+    case ESP_PARTITION_SUBTYPE_DATA_LITTLEFS:   return "littlefs";
     case ESP_PARTITION_SUBTYPE_ANY:             return "any";
     }
 
@@ -238,7 +243,7 @@ void sysinfo_spiram_stats(void)
 {
     __log_output_header(" spiram stats ", __total_w, '=');
 
-    uint32_t ram_size = esp_spiram_get_size();
+    uint32_t ram_size = esp_psram_get_size();
 
     __log_output_field(" - ram size", __name_w, ' ', __left__, false);
     __log_output(
@@ -248,6 +253,117 @@ void sysinfo_spiram_stats(void)
             __bytes_to_mb(ram_size)
             );
 
+    __log_output_fill(__total_w, '=', true);
+}
+
+void sysinfo_memory_stats(void)
+{
+    __log_output_header(" comprehensive memory stats ", __total_w, '=');
+
+    // Helper function to format memory sizes
+    #define __format_memory(name, size) do { \
+        __log_output_field(" - " name, __name_w, ' ', __left__, false); \
+        __log_output(__yellow__"%d "__default__"bytes " \
+                    "~= "__yellow__"%.1f "__default__"KB " \
+                    "~= "__yellow__"%.1f "__default__"MB\n", \
+                    (size), (size)/1024.0f, (size)/(1024.0f*1024.0f)); \
+    } while(0)
+
+    // 1. Total heap memory (all types)
+    size_t total_heap = heap_caps_get_total_size(MALLOC_CAP_DEFAULT);
+    size_t free_heap = heap_caps_get_free_size(MALLOC_CAP_DEFAULT);
+    size_t used_heap = total_heap - free_heap;
+    
+    __format_memory("Total Heap", total_heap);
+    __format_memory("Used Heap", used_heap);
+    __format_memory("Free Heap", free_heap);
+
+    __log_output("\n");
+
+    // 2. Internal RAM (DRAM/IRAM) - critical for DMA, ISRs, etc.
+    size_t total_internal = heap_caps_get_total_size(MALLOC_CAP_INTERNAL);
+    size_t free_internal = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
+    size_t used_internal = total_internal - free_internal;
+    
+    __format_memory("Total Internal RAM", total_internal);
+    __format_memory("Used Internal RAM", used_internal);
+    __format_memory("Free Internal RAM", free_internal);
+
+    __log_output("\n");
+
+    // 3. External RAM (PSRAM) - for application data
+    size_t total_spiram = heap_caps_get_total_size(MALLOC_CAP_SPIRAM);
+    size_t free_spiram = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
+    size_t used_spiram = total_spiram - free_spiram;
+    
+    __format_memory("Total PSRAM", total_spiram);
+    __format_memory("Used PSRAM", used_spiram);
+    __format_memory("Free PSRAM", free_spiram);
+
+    __log_output("\n");
+
+    // 4. DMA-capable memory (subset of internal RAM)
+    size_t total_dma = heap_caps_get_total_size(MALLOC_CAP_DMA);
+    size_t free_dma = heap_caps_get_free_size(MALLOC_CAP_DMA);
+    size_t used_dma = total_dma - free_dma;
+    
+    __format_memory("Total DMA-capable", total_dma);
+    __format_memory("Used DMA-capable", used_dma);
+    __format_memory("Free DMA-capable", free_dma);
+
+    __log_output("\n");
+
+    // 5. 32-byte aligned memory (some hardware requires this)
+    size_t total_32bit = heap_caps_get_total_size(MALLOC_CAP_32BIT);
+    size_t free_32bit = heap_caps_get_free_size(MALLOC_CAP_32BIT);
+    size_t used_32bit = total_32bit - free_32bit;
+    
+    __format_memory("Total 32-bit aligned", total_32bit);
+    __format_memory("Used 32-bit aligned", used_32bit);
+    __format_memory("Free 32-bit aligned", free_32bit);
+
+    __log_output("\n");
+
+    // 6. Largest free block sizes (fragmentation indicator)
+    size_t largest_free_heap = heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT);
+    size_t largest_free_internal = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL);
+    size_t largest_free_spiram = heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM);
+    size_t largest_free_dma = heap_caps_get_largest_free_block(MALLOC_CAP_DMA);
+    
+    __format_memory("Largest free block (Heap)", largest_free_heap);
+    __format_memory("Largest free block (Internal)", largest_free_internal);
+    __format_memory("Largest free block (PSRAM)", largest_free_spiram);
+    __format_memory("Largest free block (DMA)", largest_free_dma);
+
+    __log_output("\n");
+
+    // 7. Memory pressure indicators
+    float internal_usage = (used_internal * 100.0f) / total_internal;
+    float spiram_usage = total_spiram > 0 ? (used_spiram * 100.0f) / total_spiram : 0.0f;
+    float dma_usage = (used_dma * 100.0f) / total_dma;
+
+    __log_output_field(" - Internal RAM usage", __name_w, ' ', __left__, false);
+    __log_output(__yellow__"%.1f%%" __default__ "\n", internal_usage);
+    
+    __log_output_field(" - PSRAM usage", __name_w, ' ', __left__, false);
+    __log_output(__yellow__"%.1f%%" __default__ "\n", spiram_usage);
+    
+    __log_output_field(" - DMA RAM usage", __name_w, ' ', __left__, false);
+    __log_output(__yellow__"%.1f%%" __default__ "\n", dma_usage);
+
+    // 8. Critical warnings
+    __log_output("\n");
+    if (free_internal < 20480) {  // Less than 20KB internal RAM
+        __log_output(__red__" WARNING: Very low internal RAM! System may be unstable\n" __default__);
+    }
+    if (free_dma < 10240) {  // Less than 10KB DMA RAM
+        __log_output(__red__" WARNING: Low DMA-capable RAM! May cause UART/SPI issues\n" __default__);
+    }
+    if (largest_free_internal < 8192) {  // Largest block < 8KB
+        __log_output(__red__" WARNING: Internal RAM fragmentation detected\n" __default__);
+    }
+
+    #undef __format_memory
     __log_output_fill(__total_w, '=', true);
 }
 

@@ -1,5 +1,5 @@
 /** -------------------------------------------------------------------------- *
- * @copyright Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+ * @copyright Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files(the “Software”), to deal
@@ -20,6 +20,7 @@
  * THE SOFTWARE.
  * 
  * @author  Ahmed Sabry (SG Wireless)
+ * @maintainer  Christian Ehlers (SG Wireless)
  * 
  * @brief   This file handle and organizes the micropython callbacks for the
  *          lora-stack.
@@ -119,7 +120,7 @@ void mpy_lora_callback_init(void)
 
 void mpy_lora_callback_set(
     int port,
-    uint32_t on_events,
+    mpy_lora_callback_type_t on_events,
     mp_obj_t cb_fun_obj)
 {
     mpy_lora_callbacks_t * p_cbs = NULL;

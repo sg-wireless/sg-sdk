@@ -1,5 +1,5 @@
 /** -------------------------------------------------------------------------- *
- * @copyright Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+ * @copyright Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files(the “Software”), to deal
@@ -30,6 +30,10 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#include <stddef.h>
+#include <stdint.h>
+#include <stdbool.h>
 
 /** -------------------------------------------------------------------------- *
  * @def __hook_mpy_uart_stdout_access_lock
@@ -79,6 +83,27 @@ extern void hook_mpy_machine_hw_i2c_init(int port, int scl, int sda,
     _p_init, _p_err)
 #endif /* CONFIG_SDK_MPY_HOOK_MACHINE_I2C_INIT_ENABLE */
 #endif /* CONFIG_IOEXP_ENABLED */
+
+/** -------------------------------------------------------------------------- *
+ * @def __hook_mpy_machine_uart_init
+ * 
+ * @details A hook over mp_machine_uart_make_new() function to guard UART
+ *          resources from conflicts with LTE modem usage.
+ *          
+ *          Supports context-based reservation to allow reconfiguration within
+ *          the same context (e.g., sqnsupgrade.py changing baud rates).
+ * --------------------------------------------------------------------------- *
+ */
+#ifdef CONFIG_SDK_MPY_HOOK_MACHINE_UART_INIT_ENABLE
+extern void hook_mpy_machine_uart_init(int uart_num, uint8_t context_id,
+    bool *p_uart_reserved, const char **p_owner_name);
+#define __hook_mpy_machine_uart_init(_uart_num, _context_id, _p_reserved, _p_owner) \
+    hook_mpy_machine_uart_init(_uart_num, _context_id, _p_reserved, _p_owner)
+
+extern void hook_mpy_machine_uart_deinit(int uart_num, uint8_t context_id);
+#define __hook_mpy_machine_uart_deinit(_uart_num, _context_id) \
+    hook_mpy_machine_uart_deinit(_uart_num, _context_id)
+#endif /* CONFIG_SDK_MPY_HOOK_MACHINE_UART_INIT_ENABLE */
 
 /** -------------------------------------------------------------------------- *
  * Machine virtual timers hooks

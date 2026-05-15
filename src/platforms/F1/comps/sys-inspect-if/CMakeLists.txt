@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------- #
-# Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+# Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files(the “Software”), to deal
@@ -20,6 +20,7 @@
 # THE SOFTWARE.
 #
 # Author    Ahmed Sabry (SG Wireless)
+# Maintainer  Christian Ehlers (SG Wireless)
 #
 # Desc      Specifies the component to the build system
 # ---------------------------------------------------------------------------- #
@@ -40,6 +41,11 @@ __sdk_add_component( system_inspect_if_lib
     MENU_CONFIG     ${CMAKE_CURRENT_LIST_DIR}/sys_inspect.config
     MENU_PROMPT     "System Inspection"
     MENU_GROUP      MAIN.PLATFORM.F1
+
+    REQUIRED_ESP_LIBS
+        esp_hw_support
+        esp_wifi
+        driver
 )
 
 endif() # __build_variant == micropython

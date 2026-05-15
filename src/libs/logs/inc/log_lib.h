@@ -1,5 +1,5 @@
 /** -------------------------------------------------------------------------- *
- * @copyright Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+ * @copyright Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files(the “Software”), to deal
@@ -350,7 +350,8 @@ void log_filter_list_stats(void);
 
 void log_filter_header(
     const char* header_column_name,
-    bool state);
+    bool state,
+    bool silent);
 
 void log_filter_header_reorder(
     const char* name,
@@ -358,16 +359,19 @@ void log_filter_header_reorder(
 
 void log_filter_type(
     const char* type_name,
-    bool state);
+    bool state,
+    bool silent);
 
 void log_filter_component(
     const char* subsys_name,
     const char* component_name,
-    bool state);
+    bool state,
+    bool silent);
 
 void log_filter_subsystem(
     const char* subsystem_name,
-    bool state);
+    bool state,
+    bool silent);
 
 bool log_filter_subsystem_get_state(
     const char* subsystem_name);
@@ -387,6 +391,51 @@ void log_filter_save_state(log_filter_save_state_t* p_filter_state
     , bool new_state);
 
 void log_filter_restore_state(log_filter_save_state_t* p_filter_state);
+
+/** -------------------------------------------------------------------------- *
+ * dynamic subsystem/component registration (for MicroPython)
+ * --------------------------------------------------------------------------- *
+ */
+
+/**
+ * @brief   Register a dynamic subsystem at runtime.
+ * @param   name        subsystem name (max 23 chars)
+ * @param   color_name  color string: "default","red","green","yellow",
+ *                      "blue","purple","cyan","white","black"
+ * @param   enabled     initial enable state
+ * @param   silent      if true, suppress registration log message
+ * @return  0 on success, -1 on failure (full or duplicate)
+ */
+/**
+ * @brief   Clear all dynamic subsystem and component registrations.
+ *          Call before MicroPython soft reset to allow re-registration.
+ */
+void log_dynamic_registry_clear(void);
+
+int log_register_subsystem(const char* name, const char* color_name,
+    bool enabled, bool silent);
+
+/**
+ * @brief   Register a dynamic component under a dynamic subsystem.
+ * @param   subsys_name subsystem name (must be already registered)
+ * @param   comp_name   component name (max 23 chars)
+ * @param   color_name  color string (same as register_subsystem)
+ * @param   enabled     initial enable state
+ * @param   silent      if true, suppress registration log message
+ * @return  0 on success, -1 on failure
+ */
+int log_register_component(const char* subsys_name, const char* comp_name,
+    const char* color_name, bool enabled, bool silent);
+
+/**
+ * @brief   Output a dynamic log message through the standard log pipeline.
+ * @param   subsys_name registered dynamic subsystem name
+ * @param   comp_name   registered dynamic component name
+ * @param   p_type_info pointer to the log type (e.g., &g_log_type_info)
+ * @param   msg         message string
+ */
+void log_dynamic_message(const char* subsys_name, const char* comp_name,
+    log_type_info_t* p_type_info, const char* msg);
 
 /** -------------------------------------------------------------------------- *
  * extended logging types include files

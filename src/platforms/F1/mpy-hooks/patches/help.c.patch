@@ -1,5 +1,5 @@
---- ../../../../ext/micropython/ports/esp32/help.c	2023-11-14 10:45:09
-+++ ./modified_sources/help.c	2023-12-06 16:39:38
+--- ../../../../ext/micropython/ports/esp32/help.c	2025-11-15 20:45:10.589142841 +0100
++++ ./modified_sources/help.c	2025-11-25 02:29:37.532073636 +0100
 @@ -27,6 +27,7 @@
   */
  

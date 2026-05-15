@@ -1,5 +1,5 @@
 <!------------------------------------------------------------------------------
- ! @copyright Copyright (c) 2023-2025 SG Wireless - All Rights Reserved
+ ! @copyright Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
  !
  ! Permission is hereby granted, free of charge, to any person obtaining a copy
  ! of this software and associated documentation files(the “Software”), to deal
@@ -34,6 +34,113 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+<!------------------------------------------------------------------------------
+ ! v1.4.0
+ !----------------------------------------------------------------------------->
+## [1.4.0] - 2026-05-08
+
+### Platform & Build System
+
+- Update to MicroPython v1.26.1 and ESP-IDF v5.4
+- Switch CI workflow to GitHub Actions
+- Rename component from f1_legacy_fuota to f1_fuota
+- Remove cbor2-lib (now picked up from micropython-libs)
+- Update builder scripts to support new esp-idf install and release deployment
+- Refactor clean command to directly remove build directory
+- Enable deflate compression support
+- Add backward compatibility for legacy RTC state handling in bootloader
+- Add partition erase and reset functions for NVS and OTA data
+- Update NVS interface to include usage statistics and documentation
+
+### LTE
+
+- New unified LTE module (modlte) replacing lte-poc
+- ESP modem v2.0.0 middle layer for Sequans Monarch 2 GM02S (GM02SP4)
+- Fix espmodem: setup PDP context consistently for GM02S
+- Add PPP bridge implementation
+- Add UART resource guard component
+- Use LTE event handler in CTRL client; lock handler to avoid accidental redefinition
+- Set keepalive and send ping message every 5 minutes to avoid disconnects
+- Remove support for old LTE driver option
+- Print appropriate error message when SIM card is locked or missing
+- Add new LTE events documentation
+
+### CTRL Client
+
+- Update CTRL client and documentation
+- Send both MQTT ping and CTRL ping message for keep_alive
+- Update CTRL API documentation
+- Print a warning when ctrl.send_signal() is used (no longer supported)
+- Fix: send fw OTA messages only when status changed
+- Support ctrl.activate() from safeboot
+- Add backward-compatible stubs and NVS checks for CTRL client boot handling
+- Fix remove sensor error when no sensor is provisioned
+- Fix ctrl+c not working in _inisetup.py
+
+### FUOTA
+
+- Include ESP_IDF error name when available if a custom message has been set
+- Use smaller CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_CMN
+- Remove redundant blocking parameter from fuota.start_upgrade()
+- Enhance FUOTA with improved resume capabilities and configurable options
+  (HTTP Range requests, exponential backoff, artifact identity checks)
+- Add chunk-cap handling to OTA task for improved download reliability
+
+### LoRa / LoRaWAN
+
+- Fix LoRaWAN issues
+- Add LoRaWAN patches for LoRaMac, LoRaMacClassB, RegionUS915, and radio
+- Update CA certificate for server communication
+
+### SSL / Networking
+
+- Fix SSL issues
+- Add bundle-networking support via micropython-libs
+
+### Security
+
+- Add security component
+- Mark NVS keys partition as encrypted in platform configuration
+
+### Logging
+
+- Implement dynamic logging subsystem and component registration
+- Add silent option when updating log filters
+
+### New Components
+
+- Add fw-version component
+- Add mp_i2c_bridge component
+- Add ws2812_rmt driver component
+
+### Platform Features
+
+- Full USB device support with TinyUSB integration
+- Ethernet LAN support
+- Virtual timer support using FreeRTOS timers
+
+### Tests
+
+- Add MicroPython REPL automated test framework
+- Add test cases for basic functionality, Ethernet LAN, I2C bridge, IO expander
+  debug, and USB device
+
+### Documentation
+
+- Full documentation review
+- Update build system documentation for platform component registration and feature management
+- Add comprehensive component registration guide (BUILD_SYSTEM.md)
+- Add build commands reference (COMMANDS.md)
+- Add logging system integration guide (LOGGING.md)
+- Add I2C bridge practical examples (I2C_Bridge_Examples.md)
+- Reorganized documentation into docs/ directory
+
+### Copyright
+
+- Update copyright years to 2023-2026 across all SG Wireless source files
+- Add missing copyright notices to all new source files
+
 
 <!------------------------------------------------------------------------------
  ! v1.3.0

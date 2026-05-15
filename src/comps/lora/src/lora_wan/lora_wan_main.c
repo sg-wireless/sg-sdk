@@ -1,5 +1,5 @@
 /** -------------------------------------------------------------------------- *
- * Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+ * Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files(the “Software”), to deal
@@ -236,9 +236,14 @@ static lora_error_t lora_wan_dtor(void)
 
     lora_wan_duty_dtor();
     lora_stub_timers_stop_all();
-    lora_wan_process_dtor();
 
-    LoRaMacStop();
+    // Force-idle the MAC before tearing down the process task so that
+    // LoRaMacDeInitialization() does not return LORAMAC_STATUS_BUSY when a
+    // soft reset occurs mid-TX or during an RX window.
+    extern void lm_mac_force_stop(void);
+    lm_mac_force_stop();
+
+    lora_wan_process_dtor();
 
     if( LoRaMacDeInitialization() != LORAMAC_STATUS_OK ) {
         __log_error("lora mac deinit failed");
@@ -246,9 +251,6 @@ static lora_error_t lora_wan_dtor(void)
 
     lora_port_close_all();
     port_free_all();
-
-    /** TODO: reset radio and put it into sleep */
-    Radio.Sleep();
 
     void lw_radio_process_dtor(void);
     lw_radio_process_dtor();
@@ -349,7 +351,7 @@ static lora_error_t lora_wan_ioctl(uint32_t ioctl, void* arg)
         else
         {
             __log_info("ioctl -> device is already commissioned with the"
-                "given parameters");
+                " given parameters");
         }
     }
     else if( ioctl == __LORA_IOCTL_JOIN )
@@ -397,12 +399,12 @@ static lora_error_t lora_wan_ioctl(uint32_t ioctl, void* arg)
     }
     else if( ioctl == __LORA_IOCTL_ENABLE_RX_LISTENING )
     {
-        __log_info("ioctl -> enable rx litening");
+        __log_info("ioctl -> enable rx listening");
         lora_wan_enable_rx_listening();
     }
     else if( ioctl == __LORA_IOCTL_DISABLE_RX_LISTENING )
     {
-        __log_info("ioctl -> disable rx litening");
+        __log_info("ioctl -> disable rx listening");
         lora_wan_disable_rx_listening();
     }
     else if( ioctl == __LORA_IOCTL_PORT_OPEN )
@@ -491,6 +493,12 @@ static lora_error_t lora_wan_ioctl(uint32_t ioctl, void* arg)
         } else if (p_param->type == __LORA_WAN_PARAM_CAL_RXWIN_EXTENSION) {
             p_param->param.cal_time_extension =
                 lw_rxwin_calibration_get_time_extension();
+        } else if (p_param->type == __LORA_WAN_PARAM_ADR) {
+            p_param->param.adr_enable = lmh_get_adr();
+        } else if (p_param->type == __LORA_WAN_PARAM_TX_AIRTIME) {
+            p_param->param.tx_airtime_ms = lmh_get_last_tx_airtime();
+        } else if (p_param->type == __LORA_WAN_PARAM_LAST_NETWORK_RX) {
+            p_param->param.last_network_rx_ms = lmh_get_last_network_rx_ms();
         } else {
             __log_error("unknown lorawan parameter : %d", p_param->type);
         }
@@ -518,6 +526,8 @@ static lora_error_t lora_wan_ioctl(uint32_t ioctl, void* arg)
         } else if (p_param->type == __LORA_WAN_PARAM_CAL_RXWIN_EXTENSION) {
             lw_rxwin_calibration_set_time_extension(
                 p_param->param.cal_time_extension);
+        } else if (p_param->type == __LORA_WAN_PARAM_ADR) {
+            lmh_set_adr(p_param->param.adr_enable);
         } else {
             __log_error("unknown lorawan parameter : %d", p_param->type);
         }

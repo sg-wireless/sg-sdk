@@ -20,6 +20,7 @@
  ! THE SOFTWARE.
  !
  ! @author  Ahmed Sabry (SG Wireless)
+ ! @maintainer  Christian Ehlers (SG Wireless)
  !
  ! @brief   Documentation file for Fuel-Gauge.
  !----------------------------------------------------------------------------->
@@ -51,6 +52,22 @@ This interface component utilizes the open-source driver for this Fuel-Gauge
 which can be found at this git repository
     [https://github.com/svcguy/lib-BQ27421/tree/master](
         https://github.com/svcguy/lib-BQ27421/tree/master)
+
+### I2C Bridge Architecture
+
+The fuel gauge implementation uses MicroPython I2C Bridge architecture for
+ESP-IDF v5.4+ compatibility:
+
+- **Driver**: BQ27421 fuel gauge IC communicates via I2C
+- **Bridge**: `mp_i2c_bridge` component provides C interface to MicroPython I2C
+- **Benefits**: Unified I2C management, modern ESP-IDF compatibility, future-proof
+
+### Implementation Details
+
+- **Device Address**: 0x55 (7-bit I2C address)
+- **I2C Pins**: SCL=20, SDA=21 (configurable)
+- **Frequency**: 100kHz I2C bus frequency
+- **Integration**: Uses `fuel_gauge_mp.c` with I2C bridge for MicroPython builds
 
 <!------------------------------------------------------------------------------
  ! Fuel-Gauge Functions

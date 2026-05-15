@@ -1,5 +1,5 @@
 /** -------------------------------------------------------------------------- *
- * Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+ * Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files(the “Software”), to deal
@@ -20,6 +20,7 @@
  * THE SOFTWARE.
  * 
  * @author  Ahmed Sabry (SG Wireless)
+ * @maintainer  Christian Ehlers (SG Wireless)
  * 
  * @brief   This file represents the porting of the Pycom LoRa stack to the ESP32
  *          IDF environment.
@@ -42,6 +43,7 @@
 #include "nvs.h"
 #include "esp_random.h"
 #include "esp_crc.h"
+#include "esp_timer.h"
 #include "ioexp.h"
 #include "lora_port.h"
 
@@ -182,16 +184,21 @@ void esp32_lora_nvm_clear(void)
 static bool nvm_check(const char* key)
 {
     __log_debug("check record '%s'", key);
-    nvs_iterator_t it = nvs_entry_find(NVS_DEFAULT_PART_NAME, s_nvs_namespace,
-        NVS_TYPE_ANY);
-    while (it != NULL) {
+    nvs_iterator_t it = NULL;
+    esp_err_t err = nvs_entry_find(NVS_DEFAULT_PART_NAME, s_nvs_namespace,
+        NVS_TYPE_ANY, &it);
+    while (err == ESP_OK && it != NULL) {
             nvs_entry_info_t info;
             nvs_entry_info(it, &info);
             if( strcmp(key, info.key) == 0 ) {
+                nvs_release_iterator(it);
                 return true;
             }
-            it = nvs_entry_next(it);
+            err = nvs_entry_next(&it);
     };
+    if (it != NULL) {
+        nvs_release_iterator(it);
+    }
     return false;
 }
 

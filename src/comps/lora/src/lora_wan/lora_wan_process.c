@@ -1,5 +1,5 @@
 /** -------------------------------------------------------------------------- *
- * Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+ * Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files(the “Software”), to deal
@@ -602,7 +602,7 @@ static input_id_t get_state_machine_input(lora_wan_process_request_t req)
  * trx processing
  * --------------------------------------------------------------------------- *
  */
-static volatile bool s_enable_rx_litening = false;
+static volatile bool s_enable_rx_listening = false;
 
 static void* msg_timeout_timer = NULL;
 
@@ -731,7 +731,7 @@ static void trx_start_processing(void)
         }
         else
         {
-            if( s_enable_rx_litening )
+            if( s_enable_rx_listening )
             {
                 __log_info("-- no pending tx requests, start cycle for rx ..");
                 lmh_send(NULL, 0, 0, false);
@@ -900,7 +900,7 @@ static void lmh_cb_on_mac_tx(lmh_tx_status_params_t* p_tx_info)
     }
     else
     {
-        __log_warn("-- mac tx no msg in processing");
+        __log_info("-- mac tx no msg in processing (MAC-internal TX)");
     }
 }
 static void lmh_cb_on_mac_rx(lmh_rx_status_params_t* p_rx_info)
@@ -1057,12 +1057,12 @@ static void lora_wan_process_handler(void* data)
 
 void lora_wan_enable_rx_listening(void)
 {
-    s_enable_rx_litening = true;
+    s_enable_rx_listening = true;
 }
 
 void lora_wan_disable_rx_listening(void)
 {
-    s_enable_rx_litening = false;
+    s_enable_rx_listening = false;
 }
 
 /* --- end of file ---------------------------------------------------------- */

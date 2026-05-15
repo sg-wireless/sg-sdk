@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------- #
-# Copyright (c) 2023-2024 SG Wireless - All Rights Reserved
+# Copyright (c) 2023-2026 SG Wireless - All Rights Reserved
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files(the “Software”), to deal
@@ -20,6 +20,7 @@
 # THE SOFTWARE.
 #
 # Author    Ahmed Sabry (SG Wireless)
+# Maintainer  Christian Ehlers (SG Wireless)
 #
 # Desc      The main build driving file for fusion of the SDK, ESP-IDF and
 #           micropython project.
@@ -320,6 +321,20 @@ function(__esp_idf_process_preparation)
             ${__sdk_cmake_lists_dir}/micropython/CMakeLists.txt)
         list(APPEND __esp_idf_comps ${__sdk_cmake_lists_dir}/micropython)
 
+        # Add MicroPython managed components for USB support (TinyUSB)
+        # Create the managed_components directory if it doesn't exist (it's in .gitignore)
+        set(__managed_comp_dir ${__dir_micropython}/ports/esp32/managed_components)
+        if(NOT EXISTS ${__managed_comp_dir})
+            file(MAKE_DIRECTORY ${__managed_comp_dir})
+        endif()
+        list(APPEND __esp_idf_comps ${__managed_comp_dir})
+
+        # Add platform managed components for ESP modem and other managed components
+        set(__platform_managed_comp_dir ${__dir_platform}/managed_components)
+        if(EXISTS ${__platform_managed_comp_dir})
+            list(APPEND __esp_idf_comps ${__platform_managed_comp_dir})
+        endif()
+
         __entity_find(__user_libs ENTITY_TYPE userlib)
         foreach(__userlib ${__user_libs})
             __entity_set_attribute(${__userlib} DEFINITIONS
@@ -415,7 +430,11 @@ function(__esp_idf_process_finalization)
     log_list(__usr_libs_cc_flags)
     foreach(__lib ${__libs})
         __entity_get_attribute(${__lib} DEFINITIONS __defs)
-        target_compile_definitions(__idf_${__lib} PRIVATE ${__defs})
+        get_target_property(__lib_type_early __idf_${__lib} TYPE)
+        # Skip INTERFACE libraries - they cannot have PRIVATE compile definitions
+        if(NOT __lib_type_early STREQUAL "INTERFACE_LIBRARY")
+            target_compile_definitions(__idf_${__lib} PRIVATE ${__defs})
+        endif()
         set(__flags)
         __entity_get_attribute(${__lib} CFLAGS __flags)
         if(${__lib} IN_LIST __sdk_libs)
@@ -430,7 +449,10 @@ function(__esp_idf_process_finalization)
         log_var(__lib_type)
         log_list(__flags)
 
-        target_compile_options(__idf_${__lib} PRIVATE ${__flags})
+        # Skip INTERFACE libraries - they cannot have PRIVATE compile options
+        if(NOT __lib_type STREQUAL "INTERFACE_LIBRARY")
+            target_compile_options(__idf_${__lib} PRIVATE ${__flags})
+        endif()
     endforeach()
 
 endfunction()
