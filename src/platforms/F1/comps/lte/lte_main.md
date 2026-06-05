@@ -22,6 +22,8 @@ THE SOFTWARE.
 Description: Legacy LTE Class API Documentation
 -->
 
+# LTE Module - Legacy Python Implementation
+
 ## Constructors
 
 ### class LTE.LTE(…)

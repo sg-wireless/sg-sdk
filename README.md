@@ -30,6 +30,8 @@
  !----------------------------------------------------------------------------->
 # SGW Firmware SDK
 
+This documentation is [available online](https://projects.sgwireless.com/firmware)
+
 This repository contains the SDK for firmware development for
 __SGW OEM Modules and Boards__ such as `F1` product family.
 You can start directly building your own multi-connectivity embedded project
@@ -49,7 +51,7 @@ These are a quick references to contents of the SDK.
 * [Change Log](CHANGELOG.md)
 * SDK Framework
     * [Build System](tools/builder/docs/builder.md)
-    * [Component Registration Guide](BUILD_SYSTEM.md)
+    * [Component Registration Guide](docs/BUILD_SYSTEM.md)
     * [FW Versioning Structure](src/comps/fw-version/README.md)
 * Connectivity Features
     * [LTE-M](src/platforms/F1/comps/lte/lte_main.md)

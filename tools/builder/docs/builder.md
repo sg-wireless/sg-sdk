@@ -86,7 +86,7 @@ This layout structure consists mainly of the following:
 * `app-dir` a directory with a proper application name where the project
   contents will reside.<br>
   The project source directory contents organization description can be found
-  [here](new_fw_prj.md)
+  [here](fw_app_prj.md)
 
 The user can construct different applications by the following layout structure:
 
