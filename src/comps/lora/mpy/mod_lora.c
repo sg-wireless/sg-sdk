@@ -1270,19 +1270,29 @@ __mp_mod_fun_var_between(lora, datarate, 0, 1)(
         return mp_const_none;
     }
 
-    lora_wan_param_t param = {.type = __LORA_WAN_PARAM_DR};
+    lora_wan_param_t param = { .type = __LORA_WAN_PARAM_DR };
 
     if( n_args == 0 )
     {
-        lora_ioctl(__LORA_IOCTL_GET_PARAM, &param);
+        if( lora_ioctl(__LORA_IOCTL_GET_PARAM, &param) != __LORA_OK )
+        {
+            mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("datarate get failed"));
+        }
         return MP_OBJ_NEW_SMALL_INT(param.param.datarate);
     }
-    else
+
+    int dr = mp_obj_get_int(args[0]);
+    if( dr < -128 || dr > 127 )
     {
-        param.param.datarate = (int8_t)mp_obj_get_int(args[0]);
-        lora_ioctl(__LORA_IOCTL_SET_PARAM, &param);
-        return mp_const_none;
+        mp_raise_ValueError(MP_ERROR_TEXT("datarate must fit in int8"));
     }
+
+    param.param.datarate = (int8_t)dr;
+    if( lora_ioctl(__LORA_IOCTL_SET_PARAM, &param) != __LORA_OK )
+    {
+        mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("datarate set failed"));
+    }
+    return mp_const_none;
 }
 
 __mp_mod_fun_kw(lora, add_channel, 0)(
