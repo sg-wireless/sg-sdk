@@ -1394,7 +1394,12 @@ __mp_mod_fun_var_between(lora, channel_mask, 0, 1)(
         lora_wan_channel_mask_t cm = { .mask = {0} };
         for( size_t i = 0; i < len; ++i )
         {
-            cm.mask[i] = (uint16_t)mp_obj_get_int(items[i]);
+            int v = mp_obj_get_int(items[i]);
+            if( v < 0 || v > 0xFFFF )
+            {
+                mp_raise_ValueError(MP_ERROR_TEXT("channel_mask values must be 0..65535"));
+            }
+            cm.mask[i] = (uint16_t)v;
         }
 
         if( lora_ioctl(__LORA_IOCTL_CHANNEL_MASK_SET, &cm) != __LORA_OK )
