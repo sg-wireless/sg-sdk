@@ -50,6 +50,7 @@
 |[`lora.enable_rx_listening()`](#rx_listening)|perform class-a cycle to fetch pending DL msg|
 |[`lora.disable_rx_listening()`](#rx_listening)|if no pending UL msg, discard class-a cycle|
 |[`lora.mode(adr=)`](#adr)|enable or disable Adaptive Data Rate (ADR)|
+|[`lora.datarate()`](#datarate)|get or set LoRaWAN data rate index (DR) when ADR is disabled|
 |[`lora.tx_airtime()`](#tx_airtime)|get last TX time-on-air in milliseconds|
 |[`lora.last_rx_at()`](#last_rx_at)|get timestamp (ms since boot) of last network reception|
 |[`lora.add_channel()`](#add_channel)|add or replace a LoRaWAN channel (dynamic channel plan regions)|
@@ -433,6 +434,36 @@ lora.mode(lora._mode.WAN, adr=False)
 
 # re-enable ADR later (e.g. once the device is stationary)
 lora.mode(lora._mode.WAN, adr=True)
+```
+
+<!------------------------------------------------------------------------------
+ ! datarate
+ !----------------------------------------------------------------------------->
+<div id="datarate"></div>
+
+### Data Rate — `lora.datarate([dr])`
+
+Gets or sets the current LoRaWAN data rate index (`DR`).
+
+- With no argument, returns the current data rate index as `int`.
+- With `dr` provided, sets the data rate index.
+
+`dr` valid range depends on the active region and LoRaWAN version/profile.
+Use values allowed by your network server/region plan.
+
+For predictable behavior, configure data rate while ADR is disabled:
+
+```python
+import lora
+
+# disable ADR so manual DR is not overridden by network ADR commands
+lora.mode(lora._mode.WAN, adr=False)
+
+current = lora.datarate()
+print('current DR:', current)
+
+# set DR explicitly (example value; choose per region)
+lora.datarate(3)
 ```
 
 <!------------------------------------------------------------------------------
