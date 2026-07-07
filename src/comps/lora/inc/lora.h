@@ -143,6 +143,10 @@ typedef enum {
     __LORA_IOCTL_LCT_MODE_SET,  /**< to set the LCT mode on/off */
     __LORA_IOCTL_LCT_MODE_GET,  /**< to get the LCT mode status */
     __LORA_IOCTL_TOGGLE_RXWIN_VERBOSITY,  /**< to open/close rx-win verbosity */
+    __LORA_IOCTL_CHANNEL_ADD,           /**< add/replace a LoRaWAN channel (dynamic channel plan regions only) */
+    __LORA_IOCTL_CHANNEL_REMOVE,        /**< remove a LoRaWAN channel (dynamic channel plan regions only) */
+    __LORA_IOCTL_CHANNEL_MASK_SET,      /**< set the active channel mask */
+    __LORA_IOCTL_CHANNEL_MASK_GET,      /**< get the active channel mask */
 } lora_ioctl_t;
 
 /**
@@ -258,6 +262,7 @@ typedef enum {
                             /**< rx-window time-extension calibration param */
     __LORA_WAN_PARAM_CAL_ENABLE,/**< rx-window calibration param enable */
     __LORA_WAN_PARAM_ADR,       /**< adaptive data rate enable/disable */
+    __LORA_WAN_PARAM_DR,        /**< LoRaWAN datarate (DR0-DR15) */
     __LORA_WAN_PARAM_TX_AIRTIME,/**< last TX time-on-air in ms (read-only) */
     __LORA_WAN_PARAM_LAST_NETWORK_RX, /**< ms since boot of last network RX (read-only) */
 } lora_wan_param_type_t;
@@ -277,10 +282,37 @@ typedef struct {
         int32_t     cal_time_shift;     /**< calibration time-shift */
         int32_t     cal_time_extension; /**< calibration time-extension */
         bool        adr_enable;         /**< adaptive data rate enable */
+        int8_t      datarate;            /**< LoRaWAN datarate index */
         uint32_t    tx_airtime_ms;       /**< last TX time-on-air in ms */
         uint32_t    last_network_rx_ms;  /**< ms since boot of last network RX */
     } param;
 } lora_wan_param_t;
+
+/**
+ * LoRaWAN channel parameters for add/replace channel operations.
+ * Only applicable to dynamic channel plan regions (EU868, AS923, etc.).
+ */
+typedef struct {
+    uint8_t  index;     /**< channel index */
+    uint32_t frequency; /**< centre frequency in Hz */
+    uint8_t  dr_min;    /**< minimum data rate (0-7) */
+    uint8_t  dr_max;    /**< maximum data rate (0-7) */
+} lora_wan_channel_params_t;
+
+/**
+ * Maximum number of channel mask words.
+ * US915/AU915/CN470 use all 6 words; all other regions use only word[0].
+ */
+#define __LORA_WAN_CHANNEL_MASK_WORDS  6
+
+/**
+ * LoRaWAN channel mask for get/set channel mask operations.
+ * For US915/AU915/CN470: 6 x uint16_t words cover all 72 channels.
+ * For other regions: only mask[0] is significant.
+ */
+typedef struct {
+    uint16_t mask[__LORA_WAN_CHANNEL_MASK_WORDS];
+} lora_wan_channel_mask_t;
 
 /** -------------------------------------------------------------------------- *
  * LoRa RAW Specific APIs
@@ -345,6 +377,8 @@ typedef enum {
         for the current modulation parameters */
     __LORA_RAW_PARAM_RX_TIMEOUT,    /**< the rx window time in non continuous
                                          reception mode */
+    __LORA_RAW_PARAM_PUBLIC_NETWORK, /**< to set the LoRa sync word to public
+        (LoRaWAN) or private network. Set to true for LoRaWAN gateway use. */
 } lora_raw_param_type_t;
 
 /**
@@ -368,10 +402,11 @@ typedef struct {
         uint8_t     payload;    /**< max payload length */
         bool        tx_inv_iq;  /**< invertied TX IQ */
         bool        rx_inv_iq;  /**< invertied RX IQ */
-        bool        crc_on;     /**< CRC enable */
-        uint8_t     symb_timeout; /*< symbols timeout */
-        uint32_t    tx_timeout; /**< tx default window time */
-        uint32_t    rx_timeout; /**< rx default window time */
+        bool        crc_on;         /**< CRC enable */
+        uint8_t     symb_timeout;   /*< symbols timeout */
+        uint32_t    tx_timeout;     /**< tx default window time */
+        uint32_t    rx_timeout;     /**< rx default window time */
+        bool        public_network; /**< true = public LoRaWAN sync word */
     } param;
 } lora_raw_param_t;
 

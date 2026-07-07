@@ -536,87 +536,9 @@ logs.error("myapp", "network", "MQTT connection lost")
 
 ### CTRL Client Integration
 
-The CTRL client library (`ctrl_debug.py`) uses the `logs` module internally. Each CTRL component registers its own logging component under the `"ctrl"` subsystem:
+CTRL client specific debug integration details are documented in:
 
-| Component File | Component Name | Color |
-|----------------|---------------|-------|
-| `ctrl_debug.py` | `main` | green |
-| `ctrl_config.py` | `config` | yellow |
-| `ctrl_connection.py` | `connection` | blue |
-| `ctrl_protocol.py` | `protocol` | white |
-| `ctrl_library.py` | `library` | green |
-| `ctrl_sensors.py` | `sensors` | cyan |
-| `ctrl_pyconfig.py` | `pyconfig` | purple |
-
-#### Enabling Debug Output
-
-Use `ctrl.debug(level)` to set the global debug level for **all** components at once. This stores the level in NVS (`ctrl_debug`) and updates every component's level in `ctrl.dbg()`:
-
-```python
-ctrl.debug(100)   # Enable all components at level 100
-ctrl.debug(0)     # Disable all components
-ctrl.debug()      # Returns current global debug level
-```
-
-When `ctrl.debug()` sets a level, it also populates the per-component dict so you can fine-tune individual components afterward with `ctrl.dbg()`.
-
-#### Per-Component Debug Levels (`ctrl.dbg()`)
-
-Fine-grained control over individual component output. Levels are stored in NVS (`ctrl_dbg`) as a JSON dict and persist across reboots.
-
-```python
-# Query
-ctrl.dbg()                  # Returns full dict, e.g. {'sensors': 0, 'connection': 100, ...}
-ctrl.dbg("connection")      # Returns level for 'connection' (0 if not set)
-
-# Set individual components
-ctrl.dbg("connection", 100) # Enable connection at level 100
-ctrl.dbg("sensors", 0)      # Disable sensors (silenced on next boot)
-
-# Mass update via dict
-ctrl.dbg({"connection": 10, "protocol": 10, "sensors": 0, "config": 0})
-```
-
-**Behavior details:**
-- Components set to `0` are remembered in the dict. On next boot they are registered with `enabled=False` and `silent=True` — no log output at all.
-- Components with a level `> 0` are registered as enabled.
-- The `"*"` wildcard key sets the default level for any component not explicitly listed: `ctrl.dbg({"*": 100, "sensors": 0})` enables everything except sensors.
-- `ctrl.debug(N)` sets all components to level `N` and updates both `ctrl_debug` and `ctrl_dbg` in NVS.
-
-#### Typical Workflow
-
-```python
-# 1. Enable everything to see what's happening
-ctrl.debug(100)
-
-# 2. Too noisy — disable sensors and config, keep connection/protocol
-ctrl.dbg({"sensors": 0, "config": 0, "connection": 10, "protocol": 10})
-
-# 3. Check current state
-ctrl.dbg()
-# {'sensors': 0, 'config': 0, 'library': 100, 'connection': 10, 'protocol': 10, ...}
-
-# 4. Re-enable a single component
-ctrl.dbg("sensors", 50)
-
-# 5. Disable everything
-ctrl.debug(0)
-```
-
-All settings persist to NVS automatically — after a reboot, each component resumes at its saved level.
-
-#### Custom Components
-
-The `print_debug()` helper routes through the logging system using the `component` keyword argument:
-
-```python
-from ctrl_debug import print_debug, register_component
-
-DEBUG_COMPONENT = "my_module"
-register_component(DEBUG_COMPONENT, color='yellow')
-
-print_debug(5, "Something happened", component=DEBUG_COMPONENT)
-```
+- [CTRL Client User API - CTRL Client Integration](../src/comps/ctrl-client/docs/user-api.md#logging--debugging)
 
 ## Examples
 

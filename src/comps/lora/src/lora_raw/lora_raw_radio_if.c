@@ -64,6 +64,7 @@
 #define __lora_raw_default_symb_timeout 5
 #define __lora_raw_default_tx_timeout   6000
 #define __lora_raw_default_rx_timeout   6000
+#define __lora_raw_default_public_network false
 
 /** -------------------------------------------------------------------------- *
  * static declarations
@@ -95,6 +96,7 @@ static struct {
     uint32_t    tx_timeout;
     uint32_t    rx_timeout;
     uint32_t    time_on_air;
+    bool        public_network; // -- true = public LoRaWAN sync word (0x3444)
     lora_nvm_record_tail_t record_tail; // -- needed by the lora_nvm.h
 } s_radio_lora_params;
 
@@ -111,6 +113,7 @@ static void radio_if_nvm_load_defaults_callback(void* ptr, uint32_t size)
     s_radio_lora_params.tx_timeout = __lora_raw_default_tx_timeout;
     s_radio_lora_params.rx_timeout = __lora_raw_default_rx_timeout;
     s_radio_lora_params.bw         = __lora_raw_default_bw;
+    s_radio_lora_params.public_network = __lora_raw_default_public_network;
 
     s_radio_lora_params.time_on_air = Radio.TimeOnAir(MODEM_LORA,
         s_radio_lora_params.bw, s_radio_lora_params.sf,
@@ -295,6 +298,8 @@ static void loramac_radio_Setup(void)
         s_radio_lora_params.preamble, s_radio_lora_params.symb_timeout, false,
         s_radio_lora_params.payload, s_radio_lora_params.crc_on, false, 0,
         s_radio_lora_params.rx_inv_iq, true);
+
+    Radio.SetPublicNetwork(s_radio_lora_params.public_network);
 }
 
 static void loramac_radio_ctor(void)
@@ -415,6 +420,7 @@ static void reset_region_params(lora_region_t region)
     s_radio_lora_params.symb_timeout = __lora_raw_default_symb_timeout;
     s_radio_lora_params.tx_timeout = __lora_raw_default_tx_timeout;
     s_radio_lora_params.rx_timeout = __lora_raw_default_rx_timeout;
+    s_radio_lora_params.public_network = __lora_raw_default_public_network;
 
     tx_power_correct();
 }
@@ -434,6 +440,7 @@ static const char* lora_raw_params_names[] = {
     [__LORA_RAW_PARAM_SYMB_TIMEOUT ] = "symbol_timeout", 
     [__LORA_RAW_PARAM_TX_TIMEOUT   ] = "tx_timeout",
     [__LORA_RAW_PARAM_RX_TIMEOUT   ] = "rx_timeout", 
+    [__LORA_RAW_PARAM_PUBLIC_NETWORK] = "public_network",
 };
 
 static const char* get_param_string(lora_raw_param_type_t type)
@@ -603,6 +610,10 @@ static bool verify_rx_timeout(lora_region_t region, void* param)
 {
     return true;
 }
+static bool verify_public_network(lora_region_t region, void* param)
+{
+    return true;
+}
 
 static bool (*lora_raw_param_verification_table [] )(lora_region_t, void*) = {
     [__LORA_RAW_PARAM_REGION       ] = verify_region,
@@ -620,6 +631,7 @@ static bool (*lora_raw_param_verification_table [] )(lora_region_t, void*) = {
     [__LORA_RAW_PARAM_SYMB_TIMEOUT ] = verify_symb_timeout,
     [__LORA_RAW_PARAM_TX_TIMEOUT   ] = verify_tx_timeout,
     [__LORA_RAW_PARAM_RX_TIMEOUT   ] = verify_rx_timeout,
+    [__LORA_RAW_PARAM_PUBLIC_NETWORK] = verify_public_network,
 };
 
 lora_error_t lora_raw_radio_verify_param(lora_raw_param_t* param)
@@ -680,6 +692,7 @@ lora_error_t lora_raw_radio_set_param(lora_raw_param_t* param)
         case __LORA_RAW_PARAM_SYMB_TIMEOUT: __set_param(symb_timeout);break;
         case __LORA_RAW_PARAM_TX_TIMEOUT:   __set_param(tx_timeout);break;
         case __LORA_RAW_PARAM_RX_TIMEOUT:   __set_param(rx_timeout);break;
+        case __LORA_RAW_PARAM_PUBLIC_NETWORK: __set_param(public_network);break;
         default:
             return __LORA_ERROR;
     }
@@ -708,6 +721,7 @@ lora_error_t lora_raw_radio_get_param(lora_raw_param_t* param)
         case __LORA_RAW_PARAM_SYMB_TIMEOUT: __get_param(symb_timeout);break;
         case __LORA_RAW_PARAM_TX_TIMEOUT:   __get_param(tx_timeout);break;
         case __LORA_RAW_PARAM_RX_TIMEOUT:   __get_param(rx_timeout);break;
+        case __LORA_RAW_PARAM_PUBLIC_NETWORK: __get_param(public_network);break;
         default:
             return __LORA_ERROR;
     }
@@ -808,6 +822,9 @@ lora_error_t lora_raw_radio_get_default_region_param(lora_raw_param_t* param)
             break;
         case __LORA_RAW_PARAM_RX_TIMEOUT:
             param->param.rx_timeout = __lora_raw_default_rx_timeout;
+            break;
+        case __LORA_RAW_PARAM_PUBLIC_NETWORK:
+            param->param.public_network = __lora_raw_default_public_network;
             break;
         default:
             return __LORA_ERROR;

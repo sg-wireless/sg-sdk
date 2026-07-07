@@ -251,18 +251,23 @@ soft_reset:
     {
         __log_output("== micropython "__yellow__"normal"__default__" mode\n");
         pyexec_file_if_exists("boot.py");
-        #ifdef CONFIG_SDK_CTRL_CLIENT_BOOT_ENABLE
-        if (ctrl_on_boot_nvs_check()) {
-            pyexec_file_if_exists("ctrl_client_start.py");
-        } else {
-            pyexec_file_if_exists("ctrl_client_stubs.py");
-        }
-        #endif
+
         if (pyexec_mode_kind == PYEXEC_MODE_FRIENDLY_REPL) {
+            #ifdef CONFIG_SDK_CTRL_CLIENT_BOOT_ENABLE
+            if (ctrl_on_boot_nvs_check()) {
+                pyexec_file_if_exists("ctrl_client_start.py");
+            } else {
+                pyexec_file_if_exists("ctrl_client_stubs.py");
+            }
+            #endif
             int ret = pyexec_file_if_exists("main.py");
             if (ret & PYEXEC_FORCED_EXIT) {
                 goto soft_reset_exit;
             }
+        } else {
+            #ifdef CONFIG_SDK_CTRL_CLIENT_BOOT_ENABLE
+            pyexec_file_if_exists("ctrl_client_safeboot.py");
+            #endif
         }
     }
 

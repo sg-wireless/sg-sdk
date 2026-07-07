@@ -1496,8 +1496,9 @@ espmodem_err_t espmodem_deinit(bool power_off)
         vEventGroupDelete(g_espmodem.event_group);
     }
     
-    // Release UART1 reservation (context 1 = system/LTE namespace)
-    uart_release(1, UART_OWNER_LTE_ESPMODEM, 1);
+    // Release UART1 reservation (context 2 = C lte module namespace, must
+    // match the context_id passed to uart_reserve() above)
+    uart_release(1, UART_OWNER_LTE_ESPMODEM, 2);
     
     memset(&g_espmodem, 0, sizeof(g_espmodem));
     

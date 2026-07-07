@@ -50,8 +50,12 @@
 |[`lora.enable_rx_listening()`](#rx_listening)|perform class-a cycle to fetch pending DL msg|
 |[`lora.disable_rx_listening()`](#rx_listening)|if no pending UL msg, discard class-a cycle|
 |[`lora.mode(adr=)`](#adr)|enable or disable Adaptive Data Rate (ADR)|
+|[`lora.datarate()`](#datarate)|get or set LoRaWAN data rate index (DR) when ADR is disabled|
 |[`lora.tx_airtime()`](#tx_airtime)|get last TX time-on-air in milliseconds|
 |[`lora.last_rx_at()`](#last_rx_at)|get timestamp (ms since boot) of last network reception|
+|[`lora.add_channel()`](#add_channel)|add or replace a LoRaWAN channel (dynamic channel plan regions)|
+|[`lora.remove_channel()`](#remove_channel)|remove a LoRaWAN channel (dynamic channel plan regions)|
+|[`lora.channel_mask()`](#channel_mask)|get or set the active channel mask (all regions, required for US915/AU915/CN470)|
 
 <!------------------------------------------------------------------------------
  ! LoRa WAN Stats
@@ -433,6 +437,36 @@ lora.mode(lora._mode.WAN, adr=True)
 ```
 
 <!------------------------------------------------------------------------------
+ ! datarate
+ !----------------------------------------------------------------------------->
+<div id="datarate"></div>
+
+### Data Rate — `lora.datarate([dr])`
+
+Gets or sets the current LoRaWAN data rate index (`DR`).
+
+- With no argument, returns the current data rate index as `int`.
+- With `dr` provided, sets the data rate index.
+
+`dr` valid range depends on the active region and LoRaWAN version/profile.
+Use values allowed by your network server/region plan.
+
+For predictable behavior, configure data rate while ADR is disabled:
+
+```python
+import lora
+
+# disable ADR so manual DR is not overridden by network ADR commands
+lora.mode(lora._mode.WAN, adr=False)
+
+current = lora.datarate()
+print('current DR:', current)
+
+# set DR explicitly (example value; choose per region)
+lora.datarate(3)
+```
+
+<!------------------------------------------------------------------------------
  ! TX airtime
  !----------------------------------------------------------------------------->
 <div id="tx_airtime"></div>
@@ -510,4 +544,168 @@ def check_network_health():
         return False
     return True
 ```
+
+<!------------------------------------------------------------------------------
+ ! add_channel
+ !----------------------------------------------------------------------------->
+<div id="add_channel"></div>
+
+### Adding a channel — `lora.add_channel()`
+
+Adds or replaces a LoRaWAN channel in the MAC channel table.  This is only
+available on **dynamic channel plan** regions (EU868, AS923, KR920, IN865,
+RU864, EU433, CN779).  For US915/AU915/CN470 use
+[`lora.channel_mask()`](#channel_mask) instead.
+
+Keyword arguments (all required):
+
+| Parameter | Type | Description |
+| :---: | :---: | :--- |
+| `index` | int | Channel index to add/replace (region-dependent range) |
+| `frequency` | int | Centre frequency in Hz (e.g. `868100000`) |
+| `dr_min` | int | Minimum data rate index (0–7, region-dependent) |
+| `dr_max` | int | Maximum data rate index (0–7, region-dependent) |
+
+Raises `OSError` if the MAC rejects the request (e.g. region does not support
+dynamic channel plans).
+
+Example:
+
+```python
+import lora
+
+# Add an extra EU868 channel at 867.1 MHz, DR0–DR5
+lora.add_channel(index=3, frequency=867100000, dr_min=0, dr_max=5)
+```
+
+<!------------------------------------------------------------------------------
+ ! remove_channel
+ !----------------------------------------------------------------------------->
+<div id="remove_channel"></div>
+
+### Removing a channel — `lora.remove_channel()`
+
+Removes a previously added channel from the MAC channel table by its index.
+Like `add_channel`, this only works on dynamic channel plan regions.
+
+Raises `OSError` if the MAC rejects the request.
+
+Example:
+
+```python
+import lora
+
+# Remove the channel at index 3
+lora.remove_channel(3)
+```
+
+<!------------------------------------------------------------------------------
+ ! channel_mask
+ !----------------------------------------------------------------------------->
+<div id="channel_mask"></div>
+
+### Channel mask — `lora.channel_mask()`
+
+Gets or sets the active channel mask.  This works on **all regions** and is the
+correct way to restrict channels on fixed channel plan regions such as **US915**,
+AU915, and CN470.
+
+**Get** (no arguments) — returns a list of 6 integers representing the current
+channel mask words:
+
+```python
+mask = lora.channel_mask()
+# e.g. [0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0x00FF, 0x0000]  ← US915 all channels
+```
+
+**Set** (one argument: a list/tuple of 1–6 integers) — programs the channel mask.
+The mask is also written to the *default* mask so it survives a re-join.
+
+```python
+lora.channel_mask([w0, w1, w2, w3, w4, w5])
+```
+
+> **US915/AU915 word → channel mapping**
+>
+> | Word | 125 kHz channels | Mask bits | Sub-bands covered | 500 kHz ch |
+> | :---: | :--- | :--- | :--- | :--- |
+> | `mask[0]` | ch 0–7 | bits 0–7 (`0x00FF`) | sub-band 1 | — |
+> | `mask[0]` | ch 8–15 | bits 8–15 (`0xFF00`) | sub-band 2 | — |
+> | `mask[1]` | ch 16–23 | bits 0–7 (`0x00FF`) | sub-band 3 | — |
+> | `mask[1]` | ch 24–31 | bits 8–15 (`0xFF00`) | sub-band 4 | — |
+> | `mask[2]` | ch 32–39 | bits 0–7 (`0x00FF`) | sub-band 5 | — |
+> | `mask[2]` | ch 40–47 | bits 8–15 (`0xFF00`) | sub-band 6 | — |
+> | `mask[3]` | ch 48–55 | bits 0–7 (`0x00FF`) | sub-band 7 | — |
+> | `mask[3]` | ch 56–63 | bits 8–15 (`0xFF00`) | sub-band 8 | — |
+> | `mask[4]` | — | bits 0–7 | — | ch 64–71 (one per sub-band) |
+> | `mask[5]` | — | — | — | (unused in US915) |
+>
+> **US915 channel → frequency reference**
+>
+> | Channel | Frequency | Sub-band | Mask word/bits |
+> | :---: | :--- | :---: | :--- |
+> | 0–7 | 902.3 + 0.2×n MHz | 1 | `mask[0]` bits 0–7 |
+> | 8–15 | 903.9 + 0.2×n MHz | 2 | `mask[0]` bits 8–15 |
+> | 16–23 | 905.5 + 0.2×n MHz | 3 | `mask[1]` bits 0–7 |
+> | 24–31 | 907.1 + 0.2×n MHz | 4 | `mask[1]` bits 8–15 |
+> | 32–39 | 908.7 + 0.2×n MHz | 5 | `mask[2]` bits 0–7 |
+> | 40–47 | 910.3 + 0.2×n MHz | 6 | `mask[2]` bits 8–15 |
+> | 48–55 | 911.9 + 0.2×n MHz | 7 | `mask[3]` bits 0–7 |
+> | 56–63 | 913.5 + 0.2×n MHz | 8 | `mask[3]` bits 8–15 |
+> | 64–71 | 903.0 + 1.6×n MHz | (500 kHz) | `mask[4]` bits 0–7 |
+
+> **⚠️ US915 minimum-channels constraint**: the LoRaMac-node US915 region
+> implementation rejects any mask where **exactly 1** of the 64 125 kHz channels
+> (words 0–3) is enabled.  The only accepted counts are **0** (no 125 kHz
+> channels) or **≥ 2**.  Setting exactly 1 channel raises `OSError`.
+> This is a hard constraint in the LoRaWAN regional stack and cannot be worked
+> around without modifying the region code.
+
+Raises `ValueError` if the list length is outside 1–6.  Raises `OSError` if the
+MAC rejects the mask (e.g. the US915 single-channel constraint above).
+
+Examples:
+
+```python
+import lora
+
+# US915: restrict to sub-band 1 only (ch 0–7 + 500 kHz ch 64)
+lora.channel_mask([0x00FF, 0x0000, 0x0000, 0x0000, 0x0001, 0x0000])
+
+# US915: restrict to sub-band 2 only (ch 8–15 + 500 kHz ch 65)
+# (The Things Network US uses sub-band 2 by default)
+lora.channel_mask([0xFF00, 0x0000, 0x0000, 0x0000, 0x0002, 0x0000])
+
+# US915: restore all channels
+lora.channel_mask([0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0x00FF, 0x0000])
+
+# EU868: restrict to channel 0 only (868.1 MHz) — single channel gateway
+lora.channel_mask([0x0001])
+
+# EU868: restrict to the three mandatory channels (868.1, 868.3, 868.5 MHz)
+lora.channel_mask([0x0007])
+
+# Read back the current mask
+print(lora.channel_mask())
+```
+
+> **Single-channel gateway — EU868**: works perfectly.  Enable only the bit for
+> the channel your gateway is listening on.  Example for 868.1 MHz (ch 0):
+> ```python
+> lora.channel_mask([0x0001])
+> ```
+
+> **Single-channel gateway — US915**: due to the minimum-channels constraint
+> described above, you **cannot** restrict to exactly one 125 kHz channel.
+> The closest approach is to enable the two channels closest to the one your
+> gateway is listening on (from the same sub-band).  For a gateway on 902.3 MHz
+> (ch 0), use:
+> ```python
+> lora.channel_mask([0x0003, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000])
+> # ch 0 (902.3 MHz) + ch 1 (902.5 MHz) — the device will alternate between them
+> ```
+> If your gateway only understands a single frequency the device will still
+> miss 50 % of its Join/uplink attempts.  For production use, restrict to a
+> full sub-band (8 channels) that matches your gateway's configuration.
+
 <!--- end of file ------------------------------------------------------------->

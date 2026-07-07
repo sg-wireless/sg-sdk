@@ -814,6 +814,7 @@ __mp_mod_fun_kw(lora, radio_params, 0)(
     #define __idx_tx_timeout    14
     #define __idx_rx_timeout    15
     #define __idx_payload       16
+    #define __idx_public_network 17
 
     static mp_arg_t allowed[] = {
         #define __init(_idx, _kw, _type)    \
@@ -835,6 +836,7 @@ __mp_mod_fun_kw(lora, radio_params, 0)(
             __init(__idx_tx_timeout,    tx_timeout,     INT  ),
             __init(__idx_rx_timeout,    rx_timeout,     INT  ),
             __init(__idx_payload,       payload,        INT  ),
+            __init(__idx_public_network, public_network, BOOL ),
         #undef __init
     };
 
@@ -857,6 +859,7 @@ __mp_mod_fun_kw(lora, radio_params, 0)(
     #define __def_tx_timeout_int    allowed[__idx_tx_timeout  ].defval.u_int
     #define __def_rx_timeout_int    allowed[__idx_rx_timeout  ].defval.u_int
     #define __def_payload_int       allowed[__idx_payload     ].defval.u_int
+    #define __def_public_network_bool allowed[__idx_public_network].defval.u_bool
 
     mp_arg_val_t args[MP_ARRAY_SIZE(allowed)];
     #define __arg_reset_all_bool    args[__idx_reset_all   ].u_bool
@@ -876,6 +879,7 @@ __mp_mod_fun_kw(lora, radio_params, 0)(
     #define __arg_tx_timeout_int    args[__idx_tx_timeout  ].u_int
     #define __arg_rx_timeout_int    args[__idx_rx_timeout  ].u_int
     #define __arg_payload_int       args[__idx_payload     ].u_int
+    #define __arg_public_network_bool args[__idx_public_network].u_bool
 
 
     // -- parse the argument for the first time to pick-up the new region if any
@@ -918,6 +922,7 @@ __mp_mod_fun_kw(lora, radio_params, 0)(
     __load_default_value(tx_timeout,    TX_TIMEOUT,     int   );
     __load_default_value(rx_timeout,    RX_TIMEOUT,     int   );
     __load_default_value(payload,       PAYLOAD,        int   );
+    __load_default_value(public_network, PUBLIC_NETWORK, bool  );
 
     // -- second time argument parsing
     mp_arg_parse_all(n_args, pos_args, kw_args,
@@ -1004,6 +1009,7 @@ __mp_mod_fun_kw(lora, radio_params, 0)(
     __verify_param(tx_timeout,   TX_TIMEOUT,    int);
     __verify_param(rx_timeout,   RX_TIMEOUT,    int);
     __verify_param(payload,      PAYLOAD,       int);
+    __verify_param(public_network, PUBLIC_NETWORK, bool);
 
     if( ! verified )
     {
@@ -1044,6 +1050,7 @@ __mp_mod_fun_kw(lora, radio_params, 0)(
     __update_param(tx_timeout,   TX_TIMEOUT,    int);
     __update_param(rx_timeout,   RX_TIMEOUT,    int);
     __update_param(payload,      PAYLOAD,       int);
+    __update_param(public_network, PUBLIC_NETWORK, bool);
 
     if(change_detected)
     {
@@ -1067,6 +1074,7 @@ __mp_mod_fun_kw(lora, radio_params, 0)(
     #undef __idx_tx_timeout
     #undef __idx_rx_timeout
     #undef __idx_payload
+    #undef __idx_public_network
 
     #undef __def_reset_all_bool
     #undef __def_region_int
@@ -1084,6 +1092,7 @@ __mp_mod_fun_kw(lora, radio_params, 0)(
     #undef __def_tx_timeout_int
     #undef __def_rx_timeout_int
     #undef __def_payload_int
+    #undef __def_public_network_bool
 
     #undef __arg_reset_all_bool
     #undef __arg_region_int
@@ -1102,6 +1111,7 @@ __mp_mod_fun_kw(lora, radio_params, 0)(
     #undef __arg_tx_timeout_int
     #undef __arg_rx_timeout_int
     #undef __arg_payload_int
+    #undef __arg_public_network_bool
 
     return mp_const_none;
 }
@@ -1247,6 +1257,158 @@ __mp_mod_fun_0(lora, dr_stats)(void)
     void lora_dr_stats(void);
     lora_dr_stats();
     return mp_const_none;
+}
+
+__mp_mod_fun_var_between(lora, datarate, 0, 1)(
+    size_t n_args, const mp_obj_t *args)
+{
+    lora_mode_t mode;
+    lora_get_mode(&mode);
+    if( mode != __LORA_MODE_WAN )
+    {
+        __log_output("datarate is only available in LoRaWAN mode\n");
+        return mp_const_none;
+    }
+
+    lora_wan_param_t param = { .type = __LORA_WAN_PARAM_DR };
+
+    if( n_args == 0 )
+    {
+        if( lora_ioctl(__LORA_IOCTL_GET_PARAM, &param) != __LORA_OK )
+        {
+            mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("datarate get failed"));
+        }
+        return MP_OBJ_NEW_SMALL_INT(param.param.datarate);
+    }
+
+    int dr = mp_obj_get_int(args[0]);
+    if( dr < -128 || dr > 127 )
+    {
+        mp_raise_ValueError(MP_ERROR_TEXT("datarate must fit in int8"));
+    }
+
+    param.param.datarate = (int8_t)dr;
+    if( lora_ioctl(__LORA_IOCTL_SET_PARAM, &param) != __LORA_OK )
+    {
+        mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("datarate set failed"));
+    }
+    return mp_const_none;
+}
+
+__mp_mod_fun_kw(lora, add_channel, 0)(
+    size_t n_args, const mp_obj_t *pos_args, mp_map_t* kw_args)
+{
+    lora_mode_t mode;
+    lora_get_mode(&mode);
+    if( mode != __LORA_MODE_WAN )
+    {
+        __log_output("add_channel is only available in LoRaWAN mode\n");
+        return mp_const_none;
+    }
+
+    static const mp_arg_t allowed_args[] = {
+        { MP_QSTR_index,     MP_ARG_KW_ONLY | MP_ARG_REQUIRED | MP_ARG_INT, {.u_int = 0} },
+        { MP_QSTR_frequency, MP_ARG_KW_ONLY | MP_ARG_REQUIRED | MP_ARG_INT, {.u_int = 0} },
+        { MP_QSTR_dr_min,    MP_ARG_KW_ONLY | MP_ARG_REQUIRED | MP_ARG_INT, {.u_int = 0} },
+        { MP_QSTR_dr_max,    MP_ARG_KW_ONLY | MP_ARG_REQUIRED | MP_ARG_INT, {.u_int = 0} },
+    };
+
+    mp_arg_val_t args[MP_ARRAY_SIZE(allowed_args)];
+    mp_arg_parse_all(n_args, pos_args, kw_args,
+        MP_ARRAY_SIZE(allowed_args), allowed_args, args);
+
+    lora_wan_channel_params_t params = {
+        .index     = (uint8_t)args[0].u_int,
+        .frequency = (uint32_t)args[1].u_int,
+        .dr_min    = (uint8_t)args[2].u_int,
+        .dr_max    = (uint8_t)args[3].u_int,
+    };
+
+    if( lora_ioctl(__LORA_IOCTL_CHANNEL_ADD, &params) != __LORA_OK )
+    {
+        mp_raise_msg(&mp_type_OSError,
+            MP_ERROR_TEXT("add_channel failed (region may not support dynamic channels)"));
+    }
+    return mp_const_none;
+}
+
+__mp_mod_fun_1(lora, remove_channel)(mp_obj_t obj)
+{
+    lora_mode_t mode;
+    lora_get_mode(&mode);
+    if( mode != __LORA_MODE_WAN )
+    {
+        __log_output("remove_channel is only available in LoRaWAN mode\n");
+        return mp_const_none;
+    }
+
+    if( !MP_OBJ_IS_SMALL_INT(obj) )
+    {
+        mp_raise_TypeError(MP_ERROR_TEXT("channel index must be an integer"));
+    }
+    uint8_t idx = (uint8_t)MP_OBJ_SMALL_INT_VALUE(obj);
+    if( lora_ioctl(__LORA_IOCTL_CHANNEL_REMOVE, &idx) != __LORA_OK )
+    {
+        mp_raise_msg(&mp_type_OSError,
+            MP_ERROR_TEXT("remove_channel failed (region may not support dynamic channels)"));
+    }
+    return mp_const_none;
+}
+
+__mp_mod_fun_var_between(lora, channel_mask, 0, 1)(
+    size_t __arg_n, const mp_obj_t * __arg_v)
+{
+    lora_mode_t mode;
+    lora_get_mode(&mode);
+    if( mode != __LORA_MODE_WAN )
+    {
+        __log_output("channel_mask is only available in LoRaWAN mode\n");
+        return mp_const_none;
+    }
+
+    if( __arg_n == 0 )
+    {
+        /* GET: return channel mask as a list of up to 6 ints */
+        lora_wan_channel_mask_t cm;
+        lora_ioctl(__LORA_IOCTL_CHANNEL_MASK_GET, &cm);
+        mp_obj_t items[__LORA_WAN_CHANNEL_MASK_WORDS];
+        for( int i = 0; i < __LORA_WAN_CHANNEL_MASK_WORDS; ++i )
+        {
+            items[i] = MP_OBJ_NEW_SMALL_INT(cm.mask[i]);
+        }
+        return mp_obj_new_list(__LORA_WAN_CHANNEL_MASK_WORDS, items);
+    }
+    else
+    {
+        /* SET: accept a list/tuple of 1..6 ints */
+        mp_obj_t *items;
+        size_t len;
+        mp_obj_get_array(__arg_v[0], &len, &items);
+
+        if( len == 0 || len > __LORA_WAN_CHANNEL_MASK_WORDS )
+        {
+            mp_raise_ValueError(
+                MP_ERROR_TEXT("channel_mask list must contain 1 to 6 elements"));
+        }
+
+        lora_wan_channel_mask_t cm = { .mask = {0} };
+        for( size_t i = 0; i < len; ++i )
+        {
+            int v = mp_obj_get_int(items[i]);
+            if( v < 0 || v > 0xFFFF )
+            {
+                mp_raise_ValueError(MP_ERROR_TEXT("channel_mask values must be 0..65535"));
+            }
+            cm.mask[i] = (uint16_t)v;
+        }
+
+        if( lora_ioctl(__LORA_IOCTL_CHANNEL_MASK_SET, &cm) != __LORA_OK )
+        {
+            mp_raise_msg(&mp_type_OSError,
+                MP_ERROR_TEXT("channel_mask set failed"));
+        }
+        return mp_const_none;
+    }
 }
 
 __mp_mod_fun_ifdef(lora, certification_mode, CONFIG_LORA_LCT_CONTROL_API)

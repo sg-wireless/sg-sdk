@@ -1,5 +1,5 @@
---- ../../../../../ext/LoRaMac-node/src/mac/region/RegionUS915.c	2026-03-06 22:07:10.590239955 +0100
-+++ ./modified_sources/RegionUS915.c	2026-03-05 23:39:56.527350589 +0100
+--- ext/LoRaMac-node/src/mac/region/RegionUS915.c	2026-04-14 16:29:52.190703234 +0200
++++ src/comps/lora/src/lm/modified_sources/RegionUS915.c	2026-05-06 14:39:41.049421794 +0200
 @@ -67,7 +67,7 @@
      return txPowerResult;
  }
@@ -35,3 +35,12 @@
      {
          status &= 0xFE; // Channel frequency KO
      }
+@@ -897,7 +907,7 @@
+ 
+ bool RegionUS915ChannelsRemove( ChannelRemoveParams_t* channelRemove  )
+ {
+-    return LORAMAC_STATUS_PARAMETER_INVALID;
++    return false;
+ }
+ 
+ uint8_t RegionUS915ApplyDrOffset( uint8_t downlinkDwellTime, int8_t dr, int8_t drOffset )

@@ -495,6 +495,8 @@ static lora_error_t lora_wan_ioctl(uint32_t ioctl, void* arg)
                 lw_rxwin_calibration_get_time_extension();
         } else if (p_param->type == __LORA_WAN_PARAM_ADR) {
             p_param->param.adr_enable = lmh_get_adr();
+        } else if (p_param->type == __LORA_WAN_PARAM_DR) {
+            p_param->param.datarate = lmh_get_datarate();
         } else if (p_param->type == __LORA_WAN_PARAM_TX_AIRTIME) {
             p_param->param.tx_airtime_ms = lmh_get_last_tx_airtime();
         } else if (p_param->type == __LORA_WAN_PARAM_LAST_NETWORK_RX) {
@@ -510,10 +512,12 @@ static lora_error_t lora_wan_ioctl(uint32_t ioctl, void* arg)
         if( p_param->type == __LORA_WAN_PARAM_REGION) {
             if( lmh_get_region() !=  p_param->param.region)
             {
+                bool saved_adr = lmh_get_adr();
                 lmh_set_region(p_param->param.region);
                 lora_wan_dtor();
                 lora_nvm_clear_all();
                 lora_wan_ctor();
+                lmh_set_adr(saved_adr);
             }
         } else if (p_param->type == __LORA_WAN_PARAM_CLASS) {
             lmh_set_class(p_param->param.class);
@@ -528,6 +532,8 @@ static lora_error_t lora_wan_ioctl(uint32_t ioctl, void* arg)
                 p_param->param.cal_time_extension);
         } else if (p_param->type == __LORA_WAN_PARAM_ADR) {
             lmh_set_adr(p_param->param.adr_enable);
+        } else if (p_param->type == __LORA_WAN_PARAM_DR) {
+            lmh_set_datarate(p_param->param.datarate);
         } else {
             __log_error("unknown lorawan parameter : %d", p_param->type);
         }
@@ -555,6 +561,72 @@ static lora_error_t lora_wan_ioctl(uint32_t ioctl, void* arg)
     else if( ioctl == __LORA_IOCTL_TOGGLE_RXWIN_VERBOSITY )
     {
         lm_rxwin_toggle_debug_verbosity();
+    }
+    else if( ioctl == __LORA_IOCTL_CHANNEL_ADD )
+    {
+        lora_wan_channel_params_t* p = arg;
+        ChannelParams_t ch = {
+            .Frequency    = p->frequency,
+            .Rx1Frequency = 0,
+            .DrRange.Fields.Min = (int8_t)p->dr_min,
+            .DrRange.Fields.Max = (int8_t)p->dr_max,
+            .Band         = 0,
+        };
+        __log_info("ioctl -> add channel: idx=%d, freq=%lu, dr=[%d..%d]",
+            p->index, p->frequency, p->dr_min, p->dr_max);
+        if( LoRaMacChannelAdd(p->index, ch) != LORAMAC_STATUS_OK )
+        {
+            __log_error("LoRaMacChannelAdd failed (region may not support dynamic channels)");
+            ret = __LORA_ERROR;
+        }
+    }
+    else if( ioctl == __LORA_IOCTL_CHANNEL_REMOVE )
+    {
+        uint8_t id = *(uint8_t*)arg;
+        __log_info("ioctl -> remove channel: idx=%d", id);
+        if( LoRaMacChannelRemove(id) != LORAMAC_STATUS_OK )
+        {
+            __log_error("LoRaMacChannelRemove failed (region may not support dynamic channels)");
+            ret = __LORA_ERROR;
+        }
+    }
+    else if( ioctl == __LORA_IOCTL_CHANNEL_MASK_SET )
+    {
+        lora_wan_channel_mask_t* p = arg;
+        MibRequestConfirm_t mib = {
+            .Type = MIB_CHANNELS_MASK,
+            .Param.ChannelsMask = p->mask,
+        };
+        __log_info("ioctl -> set channel mask [%04x %04x %04x %04x %04x %04x]",
+            p->mask[0], p->mask[1], p->mask[2],
+            p->mask[3], p->mask[4], p->mask[5]);
+        if( LoRaMacMibSetRequestConfirm(&mib) != LORAMAC_STATUS_OK )
+        {
+            __log_error("MIB_CHANNELS_MASK set failed");
+            ret = __LORA_ERROR;
+        }
+        else
+        {
+            /* persist mask as the default so it survives a re-join */
+            mib.Type = MIB_CHANNELS_DEFAULT_MASK;
+            LoRaMacMibSetRequestConfirm(&mib);
+        }
+    }
+    else if( ioctl == __LORA_IOCTL_CHANNEL_MASK_GET )
+    {
+        lora_wan_channel_mask_t* p = arg;
+        MibRequestConfirm_t mib = { .Type = MIB_CHANNELS_MASK };
+        __log_info("ioctl -> get channel mask");
+        LoRaMacMibGetRequestConfirm(&mib);
+        memcpy(p->mask, mib.Param.ChannelsMask,
+            sizeof(uint16_t) * REGION_NVM_CHANNELS_MASK_SIZE);
+        /* zero-fill any unused words beyond the region mask size */
+        if( REGION_NVM_CHANNELS_MASK_SIZE < __LORA_WAN_CHANNEL_MASK_WORDS )
+        {
+            memset(&p->mask[REGION_NVM_CHANNELS_MASK_SIZE], 0,
+                sizeof(uint16_t) *
+                    (__LORA_WAN_CHANNEL_MASK_WORDS - REGION_NVM_CHANNELS_MASK_SIZE));
+        }
     }
     else
     {

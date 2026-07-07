@@ -537,8 +537,7 @@ Events allocate memory for event data. If you have memory constraints:
 
 ## See Also
 
-- [LTE Module API Reference](modlte.md)
-- [LTE Test Plan](LTE_TEST_PLAN.md)
+- [LTE Module API Reference](../src/platforms/F1/comps/lte/modlte.md)
 - [Example Scripts](../examples/)
 
 <!--- end of file --->

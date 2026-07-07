@@ -1,5 +1,5 @@
---- ../../../../../ext/LoRaMac-node/src/mac/LoRaMac.c	2026-03-06 22:07:10.575837458 +0100
-+++ ./modified_sources/LoRaMac.c	2026-03-08 00:57:39.525336106 +0100
+--- ext/LoRaMac-node/src/mac/LoRaMac.c	2026-04-14 16:29:52.182036571 +0200
++++ src/comps/lora/src/lm/modified_sources/LoRaMac.c	2026-05-07 13:48:35.615214001 +0200
 @@ -48,6 +48,24 @@
  
  #include "LoRaMac.h"
@@ -259,7 +259,7 @@
          TimerInit( &MacCtx.AbpJoinPendingTimer, OnAbpJoinPendingTimerEvent );
      }
  
-@@ -5725,3 +5795,15 @@
+@@ -5725,3 +5795,23 @@
      // Inform application layer
      OnMacProcessNotify( );
  }
@@ -274,4 +274,12 @@
 +    MacCtx.MacState = LORAMAC_IDLE;
 +    MacCtx.AllowRequests = LORAMAC_REQUEST_HANDLING_ON;
 +    LoRaMacRadioEvents.Value = 0;
++}
++
++Band_t* LoRaMacGetRegionBands( void )
++{
++    // Return pointer to the region bands array maintained inside LoRaMac.c.
++    // Used by lora_mac_utils to save/restore band state around display calls
++    // that temporarily redirect RegionBands to a local buffer.
++    return RegionBands;
 +}

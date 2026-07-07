@@ -104,6 +104,9 @@ uint32_t lmh_get_sys_rx_error(void);
 void lmh_set_adr(bool enable);
 bool lmh_get_adr(void);
 
+void lmh_set_datarate(int8_t dr);
+int8_t lmh_get_datarate(void);
+
 uint32_t lmh_get_last_tx_airtime(void);
 uint32_t lmh_get_last_network_rx_ms(void);
 
