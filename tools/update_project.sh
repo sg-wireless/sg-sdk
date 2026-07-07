@@ -9,11 +9,7 @@ if (( BASH_VERSINFO[0] < 4 )); then
     exit 1
 fi
 
-for cmd in perl realpath find sort cp mkdir; do
-    if ! command -v "$cmd" >/dev/null 2>&1; then
-        echo "Error: required command not found: $cmd" >&2
-        exit 1
-    fi
+for cmd in perl realpath find sort cp mkdir grep cat dirname basename; do
 done
 
 if ! realpath --help 2>&1 | grep -q -- '--relative-to'; then
