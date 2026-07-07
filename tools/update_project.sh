@@ -4,6 +4,23 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+if (( BASH_VERSINFO[0] < 4 )); then
+    echo "Error: this script requires bash >= 4.0 (associative arrays used)." >&2
+    exit 1
+fi
+
+for cmd in perl realpath find sort cp mkdir; do
+    if ! command -v "$cmd" >/dev/null 2>&1; then
+        echo "Error: required command not found: $cmd" >&2
+        exit 1
+    fi
+done
+
+if ! realpath --help 2>&1 | grep -q -- '--relative-to'; then
+    echo "Error: realpath must support --relative-to (GNU coreutils realpath)." >&2
+    exit 1
+fi
+
 if [ $# -ne 1 ]; then
     echo "Usage: $0 /path/to/content_folder" >&2
     exit 1

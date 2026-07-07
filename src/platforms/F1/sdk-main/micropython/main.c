@@ -259,7 +259,7 @@ soft_reset:
             } else {
                 pyexec_file_if_exists("ctrl_client_stubs.py");
             }
-            #endif            
+            #endif
             int ret = pyexec_file_if_exists("main.py");
             if (ret & PYEXEC_FORCED_EXIT) {
                 goto soft_reset_exit;
