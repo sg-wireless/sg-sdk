@@ -36,6 +36,36 @@ and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 <!------------------------------------------------------------------------------
+ ! v1.4.1
+ !----------------------------------------------------------------------------->
+## [1.4.1] - 2026-06-27
+
+### LoRa / LoRaWAN
+
+- Add dynamic channel management APIs: `lora.add_channel()`,
+  `lora.remove_channel()`, and `lora.channel_mask()`
+- Add `lora.datarate([dr])` API to get/set LoRaWAN data rate
+- LoRaWAN: send `LINK_ADR_REQ` response when channel mask changes
+- LoRa MAC: region state management and backup channel buffers for improved
+  roaming and region switching reliability
+- Patch updates: LoRaMac, LoRaMacClassB, RegionUS915 (MAC backup buffers,
+  ClassB timing fix, US915 channel mask handling)
+
+### Platform
+
+- Fix boot sequence: CTRL client no longer starts after a soft reset from
+  RAW REPL mode (`mpremote` / Ctrl-D), avoiding blocking delays during
+  file transfer
+
+### Documentation
+
+- CTRL client user API: expanded logging, debugging, and usage sections
+- LTE: add event reference and clarify API usage
+- Logging: consolidated logging guide in docs/LOGGING.md
+- Builder: minor usage corrections
+- Add `tools/update_project.sh` helper script
+
+<!------------------------------------------------------------------------------
  ! v1.4.0
  !----------------------------------------------------------------------------->
 ## [1.4.0] - 2026-05-08
